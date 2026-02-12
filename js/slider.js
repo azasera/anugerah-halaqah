@@ -36,8 +36,8 @@ function renderSlider() {
         return `
             <div id="slide-${index}" class="absolute inset-0 transition-all duration-500 ${isActive ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-full'}" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
                 <div class="absolute inset-0 bg-black/20"></div>
-                <div class="relative h-full p-8 md:p-12 flex flex-col">
-                    <h2 class="text-3xl md:text-4xl font-bold text-white mb-6">${slide.title}</h2>
+                <div class="relative h-full p-6 md:p-8 flex flex-col">
+                    <h2 class="text-2xl md:text-3xl font-bold text-white mb-4">${slide.title}</h2>
                     <div id="slide-content-${index}" class="flex-1">
                         <!-- Content populated dynamically -->
                     </div>
@@ -81,35 +81,35 @@ function renderTopSantri(container) {
     const third = dashboardData.students[2];
     
     container.innerHTML = `
-        <div class="flex flex-col items-center justify-center h-full">
+        <div class="flex flex-col items-center justify-center h-full px-4">
             <!-- Champion -->
-            <div class="text-center mb-8">
-                <div class="inline-block p-6 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full mb-4 shadow-2xl">
-                    <div class="text-6xl">🥇</div>
+            <div class="text-center mb-6">
+                <div class="inline-block p-4 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full mb-3 shadow-2xl">
+                    <div class="text-5xl">🥇</div>
                 </div>
-                <div class="text-white/80 text-sm mb-2">SANTRI TERBAIK</div>
-                <div class="text-5xl font-bold text-white mb-2">${topStudent.name}</div>
-                <div class="text-xl text-white/90 mb-4">Halaqah ${topStudent.halaqah}</div>
-                <div class="inline-block px-8 py-4 bg-white/20 backdrop-blur-sm rounded-2xl border-2 border-white/30">
-                    <div class="text-6xl font-bold text-white">${topStudent.total_points}</div>
-                    <div class="text-white/80 text-lg">Total Poin</div>
+                <div class="text-white/80 text-xs mb-1">SANTRI TERBAIK</div>
+                <div class="text-4xl md:text-5xl font-bold text-white mb-1">${topStudent.name}</div>
+                <div class="text-lg text-white/90 mb-3">Halaqah ${topStudent.halaqah}</div>
+                <div class="inline-block px-6 py-3 bg-white/20 backdrop-blur-sm rounded-2xl border-2 border-white/30">
+                    <div class="text-5xl font-bold text-white">${topStudent.total_points}</div>
+                    <div class="text-white/80 text-base">Total Poin</div>
                 </div>
             </div>
             
             <!-- Runner-ups -->
-            <div class="grid grid-cols-2 gap-6 max-w-2xl w-full">
-                <div class="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20 text-center">
-                    <div class="text-4xl mb-2">🥈</div>
-                    <div class="text-xl font-bold text-white mb-1">${second.name}</div>
-                    <div class="text-white/80 text-sm mb-2">Halaqah ${second.halaqah}</div>
-                    <div class="text-3xl font-bold text-white">${second.total_points}</div>
+            <div class="grid grid-cols-2 gap-4 max-w-2xl w-full">
+                <div class="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/20 text-center">
+                    <div class="text-3xl mb-1">🥈</div>
+                    <div class="text-lg font-bold text-white mb-1">${second.name}</div>
+                    <div class="text-white/80 text-xs mb-2">Halaqah ${second.halaqah}</div>
+                    <div class="text-2xl font-bold text-white">${second.total_points}</div>
                     <div class="text-white/70 text-xs">poin</div>
                 </div>
-                <div class="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20 text-center">
-                    <div class="text-4xl mb-2">🥉</div>
-                    <div class="text-xl font-bold text-white mb-1">${third.name}</div>
-                    <div class="text-white/80 text-sm mb-2">Halaqah ${third.halaqah}</div>
-                    <div class="text-3xl font-bold text-white">${third.total_points}</div>
+                <div class="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/20 text-center">
+                    <div class="text-3xl mb-1">🥉</div>
+                    <div class="text-lg font-bold text-white mb-1">${third.name}</div>
+                    <div class="text-white/80 text-xs mb-2">Halaqah ${third.halaqah}</div>
+                    <div class="text-2xl font-bold text-white">${third.total_points}</div>
                     <div class="text-white/70 text-xs">poin</div>
                 </div>
             </div>
@@ -156,35 +156,35 @@ function renderBestHalaqahToday(container) {
     const third = halaqahTodayPoints[2];
     
     container.innerHTML = `
-        <div class="flex flex-col items-center justify-center h-full">
+        <div class="flex flex-col items-center justify-center h-full px-4">
             <!-- Champion -->
-            <div class="text-center mb-8">
-                <div class="inline-block p-6 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full mb-4 shadow-2xl">
-                    <div class="text-6xl">👑</div>
+            <div class="text-center mb-6">
+                <div class="inline-block p-4 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full mb-3 shadow-2xl">
+                    <div class="text-5xl">👑</div>
                 </div>
-                <div class="text-yellow-100 text-sm mb-2 font-bold">HALAQAH TERBAIK HARI INI</div>
-                <div class="text-5xl font-bold text-white mb-2">${topHalaqah.name}</div>
-                <div class="text-xl text-white/90 mb-4">${topHalaqah.members} Anggota • ${topHalaqah.todaySubmissions} Setoran</div>
-                <div class="inline-block px-8 py-4 bg-white/20 backdrop-blur-sm rounded-2xl border-2 border-white/30">
-                    <div class="text-6xl font-bold text-white">${topHalaqah.todayPoints}</div>
-                    <div class="text-white/80 text-lg">Poin Hari Ini</div>
+                <div class="text-yellow-100 text-xs mb-1 font-bold">HALAQAH TERBAIK HARI INI</div>
+                <div class="text-4xl md:text-5xl font-bold text-white mb-1">${topHalaqah.name}</div>
+                <div class="text-lg text-white/90 mb-3">${topHalaqah.members} Anggota • ${topHalaqah.todaySubmissions} Setoran</div>
+                <div class="inline-block px-6 py-3 bg-white/20 backdrop-blur-sm rounded-2xl border-2 border-white/30">
+                    <div class="text-5xl font-bold text-white">${topHalaqah.todayPoints}</div>
+                    <div class="text-white/80 text-base">Poin Hari Ini</div>
                 </div>
             </div>
             
             <!-- Runner-ups -->
-            <div class="grid grid-cols-2 gap-6 max-w-2xl w-full">
-                <div class="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20 text-center">
-                    <div class="text-4xl mb-2">🥈</div>
-                    <div class="text-xl font-bold text-white mb-1">${second.name}</div>
-                    <div class="text-white/80 text-sm mb-2">${second.todaySubmissions} setoran</div>
-                    <div class="text-3xl font-bold text-white">${second.todayPoints}</div>
+            <div class="grid grid-cols-2 gap-4 max-w-2xl w-full">
+                <div class="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/20 text-center">
+                    <div class="text-3xl mb-1">🥈</div>
+                    <div class="text-lg font-bold text-white mb-1">${second.name}</div>
+                    <div class="text-white/80 text-xs mb-2">${second.todaySubmissions} setoran</div>
+                    <div class="text-2xl font-bold text-white">${second.todayPoints}</div>
                     <div class="text-white/70 text-xs">poin hari ini</div>
                 </div>
-                <div class="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20 text-center">
-                    <div class="text-4xl mb-2">🥉</div>
-                    <div class="text-xl font-bold text-white mb-1">${third.name}</div>
-                    <div class="text-white/80 text-sm mb-2">${third.todaySubmissions} setoran</div>
-                    <div class="text-3xl font-bold text-white">${third.todayPoints}</div>
+                <div class="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/20 text-center">
+                    <div class="text-3xl mb-1">🥉</div>
+                    <div class="text-lg font-bold text-white mb-1">${third.name}</div>
+                    <div class="text-white/80 text-xs mb-2">${third.todaySubmissions} setoran</div>
+                    <div class="text-2xl font-bold text-white">${third.todayPoints}</div>
                     <div class="text-white/70 text-xs">poin hari ini</div>
                 </div>
             </div>
@@ -198,35 +198,35 @@ function renderTopHalaqah(container) {
     const third = dashboardData.halaqahs[2];
     
     container.innerHTML = `
-        <div class="flex flex-col items-center justify-center h-full">
+        <div class="flex flex-col items-center justify-center h-full px-4">
             <!-- Champion -->
-            <div class="text-center mb-8">
-                <div class="inline-block p-6 bg-gradient-to-br from-green-400 to-teal-500 rounded-full mb-4 shadow-2xl">
-                    <div class="text-6xl">🏅</div>
+            <div class="text-center mb-6">
+                <div class="inline-block p-4 bg-gradient-to-br from-green-400 to-teal-500 rounded-full mb-3 shadow-2xl">
+                    <div class="text-5xl">🏅</div>
                 </div>
-                <div class="text-white/80 text-sm mb-2">HALAQAH TERBAIK</div>
-                <div class="text-5xl font-bold text-white mb-2">${topHalaqah.name}</div>
-                <div class="text-xl text-white/90 mb-4">${topHalaqah.members} Anggota • ${topHalaqah.status}</div>
-                <div class="inline-block px-8 py-4 bg-white/20 backdrop-blur-sm rounded-2xl border-2 border-white/30">
-                    <div class="text-6xl font-bold text-white">${topHalaqah.points}</div>
-                    <div class="text-white/80 text-lg">Total Poin</div>
+                <div class="text-white/80 text-xs mb-1">HALAQAH TERBAIK</div>
+                <div class="text-4xl md:text-5xl font-bold text-white mb-1">${topHalaqah.name}</div>
+                <div class="text-lg text-white/90 mb-3">${topHalaqah.members} Anggota • ${topHalaqah.status}</div>
+                <div class="inline-block px-6 py-3 bg-white/20 backdrop-blur-sm rounded-2xl border-2 border-white/30">
+                    <div class="text-5xl font-bold text-white">${topHalaqah.points}</div>
+                    <div class="text-white/80 text-base">Total Poin</div>
                 </div>
             </div>
             
             <!-- Runner-ups -->
-            <div class="grid grid-cols-2 gap-6 max-w-2xl w-full">
-                <div class="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20 text-center">
-                    <div class="text-4xl mb-2">🥈</div>
-                    <div class="text-xl font-bold text-white mb-1">${second.name}</div>
-                    <div class="text-white/80 text-sm mb-2">${second.members} anggota</div>
-                    <div class="text-3xl font-bold text-white">${second.points}</div>
+            <div class="grid grid-cols-2 gap-4 max-w-2xl w-full">
+                <div class="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/20 text-center">
+                    <div class="text-3xl mb-1">🥈</div>
+                    <div class="text-lg font-bold text-white mb-1">${second.name}</div>
+                    <div class="text-white/80 text-xs mb-2">${second.members} anggota</div>
+                    <div class="text-2xl font-bold text-white">${second.points}</div>
                     <div class="text-white/70 text-xs">poin</div>
                 </div>
-                <div class="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20 text-center">
-                    <div class="text-4xl mb-2">🥉</div>
-                    <div class="text-xl font-bold text-white mb-1">${third.name}</div>
-                    <div class="text-white/80 text-sm mb-2">${third.members} anggota</div>
-                    <div class="text-3xl font-bold text-white">${third.points}</div>
+                <div class="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/20 text-center">
+                    <div class="text-3xl mb-1">🥉</div>
+                    <div class="text-lg font-bold text-white mb-1">${third.name}</div>
+                    <div class="text-white/80 text-xs mb-2">${third.members} anggota</div>
+                    <div class="text-2xl font-bold text-white">${third.points}</div>
                     <div class="text-white/70 text-xs">poin</div>
                 </div>
             </div>
@@ -243,35 +243,35 @@ function renderStreakLeaders(container) {
         .sort((a, b) => b.streak - a.streak)[2];
     
     container.innerHTML = `
-        <div class="flex flex-col items-center justify-center h-full">
+        <div class="flex flex-col items-center justify-center h-full px-4">
             <!-- Champion -->
-            <div class="text-center mb-8">
-                <div class="inline-block p-6 bg-gradient-to-br from-orange-400 to-red-500 rounded-full mb-4 shadow-2xl">
-                    <div class="text-6xl">🔥</div>
+            <div class="text-center mb-6">
+                <div class="inline-block p-4 bg-gradient-to-br from-orange-400 to-red-500 rounded-full mb-3 shadow-2xl">
+                    <div class="text-5xl">🔥</div>
                 </div>
-                <div class="text-white/80 text-sm mb-2">STREAK TERPANJANG</div>
-                <div class="text-5xl font-bold text-white mb-2">${topStreak.name}</div>
-                <div class="text-xl text-white/90 mb-4">Halaqah ${topStreak.halaqah}</div>
-                <div class="inline-block px-8 py-4 bg-white/20 backdrop-blur-sm rounded-2xl border-2 border-white/30">
-                    <div class="text-6xl font-bold text-orange-300">${topStreak.streak}</div>
-                    <div class="text-white/80 text-lg">Hari Beruntun</div>
+                <div class="text-white/80 text-xs mb-1">STREAK TERPANJANG</div>
+                <div class="text-4xl md:text-5xl font-bold text-white mb-1">${topStreak.name}</div>
+                <div class="text-lg text-white/90 mb-3">Halaqah ${topStreak.halaqah}</div>
+                <div class="inline-block px-6 py-3 bg-white/20 backdrop-blur-sm rounded-2xl border-2 border-white/30">
+                    <div class="text-5xl font-bold text-orange-300">${topStreak.streak}</div>
+                    <div class="text-white/80 text-base">Hari Beruntun</div>
                 </div>
             </div>
             
             <!-- Runner-ups -->
-            <div class="grid grid-cols-2 gap-6 max-w-2xl w-full">
-                <div class="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20 text-center">
-                    <div class="text-4xl mb-2">🥈</div>
-                    <div class="text-xl font-bold text-white mb-1">${second.name}</div>
-                    <div class="text-white/80 text-sm mb-2">Halaqah ${second.halaqah}</div>
-                    <div class="text-3xl font-bold text-orange-300">${second.streak}</div>
+            <div class="grid grid-cols-2 gap-4 max-w-2xl w-full">
+                <div class="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/20 text-center">
+                    <div class="text-3xl mb-1">🥈</div>
+                    <div class="text-lg font-bold text-white mb-1">${second.name}</div>
+                    <div class="text-white/80 text-xs mb-2">Halaqah ${second.halaqah}</div>
+                    <div class="text-2xl font-bold text-orange-300">${second.streak}</div>
                     <div class="text-white/70 text-xs">hari beruntun</div>
                 </div>
-                <div class="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20 text-center">
-                    <div class="text-4xl mb-2">🥉</div>
-                    <div class="text-xl font-bold text-white mb-1">${third.name}</div>
-                    <div class="text-white/80 text-sm mb-2">Halaqah ${third.halaqah}</div>
-                    <div class="text-3xl font-bold text-orange-300">${third.streak}</div>
+                <div class="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/20 text-center">
+                    <div class="text-3xl mb-1">🥉</div>
+                    <div class="text-lg font-bold text-white mb-1">${third.name}</div>
+                    <div class="text-white/80 text-xs mb-2">Halaqah ${third.halaqah}</div>
+                    <div class="text-2xl font-bold text-orange-300">${third.streak}</div>
                     <div class="text-white/70 text-xs">hari beruntun</div>
                 </div>
             </div>
