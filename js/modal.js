@@ -1,12 +1,16 @@
 // Modal Management Module
 
-function createModal(content) {
+function createModal(content, allowClickOutside = true) {
     const modal = document.createElement('div');
     modal.id = 'detailModal';
     modal.className = 'fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm';
-    modal.onclick = (e) => {
-        if (e.target === modal) closeModal();
-    };
+    
+    // Only allow closing by clicking outside if allowClickOutside is true
+    if (allowClickOutside) {
+        modal.onclick = (e) => {
+            if (e.target === modal) closeModal();
+        };
+    }
     
     modal.innerHTML = `
         <div class="glass rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto custom-scrollbar shadow-2xl border border-slate-200 animate-scale-in">

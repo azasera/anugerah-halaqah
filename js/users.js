@@ -2,28 +2,7 @@
 
 // Default users data
 const usersData = {
-    users: [
-        {
-            id: 1,
-            name: "Admin Utama",
-            email: "admin@halaqah.com",
-            role: "admin",
-            phone: "081234567890",
-            status: "active",
-            createdAt: "2024-01-01",
-            lastLogin: "2024-02-11 08:30"
-        },
-        {
-            id: 2,
-            name: "Ustadz Ahmad",
-            email: "ahmad@halaqah.com",
-            role: "guru",
-            phone: "081234567891",
-            status: "active",
-            createdAt: "2024-01-15",
-            lastLogin: "2024-02-10 14:20"
-        }
-    ]
+    users: []
 };
 
 // Load users from localStorage
@@ -32,6 +11,22 @@ function loadUsers() {
     if (saved) {
         const data = JSON.parse(saved);
         usersData.users = data.users || [];
+    } else {
+        // Only set default users if localStorage is empty (first time)
+        usersData.users = [
+            {
+                id: 1,
+                name: "Admin Utama",
+                email: "admin@halaqah.com",
+                role: "admin",
+                phone: "081234567890",
+                status: "active",
+                createdAt: "2024-01-01",
+                lastLogin: "2024-02-11 08:30"
+            }
+        ];
+        // Save default users to localStorage
+        saveUsers();
     }
 }
 
@@ -199,11 +194,6 @@ function showAddUserForm() {
                     <h2 class="font-display font-bold text-2xl md:text-3xl text-slate-800 mb-2">➕ Tambah User Baru</h2>
                     <p class="text-slate-500">Isi form untuk menambahkan user</p>
                 </div>
-                <button onclick="closeModal()" class="p-2 hover:bg-slate-100 rounded-lg transition-colors">
-                    <svg class="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                    </svg>
-                </button>
             </div>
             
             <form onsubmit="handleAddUser(event)" class="space-y-4">
@@ -276,7 +266,8 @@ function showAddUserForm() {
         </div>
     `;
     
-    createModal(content);
+    // Prevent closing modal by clicking outside (false = tidak bisa ditutup dengan klik di luar)
+    createModal(content, false);
 }
 
 // Handle add user
@@ -319,11 +310,6 @@ function showEditUserForm(user) {
                     <h2 class="font-display font-bold text-2xl md:text-3xl text-slate-800 mb-2">✏️ Edit User</h2>
                     <p class="text-slate-500">Update informasi user</p>
                 </div>
-                <button onclick="closeModal()" class="p-2 hover:bg-slate-100 rounded-lg transition-colors">
-                    <svg class="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                    </svg>
-                </button>
             </div>
             
             <form onsubmit="handleEditUser(event, ${user.id})" class="space-y-4">
@@ -378,14 +364,15 @@ function showEditUserForm(user) {
                     </button>
                     <button type="submit" 
                         class="flex-1 bg-primary-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-primary-700 transition-colors">
-                        Update
+                        ✅ Selesai
                     </button>
                 </div>
             </form>
         </div>
     `;
     
-    createModal(content);
+    // Prevent closing modal by clicking outside (false = tidak bisa ditutup dengan klik di luar)
+    createModal(content, false);
 }
 
 // Handle edit user
