@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Buku Rekap Setoran & Poin Halaqah</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            200: '#bae6fd',
+                            300: '#7dd3fc',
+                            400: '#38bdf8',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                            700: '#0369a1',
+                            800: '#075985',
+                            900: '#0c4a6e',
+                        },
+                        accent: {
+                            gold: '#FFD700',
+                            amber: '#F59E0B',
+                            teal: '#14B8A6'
+                        }
+                    },
+                    fontFamily: {
+                        display: ['Outfit', 'sans-serif'],
+                        body: ['Plus Jakarta Sans', 'sans-serif'],
+                    },
+                    animation: {
+                        'float': 'float 3s ease-in-out infinite',
+                        'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                    },
+                    keyframes: {
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0)' },
+                            '50%': { transform: 'translateY(-10px)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #f8fafc;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            color: #1e293b;
+        }
+        .glass {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        .gradient-banner {
+            background: linear-gradient(135deg, #075985 0%, #0369a1 100%);
+            position: relative;
+            overflow: hidden;
+        }
+        .gradient-banner::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -10%;
+            width: 70%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(20, 184, 166, 0.15) 0%, transparent 70%);
+            transform: rotate(-15deg);
+        }
+        .rank-card {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .rank-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 20px -8px rgba(0, 0, 0, 0.1);
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body class="antialiased pb-12">
+
+    <!-- Header -->
+    <header class="sticky top-0 z-50 glass border-b border-slate-200 px-4 py-4 md:px-8">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+                <div class="p-2 bg-primary-600 rounded-xl shadow-lg shadow-primary-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="font-display font-extrabold text-xl md:text-2xl text-slate-900 tracking-tight">REKAP SETORAN</h1>
+                    <p class="text-xs font-semibold text-primary-600 uppercase tracking-widest">Dashboard Poin Halaqah</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-4 text-slate-500">
+                <div class="hidden md:flex flex-col items-end">
+                    <span id="currentDate" class="text-sm font-bold text-slate-700"></span>
+                    <span id="currentTime" class="text-xs"></span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 md:px-8 mt-6 space-y-8">
+        
+        <!-- Feature Banner: Best Halaqah Today -->
+        <section class="gradient-banner rounded-3xl p-8 md:p-12 text-white shadow-2xl shadow-primary-900/20 relative">
+            <div class="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
+                <div class="text-center md:text-left space-y-4">
+                    <span class="inline-flex items-center px-4 py-1.5 rounded-full bg-white/10 border border-white/20 text-xs font-bold uppercase tracking-widest animate-pulse">
+                        🏆 Pencapaian Hari Ini
+                    </span>
+                    <h2 class="font-display font-extrabold text-4xl md:text-6xl tracking-tight">
+                        Halaqah Terbaik
+                    </h2>
+                    <div class="flex flex-col md:flex-row items-center gap-4">
+                        <span class="text-accent-gold font-display font-black text-3xl md:text-5xl drop-shadow-lg">
+                            Halaqah Al-Kindi
+                        </span>
+                    </div>
+                </div>
+                <div class="animate-float">
+                    <div class="relative">
+                        <div class="absolute inset-0 bg-accent-gold blur-3xl opacity-30"></div>
+                        <svg class="w-32 h-32 md:w-48 md:h-48 text-accent-gold" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" />
+                        </svg>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Ranking Layout -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            
+            <!-- Halaqah Rankings Section -->
+            <section class="lg:col-span-4 space-y-6">
+                <div class="flex items-center justify-between">
+                    <h3 class="font-display font-bold text-2xl text-slate-800 flex items-center gap-2">
+                        <span class="w-2 h-8 bg-primary-500 rounded-full"></span>
+                        Ranking Halaqah
+                    </h3>
+                </div>
+                
+                <div class="space-y-4">
+                    <!-- Halaqah Al-Kindi -->
+                    <div class="rank-card glass rounded-2xl p-5 flex items-center gap-4 border-l-4 border-accent-amber relative overflow-hidden">
+                        <div class="absolute top-0 right-0 p-2">
+                            <span class="text-[60px] font-black text-slate-100/50 absolute -top-4 -right-2">1</span>
+                        </div>
+                        <div class="w-12 h-12 rounded-xl bg-accent-amber/10 flex items-center justify-center text-accent-amber font-bold text-xl relative z-10">
+                            #1
+                        </div>
+                        <div class="flex-1 relative z-10">
+                            <h4 class="font-bold text-slate-800">Halaqah Al-Kindi</h4>
+                            <p class="text-sm text-slate-500">220 Poin</p>
+                        </div>
+                        <div class="text-right relative z-10">
+                            <span class="inline-block px-2 py-1 rounded-md bg-green-100 text-green-700 text-[10px] font-bold">STABIL</span>
+                        </div>
+                    </div>
+
+                    <!-- Halaqah Al-Farabi -->
+                    <div class="rank-card glass rounded-2xl p-5 flex items-center gap-4 border-l-4 border-slate-300">
+                        <div class="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-xl">
+                            #2
+                        </div>
+                        <div class="flex-1">
+                            <h4 class="font-bold text-slate-800">Halaqah Al-Farabi</h4>
+                            <p class="text-sm text-slate-500">185 Poin</p>
+                        </div>
+                        <div class="text-right">
+                            <span class="inline-block px-2 py-1 rounded-md bg-green-100 text-green-700 text-[10px] font-bold">NAIK</span>
+                        </div>
+                    </div>
+
+                    <!-- Halaqah Al-Ghazali -->
+                    <div class="rank-card glass rounded-2xl p-5 flex items-center gap-4 border-l-4 border-slate-300">
+                        <div class="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-xl">
+                            #3
+                        </div>
+                        <div class="flex-1">
+                            <h4 class="font-bold text-slate-800">Halaqah Al-Ghazali</h4>
+                            <p class="text-sm text-slate-500">80 Poin</p>
+                        </div>
+                        <div class="text-right">
+                            <span class="inline-block px-2 py-1 rounded-md bg-slate-100 text-slate-500 text-[10px] font-bold">TETAP</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Santri Rankings Section -->
+            <section class="lg:col-span-8 space-y-6">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <h3 class="font-display font-bold text-2xl text-slate-800 flex items-center gap-2">
+                        <span class="w-2 h-8 bg-accent-teal rounded-full"></span>
+                        Ranking Santri Terbaik
+                    </h3>
+                    <div class="relative group">
+                        <input type="text" id="santriSearch" placeholder="Cari nama santri..." class="w-full md:w-64 pl-10 pr-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all glass">
+                        <svg class="w-5 h-5 absolute left-3 top-2.5 text-slate-400 group-focus-within:text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                    </div>
+                </div>
+
+                <div class="glass rounded-3xl overflow-hidden border border-slate-200 shadow-sm">
+                    <div class="overflow-x-auto custom-scrollbar">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-slate-50/50 text-slate-500 text-xs font-bold uppercase tracking-wider">
+                                    <th class="px-6 py-4">Rank</th>
+                                    <th class="px-6 py-4">Nama Santri</th>
+                                    <th class="px-6 py-4">Poin Total</th>
+                                    <th class="px-6 py-4 text-center">Harian</th>
+                                    <th class="px-6 py-4 text-right">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="santriTableBody" class="divide-y divide-slate-100">
+                                <!-- Data populated via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <script>
+        const dashboardData = {
+            students: [
+                { name: "Ahmad Fatih", total_points: 110, daily_ranking: 1, overall_ranking: 1 },
+                { name: "Citra Dewi", total_points: 110, daily_ranking: 2, overall_ranking: 2 },
+                { name: "Eko Susanto", total_points: 95, daily_ranking: 3, overall_ranking: 3 },
+                { name: "Budi Santoso", total_points: 90, daily_ranking: 4, overall_ranking: 4 },
+                { name: "Dian Lestari", total_points: 80, daily_ranking: 5, overall_ranking: 5 }
+            ]
+        };
+
+        function renderSantri(filter = "") {
+            const container = document.getElementById('santriTableBody');
+            container.innerHTML = "";
+
+            const filtered = dashboardData.students.filter(s => 
+                s.name.toLowerCase().includes(filter.toLowerCase())
+            );
+
+            filtered.forEach((student, index) => {
+                const isTop = student.overall_ranking <= 3;
+                const row = document.createElement('tr');
+                row.className = "hover:bg-slate-50/80 transition-colors group";
+                
+                let rankBadge = '';
+                if(student.overall_ranking === 1) rankBadge = '🥇';
+                else if(student.overall_ranking === 2) rankBadge = '🥈';
+                else if(student.overall_ranking === 3) rankBadge = '🥉';
+
+                row.innerHTML = `
+                    <td class="px-6 py-4">
+                        <div class="flex items-center gap-2">
+                            <span class="font-display font-bold ${isTop ? 'text-primary-600' : 'text-slate-400'}">#${student.overall_ranking}</span>
+                            <span>${rankBadge}</span>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4">
+                        <div class="font-bold text-slate-800 group-hover:text-primary-600 transition-colors">${student.name}</div>
+                    </td>
+                    <td class="px-6 py-4">
+                        <div class="inline-flex items-center px-3 py-1 rounded-full bg-primary-50 text-primary-700 font-bold text-sm">
+                            ${student.total_points} pts
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 text-center">
+                        <span class="text-sm font-semibold text-slate-600">Posisi ${student.daily_ranking}</span>
+                    </td>
+                    <td class="px-6 py-4 text-right">
+                        <span class="h-2 w-2 rounded-full bg-green-500 inline-block animate-pulse"></span>
+                        <span class="text-xs font-bold text-slate-400 ml-2 uppercase">Aktif</span>
+                    </td>
+                `;
+                container.appendChild(row);
+            });
+        }
+
+        // Search Interactivity
+        document.getElementById('santriSearch').addEventListener('input', (e) => {
+            renderSantri(e.target.value);
+        });
+
+        // Time and Date
+        function updateDateTime() {
+            const now = new Date();
+            const optionsDate = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            const optionsTime = { hour: '2-digit', minute: '2-digit', second: '2-digit' };
+            
+            document.getElementById('currentDate').textContent = now.toLocaleDateString('id-ID', optionsDate);
+            document.getElementById('currentTime').textContent = now.toLocaleTimeString('id-ID', optionsTime) + " WIB";
+        }
+
+        // Initialize
+        setInterval(updateDateTime, 1000);
+        updateDateTime();
+        renderSantri();
+
+        // Reveal animations on load
+        document.addEventListener('DOMContentLoaded', () => {
+            const elements = document.querySelectorAll('.rank-card, section');
+            elements.forEach((el, i) => {
+                el.style.opacity = '0';
+                el.style.transform = 'translateY(20px)';
+                el.style.transition = 'all 0.6s cubic-bezier(0.22, 1, 0.36, 1)';
+                setTimeout(() => {
+                    el.style.opacity = '1';
+                    el.style.transform = 'translateY(0)';
+                }, i * 100);
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TV Dashboard - Halaqah Tracker</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+        
+        @keyframes gradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        
+        .animate-gradient {
+            background-size: 200% 200%;
+            animation: gradient 15s ease infinite;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        
+        .slide-enter {
+            animation: fadeIn 0.7s ease-out;
+        }
+        
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 40px rgba(250, 204, 21, 0.3); }
+            50% { box-shadow: 0 0 80px rgba(250, 204, 21, 0.5); }
+        }
+        
+        .glow-pulse {
+            animation: pulse-glow 3s ease-in-out infinite;
+        }
+        
+        /* Custom Scrollbar */
+        .overflow-y-auto::-webkit-scrollbar,
+        .overflow-auto::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        
+        .overflow-y-auto::-webkit-scrollbar-track,
+        .overflow-auto::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.5);
+            border-radius: 4px;
+        }
+        
+        .overflow-y-auto::-webkit-scrollbar-thumb,
+        .overflow-auto::-webkit-scrollbar-thumb {
+            background: rgba(250, 204, 21, 0.3);
+            border-radius: 4px;
+        }
+        
+        .overflow-y-auto::-webkit-scrollbar-thumb:hover,
+        .overflow-auto::-webkit-scrollbar-thumb:hover {
+            background: rgba(250, 204, 21, 0.5);
+        }
+    </style>
+    
+    <!-- Supabase Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <!-- App Settings -->
+    <script src="js/settings.js"></script>
+    
+    <!-- Setoran Harian Module -->
+    <script src="js/setoran-harian.js"></script>
+</head>
+<body class="bg-[#0f172a] text-white">
+    <div id="root" class="h-screen w-full overflow-hidden relative">
+        <!-- Hidden Exit Button (hover to show on desktop, always visible on mobile) -->
+        <a href="index.html" 
+           class="fixed bottom-4 right-4 p-3 bg-slate-800/80 hover:bg-slate-700 text-white rounded-full transition-all md:opacity-0 md:hover:opacity-100 z-50 shadow-lg backdrop-blur-sm"
+           title="Kembali ke Dashboard">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+            </svg>
+        </a>
+        
+        <!-- Background Blur Orbs -->
+        <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none overflow-hidden">
+            <div class="absolute -top-1/4 -left-1/4 w-1/2 h-1/2 bg-emerald-500 rounded-full blur-[120px] animate-pulse"></div>
+            <div class="absolute -bottom-1/4 -right-1/4 w-1/2 h-1/2 bg-blue-500 rounded-full blur-[120px] animate-pulse"></div>
+        </div>
+        
+        <!-- Loading State -->
+        <div id="loading" class="h-screen flex items-center justify-center">
+            <div class="animate-pulse text-emerald-500 flex flex-col items-center">
+                <svg class="w-16 h-16 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+                </svg>
+                <span class="text-2xl font-bold tracking-widest uppercase">Sinkronisasi Data...</span>
+            </div>
+        </div>
+        
+        <!-- Main Content -->
+        <div id="content" class="hidden relative z-10 p-4 md:p-12 h-full flex flex-col">
+            <!-- Header -->
+            <div class="flex justify-between items-center mb-6 md:mb-12 border-b border-white/10 pb-4 md:pb-6">
+                <div class="flex items-center gap-2 md:gap-4">
+                    <div class="w-10 h-10 md:w-16 md:h-16 bg-[#020617] border border-white/10 rounded-xl md:rounded-2xl flex items-center justify-center shadow-lg">
+                        <svg class="w-6 h-6 md:w-10 md:h-10 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <h1 class="text-xl md:text-4xl font-black tracking-tight uppercase">Dashboard Halaqah</h1>
+                        <p id="currentDate" class="text-slate-400 text-xs md:text-lg uppercase tracking-wider md:tracking-widest font-bold"></p>
+                    </div>
+                </div>
+                
+                <!-- Progress Dots (Clickable) -->
+                <div class="flex gap-1">
+                    <button onclick="goToSlide(0)" id="dot-0" class="h-1.5 w-8 md:h-2 md:w-12 rounded-full bg-slate-700 transition-all duration-500 hover:bg-yellow-400/50 cursor-pointer"></button>
+                    <button onclick="goToSlide(1)" id="dot-1" class="h-1.5 w-8 md:h-2 md:w-12 rounded-full bg-slate-700 transition-all duration-500 hover:bg-yellow-400/50 cursor-pointer"></button>
+                    <button onclick="goToSlide(2)" id="dot-2" class="h-1.5 w-8 md:h-2 md:w-12 rounded-full bg-slate-700 transition-all duration-500 hover:bg-yellow-400/50 cursor-pointer"></button>
+                </div>
+            </div>
+            
+            <!-- Slides Container (Swipeable) -->
+            <div id="slidesContainer" class="flex-1 flex items-center justify-center overflow-hidden touch-pan-y relative">
+                <!-- Previous Button -->
+                <button onclick="previousSlide()" 
+                        class="absolute left-4 top-1/2 -translate-y-1/2 z-20 p-3 bg-slate-800/80 hover:bg-slate-700 text-white rounded-full transition-all opacity-0 hover:opacity-100 md:opacity-50 md:hover:opacity-100 shadow-lg backdrop-blur-sm">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                    </svg>
+                </button>
+                
+                <!-- Next Button -->
+                <button onclick="nextSlide()" 
+                        class="absolute right-4 top-1/2 -translate-y-1/2 z-20 p-3 bg-slate-800/80 hover:bg-slate-700 text-white rounded-full transition-all opacity-0 hover:opacity-100 md:opacity-50 md:hover:opacity-100 shadow-lg backdrop-blur-sm">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                    </svg>
+                </button>
+                
+                <!-- Slide 1: Ranking Table -->
+                <div id="slide-0" class="w-full h-full hidden">
+                    <div class="w-full h-full flex flex-col slide-enter">
+                        <div class="flex items-center gap-2 md:gap-4 mb-4 md:mb-6 flex-shrink-0">
+                            <svg class="w-8 h-8 md:w-12 md:h-12 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+                            </svg>
+                            <h2 class="text-2xl md:text-5xl lg:text-6xl font-black tracking-tighter">📈 Ranking Harian</h2>
+                        </div>
+                        <div class="bg-[#020617] rounded-2xl md:rounded-3xl border border-white/5 overflow-hidden shadow-2xl flex-1 flex flex-col min-h-0">
+                            <div class="overflow-auto flex-1">
+                                <table class="w-full text-left">
+                                    <thead class="bg-slate-800/30 text-slate-400 sticky top-0 z-10">
+                                        <tr>
+                                            <th class="px-3 py-2 md:px-8 md:py-4 lg:px-12 lg:py-6 text-sm md:text-2xl lg:text-3xl uppercase font-black">Rank</th>
+                                            <th class="px-3 py-2 md:px-8 md:py-4 lg:px-12 lg:py-6 text-sm md:text-2xl lg:text-3xl uppercase font-black">Nama Halaqah</th>
+                                            <th class="px-3 py-2 md:px-8 md:py-4 lg:px-12 lg:py-6 text-sm md:text-2xl lg:text-3xl uppercase font-black text-right">Poin</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="rankingTableBody" class="text-lg md:text-3xl lg:text-4xl font-bold">
+                                        <!-- Data populated via JS -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Slide 2: Best Halaqah Banner -->
+                <div id="slide-1" class="w-full h-full hidden overflow-auto">
+                    <div class="w-full min-h-full flex flex-col items-center justify-center text-center slide-enter px-4 py-4">
+                        <div class="bg-[#020617] border-2 md:border-3 border-yellow-400/30 p-4 md:p-8 lg:p-10 rounded-3xl md:rounded-[4rem] shadow-[0_0_80px_rgba(250,204,21,0.1)] glow-pulse w-full max-w-3xl">
+                            <!-- Trophy Inside Card -->
+                            <div class="inline-flex bg-yellow-400 p-2 md:p-4 rounded-full shadow-2xl shadow-yellow-400/40 mb-3 md:mb-4">
+                                <svg class="w-8 h-8 md:w-12 md:h-12 text-[#0f172a]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path>
+                                </svg>
+                            </div>
+                            
+                            <h2 class="text-sm md:text-xl lg:text-2xl uppercase tracking-[0.15em] md:tracking-[0.2em] text-yellow-400 font-black mb-3 md:mb-4">Halaqah Terbaik Hari Ini</h2>
+                            <h1 id="bestHalaqahName" class="text-2xl md:text-5xl lg:text-7xl leading-tight font-black text-white drop-shadow-2xl mb-3 md:mb-4 break-words px-2">-</h1>
+                            <div class="bg-slate-800/40 inline-block px-4 py-2 md:px-6 md:py-3 rounded-full">
+                                <p class="text-lg md:text-2xl lg:text-3xl font-black text-white">
+                                    <span id="bestHalaqahPoints">0</span>
+                                    <span class="text-slate-500 uppercase text-xs md:text-lg lg:text-xl tracking-widest ml-2">Total Poin</span>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Slide 3: Top Students -->
+                <div id="slide-2" class="w-full h-full hidden">
+                    <div class="w-full h-full flex flex-col slide-enter">
+                        <div class="flex items-center gap-2 md:gap-4 mb-4 md:mb-6 flex-shrink-0">
+                            <svg class="w-8 h-8 md:w-12 md:h-12 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                            </svg>
+                            <h2 class="text-2xl md:text-5xl lg:text-6xl font-black tracking-tighter">⚡ Santri Terbaik</h2>
+                        </div>
+                        <div id="topStudentsGrid" class="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 lg:gap-6 overflow-auto flex-1">
+                            <!-- Data populated via JS -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // TV Dashboard Logic
+        let slideIndex = 0;
+        let dashboardData = { students: [], halaqahs: [] };
+        let supabaseClient = null;
+        let autoRotateInterval = null;
+        
+        // Touch/Swipe handling
+        let touchStartX = 0;
+        let touchEndX = 0;
+        
+        // Supabase Configuration
+        const SUPABASE_CONFIG = {
+            url: 'https://klhegwunosmryqozuahc.supabase.co',
+            key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtsaGVnd3Vub3Ntcnlxb3p1YWhjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3Mjg3NDcsImV4cCI6MjA4NjMwNDc0N30.0X54jxpMZI9eilDxfJ7FYUGImuN-TEH9qGQkdRTtRXw'
+        };
+        
+        // Initialize Supabase
+        function initSupabase() {
+            if (SUPABASE_CONFIG.url && SUPABASE_CONFIG.key) {
+                try {
+                    supabaseClient = supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.key);
+                    console.log('✅ Supabase connected for TV Dashboard');
+                } catch (error) {
+                    console.error('❌ Supabase connection error:', error);
+                }
+            } else {
+                console.warn('⚠️ Supabase config not found, running in offline mode');
+            }
+        }
+        
+        // Load data from Supabase
+        async function loadData() {
+            if (!supabaseClient) return;
+            
+            try {
+                // Load students and halaqahs (for basic info)
+                const [studentsRes, halaqahsRes] = await Promise.all([
+                    supabaseClient.from('students').select('*'),
+                    supabaseClient.from('halaqahs').select('*')
+                ]);
+                
+                if (studentsRes.data) dashboardData.students = studentsRes.data;
+                if (halaqahsRes.data) dashboardData.halaqahs = halaqahsRes.data;
+                
+                // Load today's ranking from setoran_harian
+                if (window.SetoranHarian) {
+                    const ranking = await SetoranHarian.getDailyRanking();
+                    if (ranking && ranking.length > 0) {
+                        // Update halaqahs with today's points
+                        dashboardData.halaqahs = dashboardData.halaqahs.map(h => {
+                            const rankData = ranking.find(r => r.halaqah_id === h.id);
+                            return {
+                                ...h,
+                                points: rankData?.total_poin || 0,
+                                rank: rankData?.peringkat || 999
+                            };
+                        });
+                    }
+                }
+                
+                console.log('✅ Data loaded:', dashboardData.students.length, 'students,', dashboardData.halaqahs.length, 'halaqahs');
+            } catch (error) {
+                console.error('Error loading data:', error);
+            }
+        }
+        
+        // Calculate rankings
+        function calculateRankings() {
+            // Sort halaqahs by points
+            const rankedHalaqahs = [...dashboardData.halaqahs]
+                .sort((a, b) => b.points - a.points)
+                .map((h, idx) => ({ ...h, rank: idx + 1 }));
+            
+            // Sort students by points - Top 3
+            const rankedStudents = [...dashboardData.students]
+                .sort((a, b) => b.total_points - a.total_points)
+                .slice(0, 3);
+            
+            return { rankedHalaqahs, rankedStudents };
+        }
+        
+        // Render Slide 0: Ranking Table
+        function renderRankingTable() {
+            const { rankedHalaqahs } = calculateRankings();
+            const tbody = document.getElementById('rankingTableBody');
+            
+            if (rankedHalaqahs.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="3" class="px-3 md:px-8 py-4 md:py-6 text-center text-slate-500">Belum ada data halaqah</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = rankedHalaqahs.map(h => `
+                <tr class="border-b border-white/5 ${h.rank === 1 ? 'text-yellow-400 bg-yellow-400/5' : ''}">
+                    <td class="px-3 py-3 md:px-8 md:py-4 lg:px-12 lg:py-5 font-black">
+                        ${h.rank === 1 ? '🥇' : h.rank === 2 ? '🥈' : h.rank === 3 ? '🥉' : `#${h.rank}`}
+                    </td>
+                    <td class="px-3 py-3 md:px-8 md:py-4 lg:px-12 lg:py-5">${h.name}</td>
+                    <td class="px-3 py-3 md:px-8 md:py-4 lg:px-12 lg:py-5 text-right font-black tracking-tighter">${h.points.toLocaleString()}</td>
+                </tr>
+            `).join('');
+        }
+        
+        // Render Slide 1: Best Halaqah Banner
+        function renderBestHalaqah() {
+            const { rankedHalaqahs } = calculateRankings();
+            const best = rankedHalaqahs[0];
+            
+            if (best) {
+                document.getElementById('bestHalaqahName').textContent = best.name;
+                document.getElementById('bestHalaqahPoints').textContent = best.points.toLocaleString();
+            } else {
+                document.getElementById('bestHalaqahName').textContent = '-';
+                document.getElementById('bestHalaqahPoints').textContent = '0';
+            }
+        }
+        
+        // Render Slide 2: Top Students (by points)
+        function renderTopStudents() {
+            const { rankedStudents } = calculateRankings();
+            const grid = document.getElementById('topStudentsGrid');
+            
+            if (rankedStudents.length === 0) {
+                grid.innerHTML = '<div class="col-span-1 md:col-span-3 text-center text-slate-500 text-xl md:text-3xl py-8">Belum ada data santri</div>';
+                return;
+            }
+            
+            grid.innerHTML = rankedStudents.map((s, idx) => `
+                <div class="bg-[#020617] border border-white/10 p-4 md:p-6 lg:p-8 rounded-2xl md:rounded-3xl relative overflow-hidden">
+                    <div class="w-10 h-10 md:w-16 md:h-16 lg:w-20 lg:h-20 rounded-xl md:rounded-2xl bg-yellow-400 flex items-center justify-center mb-3 md:mb-4 shadow-xl shadow-yellow-400/20">
+                        <span class="text-2xl md:text-4xl lg:text-5xl">${idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉'}</span>
+                    </div>
+                    <h3 class="text-xl md:text-3xl lg:text-4xl font-black mb-2 md:mb-3 text-white leading-tight">${s.name}</h3>
+                    <p class="text-sm md:text-xl lg:text-2xl text-slate-500 mb-3 md:mb-4 font-bold uppercase tracking-wider">${s.halaqah || '-'}</p>
+                    <div class="bg-white/5 p-2 md:p-4 lg:p-5 rounded-xl md:rounded-2xl flex items-center justify-between">
+                        <span class="text-xs md:text-lg lg:text-xl text-slate-500 uppercase font-black">Poin</span>
+                        <span class="text-xl md:text-3xl lg:text-4xl font-mono font-black text-yellow-400">${s.total_points}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // Show specific slide
+        function showSlide(index) {
+            // Hide all slides
+            for (let i = 0; i < 3; i++) {
+                document.getElementById(`slide-${i}`).classList.add('hidden');
+                const dot = document.getElementById(`dot-${i}`);
+                dot.classList.remove('bg-yellow-400');
+                dot.classList.add('bg-slate-700');
+            }
+            
+            // Show current slide
+            document.getElementById(`slide-${index}`).classList.remove('hidden');
+            const activeDot = document.getElementById(`dot-${index}`);
+            activeDot.classList.remove('bg-slate-700');
+            activeDot.classList.add('bg-yellow-400');
+            
+            // Render content
+            if (index === 0) renderRankingTable();
+            if (index === 1) renderBestHalaqah();
+            if (index === 2) renderTopStudents();
+        }
+        
+        // Navigate to specific slide
+        function goToSlide(index) {
+            slideIndex = index;
+            showSlide(slideIndex);
+            resetAutoRotate();
+        }
+        
+        // Next slide
+        function nextSlide() {
+            slideIndex = (slideIndex + 1) % 3;
+            showSlide(slideIndex);
+            resetAutoRotate();
+        }
+        
+        // Previous slide
+        function previousSlide() {
+            slideIndex = (slideIndex - 1 + 3) % 3;
+            showSlide(slideIndex);
+            resetAutoRotate();
+        }
+        
+        // Reset auto-rotate timer
+        function resetAutoRotate() {
+            if (autoRotateInterval) {
+                clearInterval(autoRotateInterval);
+            }
+            startAutoRotate();
+        }
+        
+        // Auto-rotate slides
+        function startAutoRotate() {
+            autoRotateInterval = setInterval(async () => {
+                slideIndex = (slideIndex + 1) % 3;
+                
+                // Refresh data when back to first slide
+                if (slideIndex === 0) {
+                    await loadData();
+                }
+                
+                showSlide(slideIndex);
+            }, 15000); // 15 seconds
+        }
+        
+        // Handle touch/swipe gestures
+        function handleTouchStart(e) {
+            touchStartX = e.changedTouches[0].screenX;
+        }
+        
+        function handleTouchEnd(e) {
+            touchEndX = e.changedTouches[0].screenX;
+            handleSwipe();
+        }
+        
+        function handleSwipe() {
+            const swipeThreshold = 50; // minimum distance for swipe
+            const diff = touchStartX - touchEndX;
+            
+            if (Math.abs(diff) > swipeThreshold) {
+                if (diff > 0) {
+                    // Swipe left - next slide
+                    nextSlide();
+                } else {
+                    // Swipe right - previous slide
+                    previousSlide();
+                }
+            }
+        }
+        
+        // Keyboard navigation
+        function handleKeyPress(e) {
+            if (e.key === 'ArrowLeft') {
+                previousSlide();
+            } else if (e.key === 'ArrowRight') {
+                nextSlide();
+            } else if (e.key >= '1' && e.key <= '3') {
+                goToSlide(parseInt(e.key) - 1);
+            }
+        }
+        
+        // Update date
+        function updateDate() {
+            const now = new Date();
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            document.getElementById('currentDate').textContent = now.toLocaleDateString('id-ID', options);
+        }
+        
+        // Initialize
+        async function init() {
+            initSupabase();
+            await loadData();
+            
+            // Hide loading, show content
+            document.getElementById('loading').classList.add('hidden');
+            document.getElementById('content').classList.remove('hidden');
+            
+            // Update date
+            updateDate();
+            setInterval(updateDate, 60000);
+            
+            // Show first slide
+            showSlide(0);
+            
+            // Start auto-rotate
+            startAutoRotate();
+            
+            // Add touch event listeners for swipe
+            const container = document.getElementById('slidesContainer');
+            container.addEventListener('touchstart', handleTouchStart, false);
+            container.addEventListener('touchend', handleTouchEnd, false);
+            
+            // Add keyboard navigation
+            document.addEventListener('keydown', handleKeyPress);
+        }
+        
+        // Export functions to window
+        window.goToSlide = goToSlide;
+        window.nextSlide = nextSlide;
+        window.previousSlide = previousSlide;
+        
+        // Start when DOM ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+    </script>
+</body>
+</html>
