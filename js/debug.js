@@ -26,9 +26,14 @@ function showDebugPanel() {
                     📊 Cek Asal Data (Lokal vs Supabase)
                 </button>
                 
+                <button onclick="debugShowDataSummary()" 
+                    class="w-full p-4 bg-amber-50 text-amber-700 rounded-xl font-bold hover:bg-amber-100 transition-colors">
+                    📈 Ringkasan Data
+                </button>
+                
                 <button onclick="debugClearLocalData()" 
-                    class="w-full p-4 bg-red-50 text-red-700 rounded-xl font-bold hover:bg-red-100 transition-colors">
-                    🗑️ Hapus Semua Data Lokal
+                    class="w-full p-4 bg-orange-50 text-orange-700 rounded-xl font-bold hover:bg-orange-100 transition-colors">
+                    🗑️ Hapus Cache Lokal & Reload
                 </button>
                 
                 <button onclick="debugReloadFromSupabase()" 
@@ -39,11 +44,6 @@ function showDebugPanel() {
                 <button onclick="debugWipeSupabaseData()" 
                     class="w-full p-4 bg-red-100 text-red-800 rounded-xl font-bold hover:bg-red-200 transition-colors border border-red-200">
                     ⚠️ Hapus SEMUA Data di Server (Reset Total)
-                </button>
-                
-                <button onclick="debugShowDataSummary()" 
-                    class="w-full p-4 bg-amber-50 text-amber-700 rounded-xl font-bold hover:bg-amber-100 transition-colors">
-                    📈 Ringkasan Data
                 </button>
             </div>
             
@@ -101,16 +101,17 @@ function debugCheckDataOrigin() {
 }
 
 function debugClearLocalData() {
-    if (confirm('⚠️ Yakin ingin menghapus semua data lokal? Data di Supabase tidak akan terhapus.')) {
+    if (confirm('⚠️ Yakin ingin menghapus cache lokal dan reload halaman?\n\nData akan dimuat ulang dari server Supabase.')) {
         localStorage.removeItem('halaqahData');
         localStorage.removeItem('lastSync');
+        localStorage.removeItem('userSantriRelationships');
         
-        showNotification('✅ Data lokal berhasil dihapus');
+        showNotification('✅ Cache lokal berhasil dihapus. Halaman akan reload...', 'success');
         
-        const output = document.getElementById('debugOutput');
-        output.innerHTML = `<div class="text-green-600">✅ Data lokal telah dihapus</div>
-            <div class="text-sm mt-2 text-slate-600">Silakan reload halaman untuk memuat data baru dari Supabase</div>`;
-        output.classList.remove('hidden');
+        // Reload halaman setelah 1 detik
+        setTimeout(() => {
+            window.location.reload(true); // Force reload from server
+        }, 1000);
     }
 }
 
