@@ -38,7 +38,7 @@ function renderSlider() {
                 <div class="absolute inset-0 bg-black/20"></div>
                 <div class="relative h-full p-8 md:p-12 flex flex-col">
                     <h2 class="text-3xl md:text-4xl font-bold text-white mb-6">${slide.title}</h2>
-                    <div id="slide-content-${index}" class="flex-1 overflow-y-auto custom-scrollbar">
+                    <div id="slide-content-${index}" class="flex-1">
                         <!-- Content populated dynamically -->
                     </div>
                 </div>
@@ -76,44 +76,43 @@ function renderSlideContent() {
 }
 
 function renderTopSantri(container) {
-    const topStudents = dashboardData.students.slice(0, 10);
+    const topStudent = dashboardData.students[0];
+    const second = dashboardData.students[1];
+    const third = dashboardData.students[2];
     
     container.innerHTML = `
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pb-16">
-            ${topStudents.map((student, index) => {
-                const medals = ['🥇', '🥈', '🥉'];
-                const medal = index < 3 ? medals[index] : '';
-                const bgClass = index < 3 ? 'bg-white/20' : 'bg-white/10';
-                
-                return `
-                    <div class="${bgClass} backdrop-blur-sm rounded-2xl p-4 border border-white/20 hover:bg-white/25 transition-all">
-                        <div class="flex items-center gap-4">
-                            <div class="w-12 h-12 rounded-xl bg-white/30 flex items-center justify-center text-white font-bold text-xl">
-                                ${medal || '#' + (index + 1)}
-                            </div>
-                            <div class="flex-1">
-                                <div class="font-bold text-white text-lg">${student.name}</div>
-                                <div class="text-white/80 text-sm">Halaqah ${student.halaqah}</div>
-                            </div>
-                            <div class="text-right">
-                                <div class="text-2xl font-bold text-white">${student.total_points}</div>
-                                <div class="text-white/80 text-xs">poin</div>
-                            </div>
-                        </div>
-                        <div class="mt-3 flex items-center gap-4 text-white/90 text-sm">
-                            <div class="flex items-center gap-1">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
-                                </svg>
-                                ${student.total_hafalan || 0} Hal
-                            </div>
-                            <div class="flex items-center gap-1">
-                                🔥 ${student.streak} hari
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }).join('')}
+        <div class="flex flex-col items-center justify-center h-full">
+            <!-- Champion -->
+            <div class="text-center mb-8">
+                <div class="inline-block p-6 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full mb-4 shadow-2xl">
+                    <div class="text-6xl">🥇</div>
+                </div>
+                <div class="text-white/80 text-sm mb-2">SANTRI TERBAIK</div>
+                <div class="text-5xl font-bold text-white mb-2">${topStudent.name}</div>
+                <div class="text-xl text-white/90 mb-4">Halaqah ${topStudent.halaqah}</div>
+                <div class="inline-block px-8 py-4 bg-white/20 backdrop-blur-sm rounded-2xl border-2 border-white/30">
+                    <div class="text-6xl font-bold text-white">${topStudent.total_points}</div>
+                    <div class="text-white/80 text-lg">Total Poin</div>
+                </div>
+            </div>
+            
+            <!-- Runner-ups -->
+            <div class="grid grid-cols-2 gap-6 max-w-2xl w-full">
+                <div class="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20 text-center">
+                    <div class="text-4xl mb-2">🥈</div>
+                    <div class="text-xl font-bold text-white mb-1">${second.name}</div>
+                    <div class="text-white/80 text-sm mb-2">Halaqah ${second.halaqah}</div>
+                    <div class="text-3xl font-bold text-white">${second.total_points}</div>
+                    <div class="text-white/70 text-xs">poin</div>
+                </div>
+                <div class="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20 text-center">
+                    <div class="text-4xl mb-2">🥉</div>
+                    <div class="text-xl font-bold text-white mb-1">${third.name}</div>
+                    <div class="text-white/80 text-sm mb-2">Halaqah ${third.halaqah}</div>
+                    <div class="text-3xl font-bold text-white">${third.total_points}</div>
+                    <div class="text-white/70 text-xs">poin</div>
+                </div>
+            </div>
         </div>
     `;
 }
@@ -153,155 +152,129 @@ function renderBestHalaqahToday(container) {
     }).sort((a, b) => b.todayPoints - a.todayPoints);
     
     const topHalaqah = halaqahTodayPoints[0];
-    const topMembers = dashboardData.students
-        .filter(s => s.halaqah === topHalaqah.name.replace('Halaqah ', ''))
-        .slice(0, 8);
+    const second = halaqahTodayPoints[1];
+    const third = halaqahTodayPoints[2];
     
     container.innerHTML = `
-        <div class="pb-16">
-            <!-- Best Halaqah Card -->
-            <div class="bg-gradient-to-br from-yellow-400/30 to-orange-500/30 backdrop-blur-sm rounded-3xl p-6 border-2 border-yellow-300/50 mb-6">
-                <div class="flex items-center gap-4 mb-4">
-                    <div class="w-20 h-20 rounded-2xl bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center text-4xl">
-                        👑
-                    </div>
-                    <div class="flex-1">
-                        <div class="text-yellow-100 text-sm font-bold mb-1">HALAQAH TERBAIK HARI INI</div>
-                        <div class="text-white text-3xl font-bold">${topHalaqah.name}</div>
-                        <div class="text-white/90 text-sm mt-1">${topHalaqah.members} Anggota • ${topHalaqah.todaySubmissions} Setoran Hari Ini</div>
-                    </div>
-                    <div class="text-right">
-                        <div class="text-5xl font-bold text-white">${topHalaqah.todayPoints}</div>
-                        <div class="text-white/80 text-sm">poin hari ini</div>
-                    </div>
+        <div class="flex flex-col items-center justify-center h-full">
+            <!-- Champion -->
+            <div class="text-center mb-8">
+                <div class="inline-block p-6 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full mb-4 shadow-2xl">
+                    <div class="text-6xl">👑</div>
                 </div>
-                <div class="grid grid-cols-3 gap-3 mt-4">
-                    <div class="bg-white/20 rounded-xl p-3 text-center">
-                        <div class="text-2xl font-bold text-white">${topHalaqah.todayAverage}</div>
-                        <div class="text-white/80 text-xs">Rata-rata</div>
-                    </div>
-                    <div class="bg-white/20 rounded-xl p-3 text-center">
-                        <div class="text-2xl font-bold text-white">${topHalaqah.points}</div>
-                        <div class="text-white/80 text-xs">Total Poin</div>
-                    </div>
-                    <div class="bg-white/20 rounded-xl p-3 text-center">
-                        <div class="text-2xl font-bold text-white">#${topHalaqah.rank}</div>
-                        <div class="text-white/80 text-xs">Ranking</div>
-                    </div>
+                <div class="text-yellow-100 text-sm mb-2 font-bold">HALAQAH TERBAIK HARI INI</div>
+                <div class="text-5xl font-bold text-white mb-2">${topHalaqah.name}</div>
+                <div class="text-xl text-white/90 mb-4">${topHalaqah.members} Anggota • ${topHalaqah.todaySubmissions} Setoran</div>
+                <div class="inline-block px-8 py-4 bg-white/20 backdrop-blur-sm rounded-2xl border-2 border-white/30">
+                    <div class="text-6xl font-bold text-white">${topHalaqah.todayPoints}</div>
+                    <div class="text-white/80 text-lg">Poin Hari Ini</div>
                 </div>
             </div>
             
-            <!-- Top Members -->
-            <div class="text-white text-lg font-bold mb-3">Anggota Terbaik:</div>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                ${topMembers.map((student, index) => `
-                    <div class="bg-white/10 backdrop-blur-sm rounded-xl p-3 border border-white/20 hover:bg-white/15 transition-all">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center text-white font-bold">
-                                #${index + 1}
-                            </div>
-                            <div class="flex-1">
-                                <div class="font-bold text-white">${student.name}</div>
-                                <div class="text-white/80 text-sm">${student.total_points} poin • 🔥 ${student.streak} hari</div>
-                            </div>
-                        </div>
-                    </div>
-                `).join('')}
-            </div>
-            
-            <!-- Other Top Halaqahs Today -->
-            <div class="text-white text-lg font-bold mb-3 mt-6">Ranking Halaqah Hari Ini:</div>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                ${halaqahTodayPoints.slice(1, 5).map((halaqah, index) => `
-                    <div class="bg-white/10 backdrop-blur-sm rounded-xl p-3 border border-white/20">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center text-white font-bold">
-                                #${index + 2}
-                            </div>
-                            <div class="flex-1">
-                                <div class="font-bold text-white">${halaqah.name}</div>
-                                <div class="text-white/80 text-sm">${halaqah.todaySubmissions} setoran</div>
-                            </div>
-                            <div class="text-right">
-                                <div class="text-xl font-bold text-white">${halaqah.todayPoints}</div>
-                                <div class="text-white/80 text-xs">poin</div>
-                            </div>
-                        </div>
-                    </div>
-                `).join('')}
+            <!-- Runner-ups -->
+            <div class="grid grid-cols-2 gap-6 max-w-2xl w-full">
+                <div class="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20 text-center">
+                    <div class="text-4xl mb-2">🥈</div>
+                    <div class="text-xl font-bold text-white mb-1">${second.name}</div>
+                    <div class="text-white/80 text-sm mb-2">${second.todaySubmissions} setoran</div>
+                    <div class="text-3xl font-bold text-white">${second.todayPoints}</div>
+                    <div class="text-white/70 text-xs">poin hari ini</div>
+                </div>
+                <div class="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20 text-center">
+                    <div class="text-4xl mb-2">🥉</div>
+                    <div class="text-xl font-bold text-white mb-1">${third.name}</div>
+                    <div class="text-white/80 text-sm mb-2">${third.todaySubmissions} setoran</div>
+                    <div class="text-3xl font-bold text-white">${third.todayPoints}</div>
+                    <div class="text-white/70 text-xs">poin hari ini</div>
+                </div>
             </div>
         </div>
     `;
 }
 
 function renderTopHalaqah(container) {
-    const topHalaqahs = dashboardData.halaqahs.slice(0, 8);
+    const topHalaqah = dashboardData.halaqahs[0];
+    const second = dashboardData.halaqahs[1];
+    const third = dashboardData.halaqahs[2];
     
     container.innerHTML = `
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pb-16">
-            ${topHalaqahs.map((halaqah, index) => {
-                const medals = ['🥇', '🥈', '🥉'];
-                const medal = index < 3 ? medals[index] : '';
-                const bgClass = index < 3 ? 'bg-white/20' : 'bg-white/10';
-                
-                return `
-                    <div class="${bgClass} backdrop-blur-sm rounded-2xl p-4 border border-white/20 hover:bg-white/25 transition-all">
-                        <div class="flex items-center gap-4">
-                            <div class="w-12 h-12 rounded-xl bg-white/30 flex items-center justify-center text-white font-bold text-xl">
-                                ${medal || '#' + (index + 1)}
-                            </div>
-                            <div class="flex-1">
-                                <div class="font-bold text-white text-lg">${halaqah.name}</div>
-                                <div class="text-white/80 text-sm">${halaqah.members} Anggota</div>
-                            </div>
-                            <div class="text-right">
-                                <div class="text-2xl font-bold text-white">${halaqah.points}</div>
-                                <div class="text-white/80 text-xs">poin</div>
-                            </div>
-                        </div>
-                        <div class="mt-3 flex items-center justify-between text-white/90 text-sm">
-                            <div>Rata-rata: ${halaqah.avgPoints} poin</div>
-                            <div class="px-2 py-1 rounded-full bg-white/20 text-xs font-bold">${halaqah.status}</div>
-                        </div>
-                    </div>
-                `;
-            }).join('')}
+        <div class="flex flex-col items-center justify-center h-full">
+            <!-- Champion -->
+            <div class="text-center mb-8">
+                <div class="inline-block p-6 bg-gradient-to-br from-green-400 to-teal-500 rounded-full mb-4 shadow-2xl">
+                    <div class="text-6xl">🏅</div>
+                </div>
+                <div class="text-white/80 text-sm mb-2">HALAQAH TERBAIK</div>
+                <div class="text-5xl font-bold text-white mb-2">${topHalaqah.name}</div>
+                <div class="text-xl text-white/90 mb-4">${topHalaqah.members} Anggota • ${topHalaqah.status}</div>
+                <div class="inline-block px-8 py-4 bg-white/20 backdrop-blur-sm rounded-2xl border-2 border-white/30">
+                    <div class="text-6xl font-bold text-white">${topHalaqah.points}</div>
+                    <div class="text-white/80 text-lg">Total Poin</div>
+                </div>
+            </div>
+            
+            <!-- Runner-ups -->
+            <div class="grid grid-cols-2 gap-6 max-w-2xl w-full">
+                <div class="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20 text-center">
+                    <div class="text-4xl mb-2">🥈</div>
+                    <div class="text-xl font-bold text-white mb-1">${second.name}</div>
+                    <div class="text-white/80 text-sm mb-2">${second.members} anggota</div>
+                    <div class="text-3xl font-bold text-white">${second.points}</div>
+                    <div class="text-white/70 text-xs">poin</div>
+                </div>
+                <div class="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20 text-center">
+                    <div class="text-4xl mb-2">🥉</div>
+                    <div class="text-xl font-bold text-white mb-1">${third.name}</div>
+                    <div class="text-white/80 text-sm mb-2">${third.members} anggota</div>
+                    <div class="text-3xl font-bold text-white">${third.points}</div>
+                    <div class="text-white/70 text-xs">poin</div>
+                </div>
+            </div>
         </div>
     `;
 }
 
 function renderStreakLeaders(container) {
-    const streakLeaders = [...dashboardData.students]
-        .sort((a, b) => b.streak - a.streak)
-        .slice(0, 10);
+    const topStreak = [...dashboardData.students]
+        .sort((a, b) => b.streak - a.streak)[0];
+    const second = [...dashboardData.students]
+        .sort((a, b) => b.streak - a.streak)[1];
+    const third = [...dashboardData.students]
+        .sort((a, b) => b.streak - a.streak)[2];
     
     container.innerHTML = `
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pb-16">
-            ${streakLeaders.map((student, index) => {
-                const bgClass = index < 3 ? 'bg-white/20' : 'bg-white/10';
-                
-                return `
-                    <div class="${bgClass} backdrop-blur-sm rounded-2xl p-4 border border-white/20 hover:bg-white/25 transition-all">
-                        <div class="flex items-center gap-4">
-                            <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center text-white font-bold text-2xl">
-                                🔥
-                            </div>
-                            <div class="flex-1">
-                                <div class="font-bold text-white text-lg">${student.name}</div>
-                                <div class="text-white/80 text-sm">Halaqah ${student.halaqah}</div>
-                            </div>
-                            <div class="text-right">
-                                <div class="text-3xl font-bold text-orange-300">${student.streak}</div>
-                                <div class="text-white/80 text-xs">hari beruntun</div>
-                            </div>
-                        </div>
-                        <div class="mt-3 text-white/90 text-sm">
-                            Total Poin: <span class="font-bold">${student.total_points}</span> • 
-                            Hafalan: <span class="font-bold">${student.total_hafalan || 0} Hal</span>
-                        </div>
-                    </div>
-                `;
-            }).join('')}
+        <div class="flex flex-col items-center justify-center h-full">
+            <!-- Champion -->
+            <div class="text-center mb-8">
+                <div class="inline-block p-6 bg-gradient-to-br from-orange-400 to-red-500 rounded-full mb-4 shadow-2xl">
+                    <div class="text-6xl">🔥</div>
+                </div>
+                <div class="text-white/80 text-sm mb-2">STREAK TERPANJANG</div>
+                <div class="text-5xl font-bold text-white mb-2">${topStreak.name}</div>
+                <div class="text-xl text-white/90 mb-4">Halaqah ${topStreak.halaqah}</div>
+                <div class="inline-block px-8 py-4 bg-white/20 backdrop-blur-sm rounded-2xl border-2 border-white/30">
+                    <div class="text-6xl font-bold text-orange-300">${topStreak.streak}</div>
+                    <div class="text-white/80 text-lg">Hari Beruntun</div>
+                </div>
+            </div>
+            
+            <!-- Runner-ups -->
+            <div class="grid grid-cols-2 gap-6 max-w-2xl w-full">
+                <div class="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20 text-center">
+                    <div class="text-4xl mb-2">🥈</div>
+                    <div class="text-xl font-bold text-white mb-1">${second.name}</div>
+                    <div class="text-white/80 text-sm mb-2">Halaqah ${second.halaqah}</div>
+                    <div class="text-3xl font-bold text-orange-300">${second.streak}</div>
+                    <div class="text-white/70 text-xs">hari beruntun</div>
+                </div>
+                <div class="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20 text-center">
+                    <div class="text-4xl mb-2">🥉</div>
+                    <div class="text-xl font-bold text-white mb-1">${third.name}</div>
+                    <div class="text-white/80 text-sm mb-2">Halaqah ${third.halaqah}</div>
+                    <div class="text-3xl font-bold text-orange-300">${third.streak}</div>
+                    <div class="text-white/70 text-xs">hari beruntun</div>
+                </div>
+            </div>
         </div>
     `;
 }
