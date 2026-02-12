@@ -44,7 +44,14 @@ async function syncStudentsToSupabase() {
         return;
     }
     
+    // Prevent concurrent syncs and realtime loops
+    if (window.syncInProgress) {
+        console.log('⏭️ Sync already in progress, skipping...');
+        return;
+    }
+    
     try {
+        window.syncInProgress = true;
         isSyncing = true;
         // Silent sync - no notification
         
@@ -71,6 +78,7 @@ async function syncStudentsToSupabase() {
                 achievements: JSON.stringify(s.achievements || []),
                 setoran: JSON.stringify(s.setoran || []),
                 last_setoran_date: s.lastSetoranDate || '',
+                total_hafalan: parseFloat(s.total_hafalan) || 0,
                 updated_at: new Date().toISOString()
             };
         }).filter(item => item !== null); // Remove invalid items
@@ -89,6 +97,7 @@ async function syncStudentsToSupabase() {
         if (uniqueStudents.length === 0) {
             console.log('No valid students to sync');
             isSyncing = false;
+            window.syncInProgress = false;
             return;
         }
 
@@ -108,10 +117,16 @@ async function syncStudentsToSupabase() {
         
         // Success - no notification (silent sync)
         isSyncing = false;
+        
+        // Clear flag after a delay to allow realtime updates to settle
+        setTimeout(() => {
+            window.syncInProgress = false;
+        }, 2000);
     } catch (error) {
         console.error('Error syncing students:', error);
         showSyncStatus('❌ Gagal sinkronisasi santri', 'error');
         isSyncing = false;
+        window.syncInProgress = false;
     }
 }
 
@@ -283,6 +298,18 @@ function enableRealtimeSubscription() {
 }
 
 function handleRealtimeUpdate(payload) {
+    // Prevent processing updates during delete operations
+    if (window.deleteOperationInProgress) {
+        console.log('⏭️ Skipping realtime update during delete operation');
+        return;
+    }
+    
+    // Prevent processing updates during sync operations to avoid loops
+    if (window.syncInProgress) {
+        console.log('⏭️ Skipping realtime update during sync operation');
+        return;
+    }
+    
     const { eventType, new: newRecord, old: oldRecord } = payload;
     
     // Helper to map DB snake_case to local camelCase
@@ -303,21 +330,23 @@ function handleRealtimeUpdate(payload) {
             achievements: typeof record.achievements === 'string' ? JSON.parse(record.achievements || '[]') : record.achievements,
             setoran: typeof record.setoran === 'string' ? JSON.parse(record.setoran || '[]') : record.setoran,
             lastSetoranDate: record.last_setoran_date,
-            total_hafalan: record.total_points > 0 ? (record.total_points / 20) : 0
+            total_hafalan: record.total_hafalan || 0
         };
     };
 
     if (eventType === 'INSERT') {
         const exists = dashboardData.students.find(s => s.id === newRecord.id);
         if (!exists) {
+            console.log('📥 Realtime INSERT:', newRecord.name);
             dashboardData.students.push(mapStudentData(newRecord));
             refreshAllData();
         }
     } else if (eventType === 'UPDATE') {
         const index = dashboardData.students.findIndex(s => s.id === newRecord.id);
         if (index !== -1) {
-            // Merge to avoid losing local UI state if any, though usually we replace data
-            dashboardData.students[index] = { ...dashboardData.students[index], ...mapStudentData(newRecord) };
+            console.log('🔄 Realtime UPDATE:', newRecord.name);
+            // Replace with new data from server (server is source of truth)
+            dashboardData.students[index] = mapStudentData(newRecord);
             refreshAllData();
             // showSyncStatus('🔄 Data diperbarui', 'info');
         }

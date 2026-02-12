@@ -174,6 +174,11 @@ async function autoCheckAndApplyPenalties() {
 
 // Initialize auto-check (runs every hour)
 function initAutoPenaltyCheck() {
+    // DISABLED: Auto-penalty check to prevent duplicate penalties
+    // Admin can manually apply penalties from the dashboard
+    console.log('⚠️ Auto-penalty check is DISABLED. Use manual trigger from admin panel.');
+    
+    /* ORIGINAL CODE - DISABLED
     // Run check every hour
     setInterval(autoCheckAndApplyPenalties, 60 * 60 * 1000);
     
@@ -181,8 +186,9 @@ function initAutoPenaltyCheck() {
     if (isEndOfDay()) {
         setTimeout(autoCheckAndApplyPenalties, 5000); // Wait 5 seconds after page load
     }
+    */
     
-    console.log('✅ Auto-penalty check initialized');
+    console.log('✅ Auto-penalty check initialized (DISABLED)');
 }
 
 // Show penalty report
