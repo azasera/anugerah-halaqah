@@ -121,7 +121,7 @@ function showStudentDetail(student) {
         </div>
     `;
     
-    createModal(content);
+    createModal(content, false);
 }
 
 function showHalaqahDetail(halaqah) {
@@ -176,7 +176,7 @@ function showHalaqahDetail(halaqah) {
         </div>
     `;
     
-    createModal(content);
+    createModal(content, false);
 }
 
 function showEditHafalanForm(student) {
@@ -220,7 +220,7 @@ function showEditHafalanForm(student) {
         </div>
     `;
     
-    createModal(content);
+    createModal(content, false);
 }
 
 function handleEditHafalan(event, studentId) {

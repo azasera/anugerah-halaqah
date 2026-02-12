@@ -55,7 +55,7 @@ function showAddStudentForm() {
         </div>
     `;
     
-    createModal(content);
+    createModal(content, false);
 }
 
 function showEditStudentForm(student, fromAdmin = false) {
@@ -133,7 +133,7 @@ function showEditStudentForm(student, fromAdmin = false) {
         </div>
     `;
     
-    createModal(content);
+    createModal(content, false);
 }
 
 function showAddHalaqahForm() {
@@ -174,7 +174,7 @@ function showAddHalaqahForm() {
         </div>
     `;
     
-    createModal(content);
+    createModal(content, false);
 }
 
 function showAddPointsForm(student) {
@@ -226,7 +226,7 @@ function showAddPointsForm(student) {
         </div>
     `;
     
-    createModal(content);
+    createModal(content, false);
 }
 
 // Event Handlers

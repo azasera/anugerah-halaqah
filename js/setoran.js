@@ -129,7 +129,7 @@ function showSetoranForm(student) {
         </div>
     `;
     
-    createModal(content);
+    createModal(content, false);
 }
 
 function updateSetoranPreview() {
@@ -404,7 +404,7 @@ function showSetoranHistory(student) {
         </div>
     `;
     
-    createModal(content);
+    createModal(content, false);
 }
 
 function deleteSetoran(studentId, setoranId) {

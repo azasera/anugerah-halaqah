@@ -90,7 +90,7 @@ function showStudentList() {
         </div>
     `;
     
-    createModal(content);
+    createModal(content, false);
 }
 
 function showHalaqahList() {
@@ -153,7 +153,7 @@ function showHalaqahList() {
         </div>
     `;
     
-    createModal(content);
+    createModal(content, false);
 }
 
 function showEditHalaqahForm(halaqah) {
@@ -211,7 +211,7 @@ function showEditHalaqahForm(halaqah) {
         </div>
     `;
     
-    createModal(content);
+    createModal(content, false);
 }
 
 function handleEditHalaqah(event, halaqahId) {

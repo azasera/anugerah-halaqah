@@ -377,7 +377,7 @@ function showAdminSettings() {
         </div>
     `;
     
-    createModal(content);
+    createModal(content, false);
 }
 
 // Render Admin Settings Inline (not modal)

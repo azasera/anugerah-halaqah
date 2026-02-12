@@ -207,7 +207,7 @@ async function showSetoranFormV2(student) {
         </div>
     `;
     
-    createModal(content);
+    createModal(content, false);
 }
 
 // Calculate poin based on conditions
@@ -435,7 +435,7 @@ async function showSetoranHistory(studentId) {
         </div>
     `;
     
-    createModal(content);
+    createModal(content, false);
     
     // Load history
     if (window.SetoranHarian) {

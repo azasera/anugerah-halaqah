@@ -53,7 +53,7 @@ function showDebugPanel() {
         </div>
     `;
     
-    createModal(content);
+    createModal(content, false);
 }
 
 async function debugCheckSession() {

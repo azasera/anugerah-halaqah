@@ -269,7 +269,7 @@ function showPenaltyReport() {
         </div>
     `;
     
-    createModal(content);
+    createModal(content, false);
 }
 
 // Export functions

@@ -116,7 +116,7 @@ function showImportExcel() {
         </div>
     `;
     
-    createModal(content);
+    createModal(content, false);
 }
 
 let importedData = null;
