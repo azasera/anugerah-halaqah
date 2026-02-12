@@ -135,6 +135,9 @@ function showAdminSettings() {
                 <button onclick="switchAdminTab('halaqah')" id="tab-halaqah" class="admin-tab px-4 py-2 font-bold text-sm border-b-2 border-transparent text-slate-500 hover:text-slate-700 whitespace-nowrap">
                     Kelola Halaqah
                 </button>
+                <button onclick="switchAdminTab('autopoin')" id="tab-autopoin" class="admin-tab px-4 py-2 font-bold text-sm border-b-2 border-transparent text-slate-500 hover:text-slate-700 whitespace-nowrap">
+                    ⚡ Auto Poin
+                </button>
                 <button onclick="switchAdminTab('import')" id="tab-import" class="admin-tab px-4 py-2 font-bold text-sm border-b-2 border-transparent text-slate-500 hover:text-slate-700 whitespace-nowrap">
                     Import/Export
                 </button>
@@ -211,6 +214,73 @@ function showAdminSettings() {
                     
                     <div class="space-y-2 max-h-96 overflow-y-auto custom-scrollbar" id="halaqahAdminList">
                         ${halaqahList}
+                    </div>
+                </div>
+                
+                <div id="content-autopoin" class="admin-tab-content hidden">
+                    <h3 class="font-bold text-xl text-slate-800 mb-4">⚡ Auto Kalkulasi Poin</h3>
+                    
+                    <div class="bg-blue-50 border border-blue-200 rounded-xl p-6 mb-6">
+                        <h4 class="font-bold text-blue-900 mb-3 flex items-center gap-2">
+                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+                            </svg>
+                            Cara Kerja Auto Poin
+                        </h4>
+                        <ul class="text-sm text-blue-800 space-y-2">
+                            <li>✅ <strong>Setoran Masuk</strong>: Poin otomatis dihitung berdasarkan aturan (+2, +1, atau 0)</li>
+                            <li>❌ <strong>Tidak Setoran</strong>: Sistem otomatis kurangi -1 poin di akhir hari</li>
+                            <li>⏰ <strong>Waktu Eksekusi</strong>: 30 menit setelah sesi terakhir selesai</li>
+                            <li>🔄 <strong>Auto-Check</strong>: Sistem cek setiap 1 jam sekali</li>
+                            <li>👨‍💼 <strong>Manual Trigger</strong>: Admin bisa trigger manual kapan saja</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                        <div class="bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200 rounded-2xl p-6">
+                            <div class="text-green-600 text-sm font-bold mb-2">SUDAH SETORAN</div>
+                            <div class="text-4xl font-black text-green-700 mb-2" id="autopoin-sudah">-</div>
+                            <div class="text-xs text-green-600">Santri yang sudah input setoran hari ini</div>
+                        </div>
+                        
+                        <div class="bg-gradient-to-br from-red-50 to-rose-50 border-2 border-red-200 rounded-2xl p-6">
+                            <div class="text-red-600 text-sm font-bold mb-2">BELUM SETORAN</div>
+                            <div class="text-4xl font-black text-red-700 mb-2" id="autopoin-belum">-</div>
+                            <div class="text-xs text-red-600">Akan mendapat penalty -1 poin</div>
+                        </div>
+                    </div>
+                    
+                    <div class="space-y-3">
+                        <button onclick="closeModal(); showPenaltyReport()" 
+                            class="w-full flex items-center justify-center gap-3 p-4 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-colors">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                            📊 Lihat Laporan Detail
+                        </button>
+                        
+                        <button onclick="updateAutoPoinStats()" 
+                            class="w-full flex items-center justify-center gap-3 p-4 bg-slate-600 text-white rounded-xl font-bold hover:bg-slate-700 transition-colors">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                            </svg>
+                            🔄 Refresh Data
+                        </button>
+                    </div>
+                    
+                    <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 mt-6">
+                        <h4 class="font-bold text-amber-900 mb-2 flex items-center gap-2">
+                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                            </svg>
+                            Catatan Penting
+                        </h4>
+                        <ul class="text-sm text-amber-800 space-y-1">
+                            <li>• Penalty hanya diterapkan 1x per hari per santri</li>
+                            <li>• Jika santri sudah dapat penalty, tidak akan dapat lagi hari itu</li>
+                            <li>• Streak akan reset ke 0 jika tidak setoran</li>
+                            <li>• Penalty tidak bisa dibatalkan (sesuai aturan sistem)</li>
+                        </ul>
                     </div>
                 </div>
                 
@@ -442,6 +512,9 @@ function generateAdminSettingsContent() {
                 <button onclick="switchAdminTabInline('halaqah')" id="tab-inline-halaqah" class="admin-tab-inline px-4 py-2 font-bold text-sm border-b-2 border-transparent text-slate-500 hover:text-slate-700 whitespace-nowrap">
                     Kelola Halaqah
                 </button>
+                <button onclick="switchAdminTabInline('autopoin')" id="tab-inline-autopoin" class="admin-tab-inline px-4 py-2 font-bold text-sm border-b-2 border-transparent text-slate-500 hover:text-slate-700 whitespace-nowrap">
+                    ⚡ Auto Poin
+                </button>
                 <button onclick="switchAdminTabInline('import')" id="tab-inline-import" class="admin-tab-inline px-4 py-2 font-bold text-sm border-b-2 border-transparent text-slate-500 hover:text-slate-700 whitespace-nowrap">
                     Import/Export
                 </button>
@@ -518,6 +591,48 @@ function generateAdminSettingsContent() {
                     
                     <div class="space-y-2 max-h-96 overflow-y-auto custom-scrollbar" id="halaqahAdminListInline">
                         ${halaqahList}
+                    </div>
+                </div>
+                
+                <div id="content-inline-autopoin" class="admin-tab-inline-content hidden">
+                    <h4 class="font-bold text-xl text-slate-800 mb-4">⚡ Auto Kalkulasi Poin</h4>
+                    
+                    <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
+                        <h5 class="font-bold text-blue-900 mb-2 flex items-center gap-2 text-sm">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+                            </svg>
+                            Cara Kerja Auto Poin
+                        </h5>
+                        <ul class="text-xs text-blue-800 space-y-1">
+                            <li>✅ Setoran: Poin auto dihitung (+2, +1, 0)</li>
+                            <li>❌ Tidak Setoran: Auto -1 poin di akhir hari</li>
+                            <li>⏰ Eksekusi: 30 menit setelah sesi terakhir</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-3 mb-4">
+                        <div class="bg-green-50 border border-green-200 rounded-xl p-3">
+                            <div class="text-green-600 text-xs font-bold mb-1">SUDAH SETORAN</div>
+                            <div class="text-2xl font-black text-green-700" id="autopoin-inline-sudah">-</div>
+                        </div>
+                        
+                        <div class="bg-red-50 border border-red-200 rounded-xl p-3">
+                            <div class="text-red-600 text-xs font-bold mb-1">BELUM SETORAN</div>
+                            <div class="text-2xl font-black text-red-700" id="autopoin-inline-belum">-</div>
+                        </div>
+                    </div>
+                    
+                    <div class="space-y-2">
+                        <button onclick="showPenaltyReport()" 
+                            class="w-full flex items-center justify-center gap-2 p-3 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition-colors text-sm">
+                            📊 Lihat Laporan Detail
+                        </button>
+                        
+                        <button onclick="updateAutoPoinStatsInline()" 
+                            class="w-full flex items-center justify-center gap-2 p-3 bg-slate-600 text-white rounded-lg font-bold hover:bg-slate-700 transition-colors text-sm">
+                            🔄 Refresh Data
+                        </button>
                     </div>
                 </div>
                 
@@ -627,6 +742,11 @@ function switchAdminTabInline(tab) {
     if (activeContent) {
         activeContent.classList.remove('hidden');
     }
+    
+    // Update auto poin stats when tab is opened
+    if (tab === 'autopoin' && typeof updateAutoPoinStatsInline === 'function') {
+        updateAutoPoinStatsInline();
+    }
 }
 
 function filterAdminListInline(type, searchTerm) {
@@ -711,6 +831,11 @@ function switchAdminTab(tab) {
     const activeContent = document.getElementById(`content-${tab}`);
     if (activeContent) {
         activeContent.classList.remove('hidden');
+    }
+    
+    // Update auto poin stats when tab is opened
+    if (tab === 'autopoin' && typeof updateAutoPoinStats === 'function') {
+        updateAutoPoinStats();
     }
 }
 
@@ -1161,3 +1286,48 @@ window.updateAdminSantriListInline = updateAdminSantriListInline;
 window.updateAdminHalaqahListInline = updateAdminHalaqahListInline;
 
 
+
+
+// Update Auto Poin Stats
+function updateAutoPoinStats() {
+    if (!window.AutoPoin) {
+        console.error('AutoPoin module not loaded');
+        return;
+    }
+    
+    const studentsWithoutSetoran = window.AutoPoin.getStudentsWithoutSetoranToday();
+    const totalStudents = dashboardData.students.length;
+    const studentsWithSetoran = totalStudents - studentsWithoutSetoran.length;
+    
+    const sudahEl = document.getElementById('autopoin-sudah');
+    const belumEl = document.getElementById('autopoin-belum');
+    
+    if (sudahEl) sudahEl.textContent = studentsWithSetoran;
+    if (belumEl) belumEl.textContent = studentsWithoutSetoran.length;
+    
+    console.log('✅ Auto Poin stats updated');
+}
+
+// Update Auto Poin Stats Inline
+function updateAutoPoinStatsInline() {
+    if (!window.AutoPoin) {
+        console.error('AutoPoin module not loaded');
+        return;
+    }
+    
+    const studentsWithoutSetoran = window.AutoPoin.getStudentsWithoutSetoranToday();
+    const totalStudents = dashboardData.students.length;
+    const studentsWithSetoran = totalStudents - studentsWithoutSetoran.length;
+    
+    const sudahEl = document.getElementById('autopoin-inline-sudah');
+    const belumEl = document.getElementById('autopoin-inline-belum');
+    
+    if (sudahEl) sudahEl.textContent = studentsWithSetoran;
+    if (belumEl) belumEl.textContent = studentsWithoutSetoran.length;
+    
+    console.log('✅ Auto Poin inline stats updated');
+}
+
+// Make globally accessible
+window.updateAutoPoinStats = updateAutoPoinStats;
+window.updateAutoPoinStatsInline = updateAutoPoinStatsInline;
