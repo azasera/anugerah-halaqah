@@ -117,16 +117,10 @@ function renderUserManagement() {
                     </h3>
                     <p class="text-sm text-slate-500 mt-1">Kelola akses pengguna sistem</p>
                 </div>
-                <div class="flex gap-2">
-                    <button onclick="showImportUserDialog()" 
-                        class="flex-1 md:flex-none px-4 py-3 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition-colors shadow-lg shadow-green-200">
-                        📥 Import Excel
-                    </button>
-                    <button onclick="showAddUserForm()" 
-                        class="flex-1 md:flex-none px-4 py-3 bg-primary-600 text-white rounded-xl font-bold hover:bg-primary-700 transition-colors shadow-lg shadow-primary-200">
-                        ➕ Tambah User
-                    </button>
-                </div>
+                <button onclick="showAddUserForm()" 
+                    class="w-full md:w-auto px-4 py-3 bg-primary-600 text-white rounded-xl font-bold hover:bg-primary-700 transition-colors shadow-lg shadow-primary-200">
+                    ➕ Tambah User
+                </button>
             </div>
             
             <!-- Search & Filter -->
@@ -198,82 +192,170 @@ function showAddUserForm() {
             <div class="flex items-start justify-between mb-6">
                 <div>
                     <h2 class="font-display font-bold text-2xl md:text-3xl text-slate-800 mb-2">➕ Tambah User Baru</h2>
-                    <p class="text-slate-500">Isi form untuk menambahkan user</p>
+                    <p class="text-slate-500">Pilih metode untuk menambahkan user</p>
                 </div>
             </div>
             
-            <form onsubmit="handleAddUser(event)" class="space-y-4">
-                <div>
-                    <label class="block text-sm font-bold text-slate-700 mb-2">Nama Lengkap *</label>
-                    <input type="text" name="name" required 
-                        class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
-                        placeholder="Masukkan nama lengkap">
+            <!-- Tabs -->
+            <div class="flex gap-2 mb-6 border-b border-slate-200">
+                <button onclick="switchAddUserTab('manual')" id="tabManual" 
+                    class="tab-btn active px-4 py-2 font-bold text-sm transition-colors border-b-2 border-primary-600 text-primary-600">
+                    ✏️ Manual
+                </button>
+                <button onclick="switchAddUserTab('import')" id="tabImport" 
+                    class="tab-btn px-4 py-2 font-bold text-sm transition-colors border-b-2 border-transparent text-slate-500 hover:text-slate-700">
+                    📥 Import Excel
+                </button>
+            </div>
+            
+            <!-- Manual Tab -->
+            <div id="manualTab" class="tab-content">
+                <form onsubmit="handleAddUser(event)" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2">Nama Lengkap *</label>
+                        <input type="text" name="name" required 
+                            class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+                            placeholder="Masukkan nama lengkap">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2">Email *</label>
+                        <input type="email" name="email" required 
+                            class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+                            placeholder="email@example.com">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2">No. Telepon *</label>
+                        <input type="tel" name="phone" required 
+                            class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+                            placeholder="081234567890">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2">Role *</label>
+                        <select name="role" required 
+                            class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none">
+                            <option value="">Pilih Role</option>
+                            <option value="admin">👑 Admin</option>
+                            <option value="guru">👨‍🏫 Guru</option>
+                            <option value="staff">👤 Staff</option>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2">Status *</label>
+                        <select name="status" required 
+                            class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none">
+                            <option value="active">✅ Aktif</option>
+                            <option value="inactive">❌ Nonaktif</option>
+                        </select>
+                    </div>
+                    
+                    <div class="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                        <h4 class="font-bold text-blue-900 mb-2 flex items-center gap-2">
+                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+                            </svg>
+                            Informasi Role
+                        </h4>
+                        <ul class="text-sm text-blue-800 space-y-1">
+                            <li>• <strong>Admin</strong>: Akses penuh ke semua fitur</li>
+                            <li>• <strong>Guru</strong>: Kelola santri dan setoran</li>
+                            <li>• <strong>Staff</strong>: Lihat data saja</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="flex gap-3 pt-4">
+                        <button type="button" onclick="closeModal()" 
+                            class="flex-1 px-6 py-3 rounded-xl font-bold text-slate-600 hover:bg-slate-100 transition-colors">
+                            Batal
+                        </button>
+                        <button type="submit" 
+                            class="flex-1 bg-primary-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-primary-700 transition-colors">
+                            Simpan
+                        </button>
+                    </div>
+                </form>
+            </div>
+            
+            <!-- Import Tab -->
+            <div id="importTab" class="tab-content hidden">
+                <div class="space-y-4">
+                    <div class="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                        <h4 class="font-bold text-blue-800 mb-2">📋 Format Excel:</h4>
+                        <div class="text-sm text-blue-700 space-y-1">
+                            <p><strong>Kolom 1:</strong> User name (Nama lengkap)</p>
+                            <p><strong>Kolom 2:</strong> Nama akun (username/email)</p>
+                            <p><strong>Kolom 3:</strong> Password</p>
+                            <p><strong>Kolom 4:</strong> Lembaga</p>
+                        </div>
+                        <div class="mt-3 text-xs text-blue-600">
+                            <p>⚠️ Baris pertama (header) akan diabaikan</p>
+                            <p>✅ Pastikan format sesuai agar import berhasil</p>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2">Pilih File Excel:</label>
+                        <input type="file" id="importUserFile" accept=".xlsx,.xls" 
+                            class="w-full px-4 py-3 border-2 border-dashed border-slate-300 rounded-xl hover:border-primary-500 transition-colors cursor-pointer">
+                    </div>
+                    
+                    <div id="importPreview" class="hidden">
+                        <h4 class="font-bold text-slate-800 mb-2">Preview Data:</h4>
+                        <div id="importPreviewContent" class="max-h-60 overflow-y-auto border border-slate-200 rounded-xl p-3 text-sm"></div>
+                    </div>
+                    
+                    <div class="flex gap-3 pt-4">
+                        <button type="button" onclick="closeModal()" 
+                            class="flex-1 px-6 py-3 rounded-xl font-bold text-slate-600 hover:bg-slate-100 transition-colors">
+                            Batal
+                        </button>
+                        <button type="button" onclick="handleImportUsers()" 
+                            class="flex-1 bg-green-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-green-700 transition-colors">
+                            ✅ Import
+                        </button>
+                    </div>
                 </div>
-                
-                <div>
-                    <label class="block text-sm font-bold text-slate-700 mb-2">Email *</label>
-                    <input type="email" name="email" required 
-                        class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
-                        placeholder="email@example.com">
-                </div>
-                
-                <div>
-                    <label class="block text-sm font-bold text-slate-700 mb-2">No. Telepon *</label>
-                    <input type="tel" name="phone" required 
-                        class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
-                        placeholder="081234567890">
-                </div>
-                
-                <div>
-                    <label class="block text-sm font-bold text-slate-700 mb-2">Role *</label>
-                    <select name="role" required 
-                        class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none">
-                        <option value="">Pilih Role</option>
-                        <option value="admin">👑 Admin</option>
-                        <option value="guru">👨‍🏫 Guru</option>
-                        <option value="staff">👤 Staff</option>
-                    </select>
-                </div>
-                
-                <div>
-                    <label class="block text-sm font-bold text-slate-700 mb-2">Status *</label>
-                    <select name="status" required 
-                        class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none">
-                        <option value="active">✅ Aktif</option>
-                        <option value="inactive">❌ Nonaktif</option>
-                    </select>
-                </div>
-                
-                <div class="bg-blue-50 border border-blue-200 rounded-xl p-4">
-                    <h4 class="font-bold text-blue-900 mb-2 flex items-center gap-2">
-                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
-                        </svg>
-                        Informasi Role
-                    </h4>
-                    <ul class="text-sm text-blue-800 space-y-1">
-                        <li>• <strong>Admin</strong>: Akses penuh ke semua fitur</li>
-                        <li>• <strong>Guru</strong>: Kelola santri dan setoran</li>
-                        <li>• <strong>Staff</strong>: Lihat data saja</li>
-                    </ul>
-                </div>
-                
-                <div class="flex gap-3 pt-4">
-                    <button type="button" onclick="closeModal()" 
-                        class="flex-1 px-6 py-3 rounded-xl font-bold text-slate-600 hover:bg-slate-100 transition-colors">
-                        Batal
-                    </button>
-                    <button type="submit" 
-                        class="flex-1 bg-primary-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-primary-700 transition-colors">
-                        Simpan
-                    </button>
-                </div>
-            </form>
+            </div>
         </div>
     `;
     
     // Prevent closing modal by clicking outside (false = tidak bisa ditutup dengan klik di luar)
     createModal(content, false);
+    
+    // Add file change listener after modal is created
+    setTimeout(() => {
+        const fileInput = document.getElementById('importUserFile');
+        if (fileInput) {
+            fileInput.addEventListener('change', previewImportUsers);
+        }
+    }, 100);
+}
+
+// Switch tab in add user modal
+function switchAddUserTab(tab) {
+    const manualTab = document.getElementById('manualTab');
+    const importTab = document.getElementById('importTab');
+    const tabManual = document.getElementById('tabManual');
+    const tabImport = document.getElementById('tabImport');
+    
+    if (tab === 'manual') {
+        manualTab?.classList.remove('hidden');
+        importTab?.classList.add('hidden');
+        tabManual?.classList.add('active', 'border-primary-600', 'text-primary-600');
+        tabManual?.classList.remove('text-slate-500');
+        tabImport?.classList.remove('active', 'border-primary-600', 'text-primary-600');
+        tabImport?.classList.add('text-slate-500');
+    } else {
+        manualTab?.classList.add('hidden');
+        importTab?.classList.remove('hidden');
+        tabImport?.classList.add('active', 'border-primary-600', 'text-primary-600');
+        tabImport?.classList.remove('text-slate-500');
+        tabManual?.classList.remove('active', 'border-primary-600', 'text-primary-600');
+        tabManual?.classList.add('text-slate-500');
+    }
 }
 
 // Handle add user
@@ -469,60 +551,6 @@ window.filterUsers = filterUsers;
 window.filterUsersByRole = filterUsersByRole;
 
 // Show import user dialog
-function showImportUserDialog() {
-    const modal = createModal({
-        title: '📥 Import User dari Excel',
-        content: `
-            <div class="space-y-4">
-                <div class="bg-blue-50 border border-blue-200 rounded-xl p-4">
-                    <h4 class="font-bold text-blue-800 mb-2">📋 Format Excel:</h4>
-                    <div class="text-sm text-blue-700 space-y-1">
-                        <p><strong>Kolom 1:</strong> User name (Nama lengkap)</p>
-                        <p><strong>Kolom 2:</strong> Nama akun (username/email)</p>
-                        <p><strong>Kolom 3:</strong> Password</p>
-                        <p><strong>Kolom 4:</strong> Lembaga</p>
-                    </div>
-                    <div class="mt-3 text-xs text-blue-600">
-                        <p>⚠️ Baris pertama (header) akan diabaikan</p>
-                        <p>✅ Pastikan format sesuai agar import berhasil</p>
-                    </div>
-                </div>
-                
-                <div>
-                    <label class="block text-sm font-bold text-slate-700 mb-2">Pilih File Excel:</label>
-                    <input type="file" id="importUserFile" accept=".xlsx,.xls" 
-                        class="w-full px-4 py-3 border-2 border-dashed border-slate-300 rounded-xl hover:border-primary-500 transition-colors cursor-pointer">
-                </div>
-                
-                <div id="importPreview" class="hidden">
-                    <h4 class="font-bold text-slate-800 mb-2">Preview Data:</h4>
-                    <div id="importPreviewContent" class="max-h-60 overflow-y-auto border border-slate-200 rounded-xl p-3 text-sm"></div>
-                </div>
-            </div>
-        `,
-        buttons: [
-            {
-                text: '❌ Batal',
-                className: 'px-6 py-3 bg-slate-200 text-slate-700 rounded-xl font-bold hover:bg-slate-300 transition-colors',
-                onClick: () => closeModal()
-            },
-            {
-                text: '✅ Import',
-                className: 'px-6 py-3 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition-colors',
-                onClick: () => handleImportUsers()
-            }
-        ]
-    });
-    
-    // Add file change listener
-    setTimeout(() => {
-        const fileInput = document.getElementById('importUserFile');
-        if (fileInput) {
-            fileInput.addEventListener('change', previewImportUsers);
-        }
-    }, 100);
-}
-
 // Preview import users
 function previewImportUsers(event) {
     const file = event.target.files[0];
@@ -656,4 +684,4 @@ function handleImportUsers() {
     reader.readAsArrayBuffer(file);
 }
 
-window.showImportUserDialog = showImportUserDialog;
+window.switchAddUserTab = switchAddUserTab;
