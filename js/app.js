@@ -48,13 +48,13 @@ function scrollToSection(section) {
             }
         });
         
-        // Show/hide slider based on section
+        // Show/hide slider - only show on home
         const slider = document.getElementById('rankingSlider');
         if (slider) {
-            if (section === 'settings' || section === 'users') {
-                slider.classList.add('hidden');
-            } else {
+            if (section === 'home') {
                 slider.classList.remove('hidden');
+            } else {
+                slider.classList.add('hidden');
             }
         }
         
