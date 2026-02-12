@@ -370,6 +370,10 @@ function showAdminSettings() {
                 </div>
                 
                 <div class="flex gap-3 pt-4 border-t border-slate-200">
+                    <button onclick="showResetDataModal()" 
+                        class="flex-1 bg-red-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-red-700 transition-colors">
+                        🔧 Reset Data
+                    </button>
                     <button onclick="resetSettings()" 
                         class="px-6 py-3 rounded-xl font-bold text-amber-600 hover:bg-amber-50 transition-colors">
                         Reset Pengaturan
