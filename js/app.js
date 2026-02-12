@@ -249,23 +249,6 @@ function toggleFABMenu() {
 window.toggleFABMenu = toggleFABMenu;
 
 
-function toggleBurgerMenu() {
-    const menu = document.getElementById('burgerMenu');
-    const menuContent = menu.querySelector('div:last-child');
-    
-    if (menu.classList.contains('hidden')) {
-        menu.classList.remove('hidden');
-        setTimeout(() => {
-            menuContent.style.transform = 'translateX(0)';
-        }, 10);
-    } else {
-        menuContent.style.transform = 'translateX(100%)';
-        setTimeout(() => {
-            menu.classList.add('hidden');
-        }, 300);
-    }
-}
-
 function showQuickActions() {
     const modal = document.getElementById('quickActionsModal');
     modal.classList.remove('hidden');
@@ -276,6 +259,5 @@ function closeQuickActions() {
     modal.classList.add('hidden');
 }
 
-window.toggleBurgerMenu = toggleBurgerMenu;
 window.showQuickActions = showQuickActions;
 window.closeQuickActions = closeQuickActions;
