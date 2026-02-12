@@ -180,6 +180,7 @@ function initApp() {
                 if (typeof renderFilters === 'function') renderFilters();
                 if (typeof renderSortButtons === 'function') renderSortButtons();
                 if (typeof renderSantri === 'function') renderSantri();
+                if (typeof renderAbsenceWidget === 'function') renderAbsenceWidget();
             } catch (error) {
                 console.error('Error rendering main components:', error);
             }
@@ -210,6 +211,7 @@ function initApp() {
                 if (typeof renderFilters === 'function') renderFilters();
                 if (typeof renderSortButtons === 'function') renderSortButtons();
                 if (typeof renderSantri === 'function') renderSantri();
+                if (typeof renderAbsenceWidget === 'function') renderAbsenceWidget();
                 
                 scrollToSection('home');
             } catch (e) {

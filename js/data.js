@@ -142,6 +142,12 @@ function refreshAllData() {
     renderHalaqahRankings();
     renderFilters();
     renderSantri();
+    
+    // Render absence widget on dashboard
+    if (typeof renderAbsenceWidget === 'function') {
+        renderAbsenceWidget();
+    }
+    
     // Don't re-render absence tracker to prevent flickering
     // It will be rendered once on init
 }

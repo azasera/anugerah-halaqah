@@ -3,6 +3,88 @@
 let lastAbsenceRender = 0;
 const ABSENCE_RENDER_COOLDOWN = 5000; // Only re-render every 5 seconds
 
+// Render absence widget for dashboard
+function renderAbsenceWidget() {
+    const container = document.getElementById('absenceWidgetContainer');
+    if (!container) return;
+    
+    const today = new Date().toDateString();
+    
+    // Count students by status
+    let notSubmittedCount = 0;
+    let submittedCount = 0;
+    
+    dashboardData.students.forEach(student => {
+        const hasSetoranToday = student.setoran?.some(s => 
+            new Date(s.date).toDateString() === today
+        );
+        
+        if (hasSetoranToday) {
+            submittedCount++;
+        } else {
+            notSubmittedCount++;
+        }
+    });
+    
+    const totalStudents = dashboardData.students.length;
+    const percentage = totalStudents > 0 ? Math.round((submittedCount / totalStudents) * 100) : 0;
+    
+    // Only show widget if there are students who haven't submitted
+    if (notSubmittedCount === 0) {
+        container.innerHTML = '';
+        return;
+    }
+    
+    const content = `
+        <div class="glass rounded-3xl p-6 border-2 ${notSubmittedCount > 0 ? 'border-red-200 bg-red-50/50' : 'border-green-200 bg-green-50/50'}">
+            <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <div class="flex-1">
+                    <div class="flex items-center gap-3 mb-2">
+                        <div class="w-10 h-10 rounded-full ${notSubmittedCount > 0 ? 'bg-red-500' : 'bg-green-500'} flex items-center justify-center">
+                            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-lg text-slate-800">Tracking Kehadiran Hari Ini</h3>
+                            <p class="text-sm text-slate-600">Pantau santri yang belum setor</p>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-3 gap-3 mt-4">
+                        <div class="bg-white rounded-xl p-3 border border-slate-200">
+                            <div class="text-2xl font-bold ${percentage >= 80 ? 'text-green-600' : percentage >= 50 ? 'text-amber-600' : 'text-red-600'}">${percentage}%</div>
+                            <div class="text-xs text-slate-600 font-semibold">Sudah Setor</div>
+                        </div>
+                        <div class="bg-white rounded-xl p-3 border border-green-200">
+                            <div class="text-2xl font-bold text-green-600">${submittedCount}</div>
+                            <div class="text-xs text-green-600 font-semibold">✅ Hadir</div>
+                        </div>
+                        <div class="bg-white rounded-xl p-3 border border-red-200">
+                            <div class="text-2xl font-bold text-red-600">${notSubmittedCount}</div>
+                            <div class="text-xs text-red-600 font-semibold">❌ Belum</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex flex-col gap-2 w-full md:w-auto">
+                    <button onclick="scrollToSection('absensi')" 
+                        class="w-full md:w-auto px-6 py-3 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition-colors shadow-lg whitespace-nowrap">
+                        📋 Lihat Detail
+                    </button>
+                    ${notSubmittedCount > 0 ? `
+                    <div class="text-xs text-red-600 text-center md:text-right font-semibold">
+                        ⚠️ ${notSubmittedCount} santri belum setor
+                    </div>
+                    ` : ''}
+                </div>
+            </div>
+        </div>
+    `;
+    
+    container.innerHTML = content;
+}
+
 function renderAbsenceTracker(force = false) {
     const container = document.getElementById('absensiContainer');
     if (!container) return;
@@ -332,6 +414,7 @@ function deselectAllAbsent() {
 }
 
 // Make functions globally accessible
+window.renderAbsenceWidget = renderAbsenceWidget;
 window.renderAbsenceTracker = renderAbsenceTracker;
 window.showAbsenceTracker = showAbsenceTracker;
 window.applyAbsencePenalty = applyAbsencePenalty;
