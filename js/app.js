@@ -29,6 +29,9 @@ function scrollToSection(section) {
         case 'users':
             targetElement = document.getElementById('users');
             break;
+        case 'profile':
+            targetElement = document.getElementById('profile');
+            break;
         default:
             targetElement = document.getElementById(section);
             break;
@@ -40,7 +43,7 @@ function scrollToSection(section) {
     // Use requestAnimationFrame for smooth transition
     requestAnimationFrame(() => {
         // Hide all sections first
-        const sections = ['home', 'stats', 'halaqah', 'santri', 'poinRules', 'absensi', 'settings', 'users'];
+        const sections = ['home', 'stats', 'halaqah', 'santri', 'poinRules', 'absensi', 'settings', 'users', 'profile'];
         sections.forEach(s => {
             const element = document.getElementById(s);
             if (element) {
@@ -123,6 +126,12 @@ function scrollToSection(section) {
                     // Force render user management when switching to this view
                     if (typeof renderUserManagement === 'function') {
                         renderUserManagement();
+                    }
+                    break;
+                case 'profile':
+                    // Force render profile when switching to this view
+                    if (typeof renderProfile === 'function') {
+                        renderProfile();
                     }
                     break;
             }
