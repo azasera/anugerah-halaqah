@@ -106,9 +106,11 @@ function showAdminSettings() {
                         <input type="number" value="${l.targetBaris}" min="1"
                             onchange="updateLembaga('${key}', 'targetBaris', this.value)"
                             class="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm">
-                    </div>
-                    <div>
-                        <label class="text-xs text-slate-600 font-bold"></div>`n                </div>`n                <div class="mt-3 text-xs text-slate-500 bg-blue-50 p-2 rounded">`n                    ? Poin dihitung dari kondisi setoran (tepat waktu, lancar, capai target), bukan dari jumlah baris`n                </div>`n            </div>
+                </div>
+                <div class="mt-3 text-xs text-slate-500 bg-blue-50 p-2 rounded">
+                    ?? Poin dihitung dari kondisi setoran (tepat waktu, lancar, capai target), bukan dari jumlah baris
+                </div>
+            </div>
         `;
     }).join('');
 
@@ -416,9 +418,11 @@ function generateAdminSettingsContent() {
                         <input type="number" value="${l.targetBaris}" min="1"
                             onchange="updateLembaga('${key}', 'targetBaris', this.value)"
                             class="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm">
-                    </div>
-                    <div>
-                        <label class="text-xs text-slate-600 font-bold"></div>`n                </div>`n                <div class="mt-3 text-xs text-slate-500 bg-blue-50 p-2 rounded">`n                    ? Poin dihitung dari kondisi setoran (tepat waktu, lancar, capai target), bukan dari jumlah baris`n                </div>`n            </div>
+                </div>
+                <div class="mt-3 text-xs text-slate-500 bg-blue-50 p-2 rounded">
+                    ?? Poin dihitung dari kondisi setoran (tepat waktu, lancar, capai target), bukan dari jumlah baris
+                </div>
+            </div>
         `;
     }).join('');
 
@@ -1155,4 +1159,5 @@ function updateAdminHalaqahListInline() {
 
 window.updateAdminSantriListInline = updateAdminSantriListInline;
 window.updateAdminHalaqahListInline = updateAdminHalaqahListInline;
+
 
