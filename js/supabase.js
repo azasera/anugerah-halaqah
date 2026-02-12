@@ -78,7 +78,7 @@ async function syncStudentsToSupabase() {
                 achievements: JSON.stringify(s.achievements || []),
                 setoran: JSON.stringify(s.setoran || []),
                 last_setoran_date: s.lastSetoranDate || '',
-                total_hafalan: parseFloat(s.total_hafalan) || 0,
+                // total_hafalan: parseFloat(s.total_hafalan) || 0, // DISABLED: Column not in Supabase yet
                 updated_at: new Date().toISOString()
             };
         }).filter(item => item !== null); // Remove invalid items
