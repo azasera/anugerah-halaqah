@@ -22,7 +22,7 @@ function saveUserSantriRelationships() {
 
 // Get santri IDs for current user
 function getSantriIdsForCurrentUser() {
-    const user = getCurrentUser();
+    const user = (typeof currentProfile !== 'undefined' && currentProfile) ? currentProfile : null;
     
     // Admin can see all santri
     if (!user || user.role === 'admin') {
@@ -36,7 +36,7 @@ function getSantriIdsForCurrentUser() {
 
 // Filter students based on current user
 function getStudentsForCurrentUser() {
-    const user = getCurrentUser();
+    const user = (typeof currentProfile !== 'undefined' && currentProfile) ? currentProfile : null;
     
     // Admin can see all students
     if (!user || user.role === 'admin') {

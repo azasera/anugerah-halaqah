@@ -4,7 +4,8 @@ function renderProfile() {
     const container = document.getElementById('profileContainer');
     if (!container) return;
     
-    const user = getCurrentUser();
+    // Use currentProfile instead of getCurrentUser()
+    const user = (typeof currentProfile !== 'undefined' && currentProfile) ? currentProfile : null;
     const role = user?.role || 'guest';
     
     let content = '';
@@ -23,7 +24,7 @@ function renderProfile() {
 }
 
 function renderAdminProfile() {
-    const user = getCurrentUser();
+    const user = (typeof currentProfile !== 'undefined' && currentProfile) ? currentProfile : null;
     
     return `
         <div class="glass rounded-3xl p-6 border border-slate-200 shadow-sm">
@@ -109,7 +110,7 @@ function renderAdminProfile() {
 }
 
 function renderGuruProfile() {
-    const user = getCurrentUser();
+    const user = (typeof currentProfile !== 'undefined' && currentProfile) ? currentProfile : null;
     
     return `
         <div class="glass rounded-3xl p-6 border border-slate-200 shadow-sm">
@@ -164,7 +165,7 @@ function renderGuruProfile() {
 }
 
 function renderParentProfile() {
-    const user = getCurrentUser();
+    const user = (typeof currentProfile !== 'undefined' && currentProfile) ? currentProfile : null;
     
     return `
         <div class="glass rounded-3xl p-6 border border-slate-200 shadow-sm">
