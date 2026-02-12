@@ -90,13 +90,19 @@ function renderUserManagement() {
                         </div>
                         
                         <!-- Action Buttons -->
-                        <div class="flex gap-2">
+                        <div class="grid grid-cols-3 gap-2">
+                            ${user.role === 'guru' || user.role === 'parent' ? `
+                            <button onclick='showAssignSantriDialog(${user.id})' 
+                                class="px-3 py-2 bg-green-50 text-green-600 rounded-lg text-sm font-bold hover:bg-green-100 transition-colors">
+                                👥 Santri
+                            </button>
+                            ` : '<div></div>'}
                             <button onclick='showEditUserForm(${userJson})' 
-                                class="flex-1 px-3 py-2 bg-blue-50 text-blue-600 rounded-lg text-sm font-bold hover:bg-blue-100 transition-colors">
+                                class="px-3 py-2 bg-blue-50 text-blue-600 rounded-lg text-sm font-bold hover:bg-blue-100 transition-colors">
                                 ✏️ Edit
                             </button>
                             <button onclick="confirmDeleteUser(${user.id})" 
-                                class="flex-1 px-3 py-2 bg-red-50 text-red-600 rounded-lg text-sm font-bold hover:bg-red-100 transition-colors">
+                                class="px-3 py-2 bg-red-50 text-red-600 rounded-lg text-sm font-bold hover:bg-red-100 transition-colors">
                                 🗑️ Hapus
                             </button>
                         </div>

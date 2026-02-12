@@ -235,9 +235,20 @@ function renderGuestProfile() {
 
 // Show quick setoran form (FAB)
 function showQuickSetoranForm() {
-    const modal = createModal({
-        title: '➕ Input Setoran Cepat',
-        content: `
+    const content = `
+        <div class="p-6">
+            <div class="flex items-start justify-between mb-6">
+                <div>
+                    <h2 class="font-display font-bold text-2xl text-slate-800 mb-2">➕ Input Setoran Cepat</h2>
+                    <p class="text-slate-500">Masukkan jumlah baris yang dibaca</p>
+                </div>
+                <button onclick="closeModal()" class="p-2 hover:bg-slate-100 rounded-lg transition-colors">
+                    <svg class="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            
             <form onsubmit="handleQuickSetoran(event)" class="space-y-4">
                 <div>
                     <label class="block text-sm font-bold text-slate-700 mb-2">Jumlah Baris *</label>
@@ -275,9 +286,10 @@ function showQuickSetoranForm() {
                     </button>
                 </div>
             </form>
-        `,
-        allowClickOutside: false
-    });
+        </div>
+    `;
+    
+    createModal(content, false); // Don't allow click outside to close
 }
 
 // Calculate halaman from baris

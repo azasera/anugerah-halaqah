@@ -172,28 +172,13 @@ function renderSantri(searchTerm = "") {
     // Check if user is logged in
     const isLoggedIn = typeof currentProfile !== 'undefined' && currentProfile;
 
-    // Filter for Ortu (Parent) role - only show their child
-    if (isLoggedIn && currentProfile.role === 'ortu') {
-        if (typeof currentUserChild !== 'undefined' && currentUserChild) {
-            filtered = filtered.filter(s => s.id === currentUserChild.id);
-        } else {
-            // If parent but no child linked, show nothing or empty state
-            filtered = [];
-        }
-    }
-    
-    // Filter for Guru role - only show their halaqah
-    if (isLoggedIn && currentProfile.role === 'guru') {
-        // Find halaqah where guru name matches
-        // Note: This relies on exact name match. In production, linking via ID would be better.
-        const myHalaqah = dashboardData.halaqahs.find(h => h.guru && h.guru.toLowerCase() === currentProfile.full_name.toLowerCase());
-        
-        if (myHalaqah) {
-            // Normalize halaqah name for comparison (remove "Halaqah " prefix if present in student data or match logic)
-            // Student data usually has "A1", "B2", etc.
-            // Halaqah data has name "Halaqah A1".
-            const halaqahName = myHalaqah.name.replace('Halaqah ', '');
-            filtered = filtered.filter(s => s.halaqah === halaqahName);
+    // Filter based on user-santri relationships
+    if (isLoggedIn && (currentProfile.role === 'guru' || currentProfile.role === 'parent')) {
+        // Get santri for current user from user-santri relationships
+        if (typeof getStudentsForCurrentUser === 'function') {
+            const userStudents = getStudentsForCurrentUser();
+            const userStudentIds = userStudents.map(s => s.id);
+            filtered = filtered.filter(s => userStudentIds.includes(s.id));
         }
     }
     
