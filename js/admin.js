@@ -94,7 +94,7 @@ function showAdminSettings() {
         return `
             <div class="bg-slate-50 rounded-xl p-4">
                 <div class="font-bold text-slate-800 mb-3">${l.name}</div>
-                <div class="grid grid-cols-3 gap-3">
+                <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label class="text-xs text-slate-600 font-bold">Baris/Halaman</label>
                         <input type="number" value="${l.barisPerHalaman}" min="1"
@@ -108,13 +108,7 @@ function showAdminSettings() {
                             class="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm">
                     </div>
                     <div>
-                        <label class="text-xs text-slate-600 font-bold">Poin/Target</label>
-                        <input type="number" value="${l.poinPerTarget}" min="1"
-                            onchange="updateLembaga('${key}', 'poinPerTarget', this.value)"
-                            class="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm">
-                    </div>
-                </div>
-            </div>
+                        <label class="text-xs text-slate-600 font-bold"></div>`n                </div>`n                <div class="mt-3 text-xs text-slate-500 bg-blue-50 p-2 rounded">`n                    ? Poin dihitung dari kondisi setoran (tepat waktu, lancar, capai target), bukan dari jumlah baris`n                </div>`n            </div>
         `;
     }).join('');
 
@@ -410,7 +404,7 @@ function generateAdminSettingsContent() {
         return `
             <div class="bg-slate-50 rounded-xl p-4">
                 <div class="font-bold text-slate-800 mb-3">${l.name}</div>
-                <div class="grid grid-cols-3 gap-3">
+                <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label class="text-xs text-slate-600 font-bold">Baris/Halaman</label>
                         <input type="number" value="${l.barisPerHalaman}" min="1"
@@ -424,13 +418,7 @@ function generateAdminSettingsContent() {
                             class="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm">
                     </div>
                     <div>
-                        <label class="text-xs text-slate-600 font-bold">Poin/Target</label>
-                        <input type="number" value="${l.poinPerTarget}" min="1"
-                            onchange="updateLembaga('${key}', 'poinPerTarget', this.value)"
-                            class="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm">
-                    </div>
-                </div>
-            </div>
+                        <label class="text-xs text-slate-600 font-bold"></div>`n                </div>`n                <div class="mt-3 text-xs text-slate-500 bg-blue-50 p-2 rounded">`n                    ? Poin dihitung dari kondisi setoran (tepat waktu, lancar, capai target), bukan dari jumlah baris`n                </div>`n            </div>
         `;
     }).join('');
 
@@ -1167,3 +1155,4 @@ function updateAdminHalaqahListInline() {
 
 window.updateAdminSantriListInline = updateAdminSantriListInline;
 window.updateAdminHalaqahListInline = updateAdminHalaqahListInline;
+

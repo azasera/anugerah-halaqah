@@ -13,56 +13,47 @@ const appSettings = {
         MTA: {
             name: "MTA",
             barisPerHalaman: 15,
-            targetBaris: 15,
-            poinPerTarget: 10
+            targetBaris: 15
         },
         SDITA_1: {
             name: "SDITA Kelas 1",
             barisPerHalaman: 5,
-            targetBaris: 5,
-            poinPerTarget: 10
+            targetBaris: 5
         },
         SDITA_2: {
             name: "SDITA Kelas 2",
             barisPerHalaman: 7,
-            targetBaris: 7,
-            poinPerTarget: 10
+            targetBaris: 7
         },
         SDITA_3: {
             name: "SDITA Kelas 3",
             barisPerHalaman: 10,
-            targetBaris: 10,
-            poinPerTarget: 10
+            targetBaris: 10
         },
         SDITA_4: {
             name: "SDITA Kelas 4",
             barisPerHalaman: 12,
-            targetBaris: 12,
-            poinPerTarget: 10
+            targetBaris: 12
         },
         SDITA_5: {
             name: "SDITA Kelas 5",
             barisPerHalaman: 15,
-            targetBaris: 15,
-            poinPerTarget: 10
+            targetBaris: 15
         },
         SDITA_6: {
             name: "SDITA Kelas 6",
             barisPerHalaman: 15,
-            targetBaris: 15,
-            poinPerTarget: 10
+            targetBaris: 15
         },
         SMPITA: {
             name: "SMPITA",
             barisPerHalaman: 10,
-            targetBaris: 10,
-            poinPerTarget: 10
+            targetBaris: 10
         },
         SMAITA: {
             name: "SMAITA",
             barisPerHalaman: 10,
-            targetBaris: 10,
-            poinPerTarget: 10
+            targetBaris: 10
         }
     },
     sesiHalaqah: [
@@ -112,13 +103,11 @@ function barisToHalaman(baris, lembagaKey) {
     return (baris / lembaga.barisPerHalaman).toFixed(2);
 }
 
-// Calculate poin based on baris and target
+// Calculate poin based on baris and target (DEPRECATED - not used anymore)
+// Poin now calculated based on conditions: tepat waktu, lancar, capai target
 function calculatePoinFromBaris(baris, lembagaKey) {
-    const lembaga = appSettings.lembaga[lembagaKey];
-    if (!lembaga) return 0;
-    
-    const targetsMet = Math.floor(baris / lembaga.targetBaris);
-    return targetsMet * lembaga.poinPerTarget;
+    console.warn('calculatePoinFromBaris is deprecated. Use condition-based poin calculation instead.');
+    return 0;
 }
 
 // Check if current time is within any active session
