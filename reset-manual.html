@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reset Data Manual</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 p-8">
+    <div class="max-w-2xl mx-auto">
+        <div class="bg-white rounded-2xl shadow-lg p-8">
+            <h1 class="text-3xl font-bold text-slate-800 mb-6">🔧 Reset Data Manual</h1>
+            
+            <div class="space-y-4">
+                <button onclick="clearCache()" 
+                    class="w-full p-4 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition-colors text-left">
+                    <div class="text-xl mb-2">🗑️ Hapus Cache & Reload</div>
+                    <div class="text-sm opacity-90">Hapus cache lokal dan reload halaman (Recommended)</div>
+                </button>
+                
+                <button onclick="resetPoints()" 
+                    class="w-full p-4 bg-amber-600 text-white rounded-xl font-bold hover:bg-amber-700 transition-colors text-left">
+                    <div class="text-xl mb-2">0️⃣ Reset Poin ke 0</div>
+                    <div class="text-sm opacity-90">Data santri tetap ada, hanya poin yang di-reset</div>
+                </button>
+                
+                <button onclick="deleteAll()" 
+                    class="w-full p-4 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition-colors text-left">
+                    <div class="text-xl mb-2">⚠️ Hapus SEMUA Data</div>
+                    <div class="text-sm opacity-90">Reset total (TIDAK BISA DIKEMBALIKAN!)</div>
+                </button>
+            </div>
+            
+            <div class="mt-6 p-4 bg-blue-50 rounded-xl">
+                <h3 class="font-bold text-blue-900 mb-2">ℹ️ Cara Menggunakan:</h3>
+                <ol class="text-sm text-blue-800 space-y-1">
+                    <li>1. Pilih salah satu tombol di atas</li>
+                    <li>2. Konfirmasi tindakan</li>
+                    <li>3. Tunggu proses selesai</li>
+                    <li>4. Buka index.html untuk melihat hasil</li>
+                </ol>
+            </div>
+            
+            <div id="output" class="mt-6 p-4 bg-slate-50 rounded-xl hidden">
+                <div id="outputText" class="text-sm font-mono"></div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        function showOutput(message, type = 'info') {
+            const output = document.getElementById('output');
+            const outputText = document.getElementById('outputText');
+            
+            let color = 'text-slate-700';
+            if (type === 'success') color = 'text-green-700';
+            if (type === 'error') color = 'text-red-700';
+            if (type === 'warning') color = 'text-amber-700';
+            
+            outputText.className = `text-sm font-mono ${color}`;
+            outputText.textContent = message;
+            output.classList.remove('hidden');
+        }
+        
+        function clearCache() {
+            if (confirm('Hapus cache lokal dan reload halaman?')) {
+                try {
+                    localStorage.removeItem('halaqahData');
+                    localStorage.removeItem('lastSync');
+                    localStorage.removeItem('userSantriRelationships');
+                    
+                    showOutput('✅ Cache berhasil dihapus!\n\nSilakan buka index.html untuk melihat hasil.', 'success');
+                    
+                    setTimeout(() => {
+                        alert('Cache dihapus! Silakan buka index.html');
+                    }, 500);
+                } catch (error) {
+                    showOutput('❌ Error: ' + error.message, 'error');
+                }
+            }
+        }
+        
+        function resetPoints() {
+            if (!confirm('Reset semua poin ke 0?\n\nData santri tetap ada, hanya poin yang di-reset.')) {
+                return;
+            }
+            
+            try {
+                const data = localStorage.getItem('halaqahData');
+                if (!data) {
+                    showOutput('⚠️ Tidak ada data di localStorage', 'warning');
+                    return;
+                }
+                
+                const parsed = JSON.parse(data);
+                
+                if (parsed.students) {
+                    parsed.students.forEach(student => {
+                        student.total_points = 0;
+                        student.streak = 0;
+                        student.setoran = [];
+                        student.lastSetoranDate = '';
+                        student.total_hafalan = 0;
+                    });
+                    
+                    localStorage.setItem('halaqahData', JSON.stringify(parsed));
+                    
+                    showOutput(`✅ Berhasil reset ${parsed.students.length} santri!\n\nSemua poin di-reset ke 0.\n\nSilakan buka index.html untuk melihat hasil.`, 'success');
+                } else {
+                    showOutput('⚠️ Data students tidak ditemukan', 'warning');
+                }
+            } catch (error) {
+                showOutput('❌ Error: ' + error.message, 'error');
+            }
+        }
+        
+        function deleteAll() {
+            if (!confirm('⚠️ PERINGATAN!\n\nAnda akan menghapus SEMUA data santri dan halaqah.\nData TIDAK BISA dikembalikan!\n\nLanjutkan?')) {
+                return;
+            }
+            
+            if (!confirm('Yakin 100%?')) {
+                return;
+            }
+            
+            const confirmation = prompt('Ketik "HAPUS" (huruf besar) untuk konfirmasi:');
+            if (confirmation !== 'HAPUS') {
+                showOutput('❌ Reset dibatalkan', 'info');
+                return;
+            }
+            
+            try {
+                localStorage.removeItem('halaqahData');
+                localStorage.removeItem('lastSync');
+                localStorage.removeItem('userSantriRelationships');
+                
+                showOutput('✅ SEMUA data berhasil dihapus!\n\nDatabase lokal sudah kosong.\n\nSilakan buka index.html untuk mulai dari awal.', 'success');
+                
+                setTimeout(() => {
+                    alert('Semua data dihapus! Silakan buka index.html');
+                }, 500);
+            } catch (error) {
+                showOutput('❌ Error: ' + error.message, 'error');
+            }
+        }
+    </script>
+</body>
+</html>
