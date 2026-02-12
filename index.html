@@ -243,6 +243,43 @@
 
     <main class="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 mt-4 mb-24 lg:mb-8 space-y-6">
         
+        <!-- Ranking Slider (Auto-slide) -->
+        <section id="rankingSlider" class="relative overflow-hidden rounded-3xl shadow-2xl">
+            <div id="sliderContainer" class="relative h-[400px] md:h-[500px]">
+                <!-- Slides populated via JS -->
+            </div>
+            
+            <!-- Slider Controls -->
+            <div class="absolute bottom-6 left-1/2 transform -translate-x-1/2 flex gap-2 z-20">
+                <button onclick="previousSlide()" class="w-10 h-10 rounded-full bg-white/90 hover:bg-white flex items-center justify-center shadow-lg transition-all">
+                    <svg class="w-5 h-5 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                    </svg>
+                </button>
+                <div id="sliderDots" class="flex gap-2 items-center">
+                    <!-- Dots populated via JS -->
+                </div>
+                <button onclick="nextSlide()" class="w-10 h-10 rounded-full bg-white/90 hover:bg-white flex items-center justify-center shadow-lg transition-all">
+                    <svg class="w-5 h-5 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                    </svg>
+                </button>
+            </div>
+            
+            <!-- Auto-play indicator -->
+            <div class="absolute top-6 right-6 z-20">
+                <button onclick="toggleAutoPlay()" id="autoPlayBtn" class="px-4 py-2 rounded-full bg-white/90 hover:bg-white flex items-center gap-2 shadow-lg transition-all">
+                    <svg id="playIcon" class="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path>
+                    </svg>
+                    <svg id="pauseIcon" class="w-4 h-4 text-red-600 hidden" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                    </svg>
+                    <span id="autoPlayText" class="text-xs font-bold text-slate-700">Auto</span>
+                </button>
+            </div>
+        </section>
+        
         <!-- Home Section (Stats + Banner) -->
         <div id="home" class="space-y-6">
             <!-- Statistics Overview -->
@@ -262,29 +299,6 @@
                 <div id="absenceWidgetContainer">
                     <!-- Widget populated via JS -->
                 </div>
-            </section>
-            
-            <!-- TV Mode Button -->
-            <section>
-                <a href="tv.html" target="_blank"
-                    class="block glass rounded-3xl p-6 border-2 border-purple-200 hover:border-purple-400 transition-all hover:shadow-xl group">
-                    <div class="flex flex-col md:flex-row items-center gap-4">
-                        <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
-                            <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
-                            </svg>
-                        </div>
-                        <div class="flex-1 text-center md:text-left">
-                            <h3 class="font-bold text-xl text-slate-800 mb-1">📺 Mode TV Display</h3>
-                            <p class="text-sm text-slate-600">Tampilkan ranking di layar TV atau proyektor untuk motivasi santri</p>
-                        </div>
-                        <div class="flex-shrink-0">
-                            <div class="px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl font-bold group-hover:from-purple-500 group-hover:to-blue-500 transition-colors shadow-lg">
-                                Buka Mode TV →
-                            </div>
-                        </div>
-                    </div>
-                </a>
             </section>
         </div>
         
@@ -521,6 +535,7 @@
     <script src="js/setoran-integration.js"></script>
     <script src="js/debug.js"></script>
     <script src="js/ui.js"></script>
+    <script src="js/slider.js"></script>
     <script src="js/modal.js"></script>
     <script src="js/forms.js"></script>
     <script src="js/setoran.js"></script>

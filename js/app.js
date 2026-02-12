@@ -174,6 +174,7 @@ function initApp() {
 
             // Render all components
             try {
+                if (typeof initSlider === 'function') initSlider();
                 if (typeof renderStats === 'function') renderStats();
                 if (typeof renderBestHalaqah === 'function') renderBestHalaqah();
                 if (typeof renderHalaqahRankings === 'function') renderHalaqahRankings();
@@ -205,6 +206,7 @@ function initApp() {
             console.error('Supabase init error:', error);
             // Even if Supabase fails, render app with local data
              try {
+                if (typeof initSlider === 'function') initSlider();
                 if (typeof renderStats === 'function') renderStats();
                 if (typeof renderBestHalaqah === 'function') renderBestHalaqah();
                 if (typeof renderHalaqahRankings === 'function') renderHalaqahRankings();
