@@ -117,10 +117,16 @@ function renderUserManagement() {
                     </h3>
                     <p class="text-sm text-slate-500 mt-1">Kelola akses pengguna sistem</p>
                 </div>
-                <button onclick="showAddUserForm()" 
-                    class="w-full md:w-auto px-4 py-3 bg-primary-600 text-white rounded-xl font-bold hover:bg-primary-700 transition-colors shadow-lg shadow-primary-200">
-                    ➕ Tambah User
-                </button>
+                <div class="flex gap-2">
+                    <button onclick="showImportUserDialog()" 
+                        class="flex-1 md:flex-none px-4 py-3 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition-colors shadow-lg shadow-green-200">
+                        📥 Import Excel
+                    </button>
+                    <button onclick="showAddUserForm()" 
+                        class="flex-1 md:flex-none px-4 py-3 bg-primary-600 text-white rounded-xl font-bold hover:bg-primary-700 transition-colors shadow-lg shadow-primary-200">
+                        ➕ Tambah User
+                    </button>
+                </div>
             </div>
             
             <!-- Search & Filter -->
@@ -461,3 +467,193 @@ window.handleEditUser = handleEditUser;
 window.confirmDeleteUser = confirmDeleteUser;
 window.filterUsers = filterUsers;
 window.filterUsersByRole = filterUsersByRole;
+
+// Show import user dialog
+function showImportUserDialog() {
+    const modal = createModal({
+        title: '📥 Import User dari Excel',
+        content: `
+            <div class="space-y-4">
+                <div class="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                    <h4 class="font-bold text-blue-800 mb-2">📋 Format Excel:</h4>
+                    <div class="text-sm text-blue-700 space-y-1">
+                        <p><strong>Kolom 1:</strong> User name (Nama lengkap)</p>
+                        <p><strong>Kolom 2:</strong> Nama akun (username/email)</p>
+                        <p><strong>Kolom 3:</strong> Password</p>
+                        <p><strong>Kolom 4:</strong> Lembaga</p>
+                    </div>
+                    <div class="mt-3 text-xs text-blue-600">
+                        <p>⚠️ Baris pertama (header) akan diabaikan</p>
+                        <p>✅ Pastikan format sesuai agar import berhasil</p>
+                    </div>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-2">Pilih File Excel:</label>
+                    <input type="file" id="importUserFile" accept=".xlsx,.xls" 
+                        class="w-full px-4 py-3 border-2 border-dashed border-slate-300 rounded-xl hover:border-primary-500 transition-colors cursor-pointer">
+                </div>
+                
+                <div id="importPreview" class="hidden">
+                    <h4 class="font-bold text-slate-800 mb-2">Preview Data:</h4>
+                    <div id="importPreviewContent" class="max-h-60 overflow-y-auto border border-slate-200 rounded-xl p-3 text-sm"></div>
+                </div>
+            </div>
+        `,
+        buttons: [
+            {
+                text: '❌ Batal',
+                className: 'px-6 py-3 bg-slate-200 text-slate-700 rounded-xl font-bold hover:bg-slate-300 transition-colors',
+                onClick: () => closeModal()
+            },
+            {
+                text: '✅ Import',
+                className: 'px-6 py-3 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition-colors',
+                onClick: () => handleImportUsers()
+            }
+        ]
+    });
+    
+    // Add file change listener
+    setTimeout(() => {
+        const fileInput = document.getElementById('importUserFile');
+        if (fileInput) {
+            fileInput.addEventListener('change', previewImportUsers);
+        }
+    }, 100);
+}
+
+// Preview import users
+function previewImportUsers(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+            const rows = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+            
+            // Skip header row
+            const dataRows = rows.slice(1).filter(row => row.length >= 4);
+            
+            if (dataRows.length === 0) {
+                alert('❌ Tidak ada data yang valid di file Excel');
+                return;
+            }
+            
+            // Show preview
+            const preview = document.getElementById('importPreview');
+            const previewContent = document.getElementById('importPreviewContent');
+            
+            if (preview && previewContent) {
+                preview.classList.remove('hidden');
+                previewContent.innerHTML = `
+                    <div class="space-y-2">
+                        ${dataRows.slice(0, 5).map((row, index) => `
+                            <div class="bg-slate-50 rounded-lg p-2">
+                                <div class="font-bold text-slate-800">${row[0]}</div>
+                                <div class="text-xs text-slate-600">
+                                    Akun: ${row[1]} | Password: ${row[2]} | Lembaga: ${row[3]}
+                                </div>
+                            </div>
+                        `).join('')}
+                        ${dataRows.length > 5 ? `<div class="text-xs text-slate-500 text-center">... dan ${dataRows.length - 5} user lainnya</div>` : ''}
+                    </div>
+                `;
+            }
+        } catch (error) {
+            console.error('Error reading Excel:', error);
+            alert('❌ Gagal membaca file Excel. Pastikan format file benar.');
+        }
+    };
+    reader.readAsArrayBuffer(file);
+}
+
+// Handle import users
+function handleImportUsers() {
+    const fileInput = document.getElementById('importUserFile');
+    if (!fileInput || !fileInput.files[0]) {
+        alert('❌ Pilih file Excel terlebih dahulu');
+        return;
+    }
+    
+    const file = fileInput.files[0];
+    const reader = new FileReader();
+    
+    reader.onload = function(e) {
+        try {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+            const rows = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+            
+            // Skip header row
+            const dataRows = rows.slice(1).filter(row => row.length >= 4);
+            
+            if (dataRows.length === 0) {
+                alert('❌ Tidak ada data yang valid di file Excel');
+                return;
+            }
+            
+            let imported = 0;
+            let skipped = 0;
+            
+            dataRows.forEach(row => {
+                const userName = row[0]?.toString().trim();
+                const accountName = row[1]?.toString().trim();
+                const password = row[2]?.toString().trim();
+                const lembaga = row[3]?.toString().trim();
+                
+                if (!userName || !accountName || !password || !lembaga) {
+                    skipped++;
+                    return;
+                }
+                
+                // Check if user already exists
+                const exists = usersData.users.some(u => u.email === accountName);
+                if (exists) {
+                    skipped++;
+                    return;
+                }
+                
+                // Add new user
+                const newUser = {
+                    id: Date.now() + imported,
+                    name: userName,
+                    email: accountName,
+                    password: password, // In production, this should be hashed
+                    role: 'guru', // Default role
+                    lembaga: lembaga,
+                    phone: '-',
+                    status: 'active',
+                    createdAt: new Date().toISOString().split('T')[0],
+                    lastLogin: '-'
+                };
+                
+                usersData.users.push(newUser);
+                imported++;
+            });
+            
+            // Save to localStorage
+            saveUsers();
+            
+            // Close modal and refresh
+            closeModal();
+            renderUserManagement();
+            
+            // Show result
+            alert(`✅ Import berhasil!\n\n📥 ${imported} user berhasil diimport\n⚠️ ${skipped} user dilewati (duplikat atau data tidak lengkap)`);
+            
+        } catch (error) {
+            console.error('Error importing users:', error);
+            alert('❌ Gagal mengimport user. Pastikan format file Excel benar.');
+        }
+    };
+    
+    reader.readAsArrayBuffer(file);
+}
+
+window.showImportUserDialog = showImportUserDialog;
