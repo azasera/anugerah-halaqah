@@ -11,6 +11,11 @@ const slides = [
         type: 'santri'
     },
     {
+        id: 'best-halaqah-today',
+        title: '⭐ Halaqah Terbaik Hari Ini',
+        type: 'best-halaqah-today'
+    },
+    {
         id: 'top-halaqah',
         title: '🏅 Ranking Halaqah',
         type: 'halaqah'
@@ -60,6 +65,8 @@ function renderSlideContent() {
         
         if (slide.type === 'santri') {
             renderTopSantri(contentContainer);
+        } else if (slide.type === 'best-halaqah-today') {
+            renderBestHalaqahToday(contentContainer);
         } else if (slide.type === 'halaqah') {
             renderTopHalaqah(contentContainer);
         } else if (slide.type === 'streak') {
@@ -72,7 +79,7 @@ function renderTopSantri(container) {
     const topStudents = dashboardData.students.slice(0, 10);
     
     container.innerHTML = `
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pb-16">
             ${topStudents.map((student, index) => {
                 const medals = ['🥇', '🥈', '🥉'];
                 const medal = index < 3 ? medals[index] : '';
@@ -111,11 +118,127 @@ function renderTopSantri(container) {
     `;
 }
 
+function renderBestHalaqahToday(container) {
+    // Get today's date
+    const today = new Date().toDateString();
+    
+    // Calculate today's points for each halaqah
+    const halaqahTodayPoints = dashboardData.halaqahs.map(halaqah => {
+        const halaqahName = halaqah.name.replace('Halaqah ', '');
+        
+        // Get students in this halaqah
+        const studentsInHalaqah = dashboardData.students.filter(s => s.halaqah === halaqahName);
+        
+        // Calculate today's total points
+        let todayPoints = 0;
+        let todaySubmissions = 0;
+        
+        studentsInHalaqah.forEach(student => {
+            if (student.setoran) {
+                student.setoran.forEach(s => {
+                    if (new Date(s.date).toDateString() === today) {
+                        todayPoints += s.poin || 0;
+                        todaySubmissions++;
+                    }
+                });
+            }
+        });
+        
+        return {
+            ...halaqah,
+            todayPoints,
+            todaySubmissions,
+            todayAverage: studentsInHalaqah.length > 0 ? (todayPoints / studentsInHalaqah.length).toFixed(1) : 0
+        };
+    }).sort((a, b) => b.todayPoints - a.todayPoints);
+    
+    const topHalaqah = halaqahTodayPoints[0];
+    const topMembers = dashboardData.students
+        .filter(s => s.halaqah === topHalaqah.name.replace('Halaqah ', ''))
+        .slice(0, 8);
+    
+    container.innerHTML = `
+        <div class="pb-16">
+            <!-- Best Halaqah Card -->
+            <div class="bg-gradient-to-br from-yellow-400/30 to-orange-500/30 backdrop-blur-sm rounded-3xl p-6 border-2 border-yellow-300/50 mb-6">
+                <div class="flex items-center gap-4 mb-4">
+                    <div class="w-20 h-20 rounded-2xl bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center text-4xl">
+                        👑
+                    </div>
+                    <div class="flex-1">
+                        <div class="text-yellow-100 text-sm font-bold mb-1">HALAQAH TERBAIK HARI INI</div>
+                        <div class="text-white text-3xl font-bold">${topHalaqah.name}</div>
+                        <div class="text-white/90 text-sm mt-1">${topHalaqah.members} Anggota • ${topHalaqah.todaySubmissions} Setoran Hari Ini</div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-5xl font-bold text-white">${topHalaqah.todayPoints}</div>
+                        <div class="text-white/80 text-sm">poin hari ini</div>
+                    </div>
+                </div>
+                <div class="grid grid-cols-3 gap-3 mt-4">
+                    <div class="bg-white/20 rounded-xl p-3 text-center">
+                        <div class="text-2xl font-bold text-white">${topHalaqah.todayAverage}</div>
+                        <div class="text-white/80 text-xs">Rata-rata</div>
+                    </div>
+                    <div class="bg-white/20 rounded-xl p-3 text-center">
+                        <div class="text-2xl font-bold text-white">${topHalaqah.points}</div>
+                        <div class="text-white/80 text-xs">Total Poin</div>
+                    </div>
+                    <div class="bg-white/20 rounded-xl p-3 text-center">
+                        <div class="text-2xl font-bold text-white">#${topHalaqah.rank}</div>
+                        <div class="text-white/80 text-xs">Ranking</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Top Members -->
+            <div class="text-white text-lg font-bold mb-3">Anggota Terbaik:</div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                ${topMembers.map((student, index) => `
+                    <div class="bg-white/10 backdrop-blur-sm rounded-xl p-3 border border-white/20 hover:bg-white/15 transition-all">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center text-white font-bold">
+                                #${index + 1}
+                            </div>
+                            <div class="flex-1">
+                                <div class="font-bold text-white">${student.name}</div>
+                                <div class="text-white/80 text-sm">${student.total_points} poin • 🔥 ${student.streak} hari</div>
+                            </div>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+            
+            <!-- Other Top Halaqahs Today -->
+            <div class="text-white text-lg font-bold mb-3 mt-6">Ranking Halaqah Hari Ini:</div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                ${halaqahTodayPoints.slice(1, 5).map((halaqah, index) => `
+                    <div class="bg-white/10 backdrop-blur-sm rounded-xl p-3 border border-white/20">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center text-white font-bold">
+                                #${index + 2}
+                            </div>
+                            <div class="flex-1">
+                                <div class="font-bold text-white">${halaqah.name}</div>
+                                <div class="text-white/80 text-sm">${halaqah.todaySubmissions} setoran</div>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-xl font-bold text-white">${halaqah.todayPoints}</div>
+                                <div class="text-white/80 text-xs">poin</div>
+                            </div>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+    `;
+}
+
 function renderTopHalaqah(container) {
     const topHalaqahs = dashboardData.halaqahs.slice(0, 8);
     
     container.innerHTML = `
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pb-16">
             ${topHalaqahs.map((halaqah, index) => {
                 const medals = ['🥇', '🥈', '🥉'];
                 const medal = index < 3 ? medals[index] : '';
@@ -153,7 +276,7 @@ function renderStreakLeaders(container) {
         .slice(0, 10);
     
     container.innerHTML = `
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pb-16">
             ${streakLeaders.map((student, index) => {
                 const bgClass = index < 3 ? 'bg-white/20' : 'bg-white/10';
                 
