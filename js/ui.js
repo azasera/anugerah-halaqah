@@ -348,10 +348,10 @@ function renderFilters() {
     const lembagas = ['Semua Lembaga', ...Object.keys(appSettings.lembaga).map(key => appSettings.lembaga[key].name)];
     
     container.innerHTML = `
-        <div class="flex flex-col md:flex-row gap-3">
-            <div class="relative">
+        <div class="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+            <div class="relative flex-shrink-0">
                 <select onchange="setFilter('halaqah', this.value)" 
-                    class="appearance-none bg-white border border-slate-200 text-slate-700 py-2 pl-4 pr-10 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent font-medium shadow-sm hover:border-primary-300 transition-colors cursor-pointer">
+                    class="appearance-none bg-white border border-slate-200 text-slate-700 py-2 pl-4 pr-10 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent font-medium shadow-sm hover:border-primary-300 transition-colors cursor-pointer text-sm">
                     ${halaqahs.map(h => {
                         const value = h === 'Semua Halaqah' ? 'all' : h;
                         return `<option value="${value}" ${currentHalaqahFilter === value ? 'selected' : ''}>${h}</option>`;
@@ -364,9 +364,9 @@ function renderFilters() {
                 </div>
             </div>
 
-            <div class="relative">
+            <div class="relative flex-shrink-0">
                 <select onchange="setFilter('lembaga', this.value)" 
-                    class="appearance-none bg-white border border-slate-200 text-slate-700 py-2 pl-4 pr-10 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent font-medium shadow-sm hover:border-primary-300 transition-colors cursor-pointer">
+                    class="appearance-none bg-white border border-slate-200 text-slate-700 py-2 pl-4 pr-10 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent font-medium shadow-sm hover:border-primary-300 transition-colors cursor-pointer text-sm">
                     ${lembagas.map(l => {
                         // Find key for value
                         let key = 'all';
