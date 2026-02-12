@@ -92,8 +92,14 @@ function renderHalaqahRankings() {
     if (!container) return;
     
     container.innerHTML = "";
+    
+    // Check if user is logged in
+    const isLoggedIn = typeof currentProfile !== 'undefined' && currentProfile;
+    
+    // For public view, only show top 3
+    const halaqahsToShow = isLoggedIn ? dashboardData.halaqahs : dashboardData.halaqahs.slice(0, 3);
 
-    dashboardData.halaqahs.forEach((halaqah) => {
+    halaqahsToShow.forEach((halaqah) => {
         const isTop = halaqah.rank === 1;
         const borderColor = isTop ? 'border-accent-gold' : 'border-slate-300';
         const bgColor = isTop ? 'bg-accent-gold/10' : 'bg-slate-100';
@@ -133,6 +139,26 @@ function renderHalaqahRankings() {
         
         container.appendChild(card);
     });
+    
+    // Add "View All" button for public users
+    if (!isLoggedIn && dashboardData.halaqahs.length > 3) {
+        const viewAllCard = document.createElement('div');
+        viewAllCard.className = 'glass rounded-2xl p-5 border-2 border-dashed border-primary-300 hover:border-primary-500 transition-colors cursor-pointer';
+        viewAllCard.onclick = () => {
+            showNotification('🔒 Login untuk melihat semua halaqah', 'info');
+            setTimeout(() => window.location.href = 'login.html', 1500);
+        };
+        viewAllCard.innerHTML = `
+            <div class="flex flex-col items-center justify-center text-center py-4">
+                <svg class="w-8 h-8 text-primary-500 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                </svg>
+                <div class="font-bold text-primary-600">Lihat Semua Halaqah</div>
+                <div class="text-xs text-slate-500 mt-1">Login untuk akses lengkap</div>
+            </div>
+        `;
+        container.appendChild(viewAllCard);
+    }
 }
 
 function renderSantri(searchTerm = "") {
@@ -142,9 +168,12 @@ function renderSantri(searchTerm = "") {
     container.innerHTML = "";
 
     let filtered = filterStudents(searchTerm, currentHalaqahFilter, currentLembagaFilter);
+    
+    // Check if user is logged in
+    const isLoggedIn = typeof currentProfile !== 'undefined' && currentProfile;
 
     // Filter for Ortu (Parent) role - only show their child
-    if (typeof currentProfile !== 'undefined' && currentProfile && currentProfile.role === 'ortu') {
+    if (isLoggedIn && currentProfile.role === 'ortu') {
         if (typeof currentUserChild !== 'undefined' && currentUserChild) {
             filtered = filtered.filter(s => s.id === currentUserChild.id);
         } else {
@@ -154,7 +183,7 @@ function renderSantri(searchTerm = "") {
     }
     
     // Filter for Guru role - only show their halaqah
-    if (typeof currentProfile !== 'undefined' && currentProfile && currentProfile.role === 'guru') {
+    if (isLoggedIn && currentProfile.role === 'guru') {
         // Find halaqah where guru name matches
         // Note: This relies on exact name match. In production, linking via ID would be better.
         const myHalaqah = dashboardData.halaqahs.find(h => h.guru && h.guru.toLowerCase() === currentProfile.full_name.toLowerCase());
@@ -166,6 +195,11 @@ function renderSantri(searchTerm = "") {
             const halaqahName = myHalaqah.name.replace('Halaqah ', '');
             filtered = filtered.filter(s => s.halaqah === halaqahName);
         }
+    }
+    
+    // For public view (not logged in), only show top 3
+    if (!isLoggedIn) {
+        filtered = filtered.slice(0, 3);
     }
 
     filtered = sortStudents(filtered, currentSort);
@@ -241,6 +275,27 @@ function renderSantri(searchTerm = "") {
         `;
         container.appendChild(row);
     });
+    
+    // Add "View All" row for public users
+    if (!isLoggedIn && dashboardData.students.length > 3) {
+        const viewAllRow = document.createElement('tr');
+        viewAllRow.className = 'bg-primary-50 hover:bg-primary-100 transition-colors cursor-pointer';
+        viewAllRow.onclick = () => {
+            showNotification('🔒 Login untuk melihat semua santri', 'info');
+            setTimeout(() => window.location.href = 'login.html', 1500);
+        };
+        viewAllRow.innerHTML = `
+            <td colspan="6" class="px-6 py-4 text-center">
+                <div class="flex items-center justify-center gap-2 text-primary-600 font-bold">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                    </svg>
+                    <span>Lihat Semua Santri (${dashboardData.students.length} total)</span>
+                </div>
+            </td>
+        `;
+        container.appendChild(viewAllRow);
+    }
 }
 
 function updateDateTime() {
