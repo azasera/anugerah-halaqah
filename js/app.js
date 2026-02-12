@@ -176,7 +176,6 @@ function initApp() {
             try {
                 if (typeof initSlider === 'function') initSlider();
                 if (typeof renderStats === 'function') renderStats();
-                if (typeof renderBestHalaqah === 'function') renderBestHalaqah();
                 if (typeof renderHalaqahRankings === 'function') renderHalaqahRankings();
                 if (typeof renderFilters === 'function') renderFilters();
                 if (typeof renderSortButtons === 'function') renderSortButtons();
@@ -208,7 +207,6 @@ function initApp() {
              try {
                 if (typeof initSlider === 'function') initSlider();
                 if (typeof renderStats === 'function') renderStats();
-                if (typeof renderBestHalaqah === 'function') renderBestHalaqah();
                 if (typeof renderHalaqahRankings === 'function') renderHalaqahRankings();
                 if (typeof renderFilters === 'function') renderFilters();
                 if (typeof renderSortButtons === 'function') renderSortButtons();
