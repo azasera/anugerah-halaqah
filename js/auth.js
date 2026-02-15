@@ -648,6 +648,13 @@ function updateUIBasedOnRole() {
             });
         }
 
+        // Hide Absensi for Ortu
+        if (role === 'ortu') {
+            document.querySelectorAll('[onclick*="scrollToSection(\'absensi\')"]').forEach(el => {
+                el.style.display = 'none';
+            });
+        }
+
         // Logic for Ortu (Parent) - Find their child
         refreshUserChildLink();
     } else {
@@ -878,6 +885,11 @@ function showPublicUI() {
 
     // Hide settings in burger menu
     document.querySelectorAll('[onclick*="scrollToSection(\'settings\')"]').forEach(el => {
+        el.style.display = 'none';
+    });
+
+    // Hide Absensi for Public
+    document.querySelectorAll('[onclick*="scrollToSection(\'absensi\')"]').forEach(el => {
         el.style.display = 'none';
     });
 

@@ -8,6 +8,13 @@ function renderAbsenceWidget() {
     const container = document.getElementById('absenceWidgetContainer');
     if (!container) return;
 
+    // SECURITY: Only show for Guru and Admin
+    const isLoggedIn = typeof currentProfile !== 'undefined' && currentProfile;
+    if (!isLoggedIn || currentProfile.role === 'ortu') {
+        container.innerHTML = '';
+        return;
+    }
+
     const today = new Date().toDateString();
 
     // Count students by status
@@ -108,6 +115,19 @@ function renderAbsenceWidget() {
 function renderAbsenceTracker(force = false) {
     const container = document.getElementById('absensiContainer');
     if (!container) return;
+
+    // SECURITY: Only show for Guru and Admin
+    const isLoggedIn = typeof currentProfile !== 'undefined' && currentProfile;
+    if (!isLoggedIn || currentProfile.role === 'ortu') {
+        container.innerHTML = `
+            <div class="glass rounded-3xl p-12 text-center">
+                <div class="text-6xl mb-4">🔒</div>
+                <h3 class="text-xl font-bold text-slate-800 mb-2">Akses Terbatas</h3>
+                <p class="text-slate-500">Halaman ini hanya dapat diakses oleh Guru dan Administrator.</p>
+            </div>
+        `;
+        return;
+    }
 
     // Prevent frequent re-renders to avoid flickering
     const now = Date.now();
