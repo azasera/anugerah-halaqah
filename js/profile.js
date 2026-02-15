@@ -42,40 +42,32 @@ function renderAdminProfile() {
                 </div>
             </div>
             
-            <!-- Menu Items -->
-            <div class="space-y-2">
-                <button onclick="scrollToSection('settings')" class="w-full flex items-center gap-3 p-4 rounded-xl hover:bg-slate-50 transition-colors text-left">
-                    <div class="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
-                        <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                        </svg>
+            <!-- Menu Utama Admin -->
+            <div class="space-y-3">
+                <button onclick="showKelolaDataModal()" class="w-full h-24 flex items-center gap-5 p-5 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white rounded-3xl shadow-xl shadow-emerald-100 transition-all active:scale-95 text-left">
+                    <div class="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center text-3xl">
+                        ⚙️
                     </div>
                     <div class="flex-1">
-                        <div class="font-bold text-slate-800">Pengaturan Admin</div>
-                        <div class="text-xs text-slate-500">Kelola lembaga dan konfigurasi</div>
+                        <div class="font-bold text-xl uppercase tracking-wide">Pusat Data</div>
+                        <div class="text-xs text-white/80">Kelola Santri, Halaqah & Sistem</div>
                     </div>
-                    <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="w-6 h-6 text-white/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
                     </svg>
                 </button>
-                
-                <button onclick="scrollToSection('users')" class="w-full flex items-center gap-3 p-4 rounded-xl hover:bg-slate-50 transition-colors text-left">
-                    <div class="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center">
-                        <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
-                        </svg>
-                    </div>
-                    <div class="flex-1">
-                        <div class="font-bold text-slate-800">Manajemen User</div>
-                        <div class="text-xs text-slate-500">Kelola akses pengguna</div>
-                    </div>
-                    <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-                    </svg>
-                </button>
-                
-                <button onclick="scrollToSection('poinRules')" class="w-full flex items-center gap-3 p-4 rounded-xl hover:bg-slate-50 transition-colors text-left">
+
+                <div class="grid grid-cols-2 gap-3">
+                    <button onclick="scrollToSection('poinRules')" class="flex flex-col items-center gap-2 p-4 bg-white border border-slate-200 rounded-2xl hover:bg-slate-50 transition-all text-center">
+                        <div class="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 text-xl">📜</div>
+                        <span class="text-xs font-bold text-slate-700">Aturan Poin</span>
+                    </button>
+                    
+                    <button onclick="showChangePasswordModal()" class="flex flex-col items-center gap-2 p-4 bg-white border border-slate-200 rounded-2xl hover:bg-slate-50 transition-all text-center">
+                        <div class="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 text-xl">🔑</div>
+                        <span class="text-xs font-bold text-slate-700">Ganti Password</span>
+                    </button>
+                </div>
                     <div class="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
                         <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
@@ -460,6 +452,159 @@ async function handleChangePassword(event) {
     }
 }
 
+// Show Kelola Data Modal (Simplified 3-Category Structure)
+function showKelolaDataModal() {
+    const studentCount = dashboardData.students ? dashboardData.students.length : 0;
+    const halaqahCount = dashboardData.halaqahs ? dashboardData.halaqahs.length : 0;
+
+    const content = `
+        <div class="p-8">
+            <div class="flex items-center justify-between mb-8">
+                <div>
+                    <h2 class="font-display font-bold text-3xl text-slate-800 mb-1">Pusat Data Admin</h2>
+                    <p class="text-slate-500 text-sm italic">"Pastikan data induk valid agar laporan akurat"</p>
+                </div>
+                <button onclick="closeModal()" class="p-3 bg-slate-100 rounded-2xl text-slate-400 hover:bg-slate-200 transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+
+            <div class="space-y-6">
+                <!-- 1. DATA SANTRI SECTION -->
+                <div class="bg-blue-50/50 rounded-3xl p-6 border-2 border-blue-100 space-y-4">
+                    <div class="flex items-center gap-3 mb-2">
+                        <div class="p-2 bg-blue-500 rounded-xl text-white">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-blue-900">👥 DAFTAR SANTRI</h3>
+                            <p class="text-[10px] text-blue-600 font-bold uppercase tracking-wider">${studentCount} Santri Terdaftar</p>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <button onclick="closeModal(); scrollToSection('ranking', 'santri')" 
+                            class="p-4 bg-white text-blue-600 rounded-2xl font-bold shadow-sm border border-blue-100 flex flex-col items-center gap-2 active:scale-95 transition-all text-center">
+                            <span class="text-xl">✏️</span>
+                            <span class="text-[11px]">Edit / Detail</span>
+                        </button>
+                        <button onclick="closeModal(); showImportExportModal()" 
+                            class="p-4 bg-blue-600 text-white rounded-2xl font-bold shadow-lg shadow-blue-200 flex flex-col items-center gap-2 active:scale-95 transition-all text-center">
+                            <span class="text-xl">📥</span>
+                            <span class="text-[11px]">Import / Backup</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 2. DATA HALAQAH SECTION -->
+                <div class="bg-emerald-50/50 rounded-3xl p-6 border-2 border-emerald-100 space-y-4">
+                    <div class="flex items-center gap-3 mb-2">
+                        <div class="p-2 bg-emerald-500 rounded-xl text-white">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-emerald-900">🏫 DAFTAR HALAQAH</h3>
+                            <p class="text-[10px] text-emerald-600 font-bold uppercase tracking-wider">${halaqahCount} Kelompok Aktif</p>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1">
+                        <button onclick="closeModal(); scrollToSection('ranking', 'halaqah')" 
+                            class="p-4 bg-white text-emerald-600 rounded-2xl font-bold shadow-sm border border-emerald-100 flex items-center justify-center gap-3 active:scale-95 transition-all">
+                            <span>✏️ Kelola Kelompok & Guru</span>
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"></path></svg>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 3. KONFIGURASI SISTEM SECTION -->
+                <div class="bg-slate-50 rounded-3xl p-6 border-2 border-slate-200 space-y-4">
+                    <div class="flex items-center gap-3 mb-1">
+                        <div class="p-2 bg-slate-800 rounded-xl text-white">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-slate-800">⚙️ PENGATURAN SISTEM</h3>
+                            <p class="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Sesi, Target & Akses</p>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <button onclick="closeModal(); scrollToSection('settings')" 
+                            class="p-4 bg-white text-slate-700 rounded-2xl font-bold shadow-sm border border-slate-200 flex flex-col items-center gap-2 active:scale-95 transition-all text-center">
+                            <span class="text-xl">⏰</span>
+                            <span class="text-[11px]">Sesi & Target</span>
+                        </button>
+                        <button onclick="closeModal(); scrollToSection('users')" 
+                            class="p-4 bg-white text-slate-700 rounded-2xl font-bold shadow-sm border border-slate-200 flex flex-col items-center gap-2 active:scale-95 transition-all text-center">
+                            <span class="text-xl">🔐</span>
+                            <span class="text-[11px]">Akses Login</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    createModal(content, false);
+}
+
+// Show Import/Export Modal
+function showImportExportModal() {
+    const content = `
+        <div class="p-8">
+            <div class="flex items-center justify-between mb-6">
+                <div>
+                    <h2 class="font-display font-bold text-3xl text-slate-800 mb-2">📊 Import / Export Data</h2>
+                    <p class="text-slate-500">Kelola data dalam format Excel</p>
+                </div>
+                <button onclick="closeModal()" class="p-3 bg-slate-100 rounded-2xl text-slate-400 hover:bg-slate-200 transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+
+            <div class="grid grid-cols-1 gap-4">
+                <!-- Import Santri -->
+                <button onclick="closeModal(); showImportExcel()" 
+                    class="flex items-center gap-4 p-5 bg-blue-50 hover:bg-blue-100 rounded-xl border border-blue-200 transition-all text-left">
+                    <div class="w-12 h-12 bg-blue-500 rounded-xl flex items-center justify-center text-white text-2xl">
+                        📥
+                    </div>
+                    <div class="flex-1">
+                        <div class="font-bold text-blue-900">Import Data Santri</div>
+                        <div class="text-xs text-blue-600">Upload file Excel (.xlsx)</div>
+                    </div>
+                </button>
+
+                <!-- Export Santri -->
+                <button onclick="closeModal(); exportToExcel()" 
+                    class="flex items-center gap-4 p-5 bg-emerald-50 hover:bg-emerald-100 rounded-xl border border-emerald-200 transition-all text-left">
+                    <div class="w-12 h-12 bg-emerald-500 rounded-xl flex items-center justify-center text-white text-2xl">
+                        📤
+                    </div>
+                    <div class="flex-1">
+                        <div class="font-bold text-emerald-900">Export Data Santri</div>
+                        <div class="text-xs text-emerald-600">Download sebagai Excel</div>
+                    </div>
+                </button>
+
+                <!-- Download Template -->
+                <button onclick="closeModal(); downloadExcelTemplate()" 
+                    class="flex items-center gap-4 p-5 bg-purple-50 hover:bg-purple-100 rounded-xl border border-purple-200 transition-all text-left">
+                    <div class="w-12 h-12 bg-purple-500 rounded-xl flex items-center justify-center text-white text-2xl">
+                        📋
+                    </div>
+                    <div class="flex-1">
+                        <div class="font-bold text-purple-900">Download Template</div>
+                        <div class="text-xs text-purple-600">Template kosong untuk import</div>
+                    </div>
+                </button>
+            </div>
+        </div>
+    `;
+
+    createModal(content, false);
+}
+
+
+
 // Export functions
 window.renderProfile = renderProfile;
 window.showQuickSetoranForm = showQuickSetoranForm;
@@ -467,3 +612,5 @@ window.calculateHalaman = calculateHalaman;
 window.handleQuickSetoran = handleQuickSetoran;
 window.showChangePasswordModal = showChangePasswordModal;
 window.handleChangePassword = handleChangePassword;
+window.showKelolaDataModal = showKelolaDataModal;
+window.showImportExportModal = showImportExportModal;

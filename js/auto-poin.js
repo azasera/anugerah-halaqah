@@ -6,7 +6,7 @@
 // Check if student has submitted setoran today
 function hasSetoranToday(student) {
     if (!student.setoran || student.setoran.length === 0) return false;
-    
+
     const today = new Date().toDateString();
     return student.setoran.some(s => {
         const setoranDate = new Date(s.date).toDateString();
@@ -16,21 +16,27 @@ function hasSetoranToday(student) {
 
 // Get all students who haven't submitted setoran today
 function getStudentsWithoutSetoranToday() {
-    return dashboardData.students.filter(student => !hasSetoranToday(student));
+    return dashboardData.students.filter(student => {
+        const lembagaKey = student.lembaga || 'MTA';
+        if (typeof isHoliday === 'function' && isHoliday(lembagaKey)) {
+            return false; // Skip students on holiday
+        }
+        return !hasSetoranToday(student);
+    });
 }
 
 // Apply -1 point penalty for students who didn't submit setoran
 async function applyNoSetoranPenalty() {
     const studentsWithoutSetoran = getStudentsWithoutSetoranToday();
-    
+
     if (studentsWithoutSetoran.length === 0) {
         console.log('✅ All students have submitted setoran today');
         return { success: true, count: 0, students: [] };
     }
-    
+
     const today = new Date().toISOString().split('T')[0];
     const penaltyRecords = [];
-    
+
     for (const student of studentsWithoutSetoran) {
         // Check if day has ended for this student's lembaga
         const lembagaKey = student.lembaga || 'MTA';
@@ -43,12 +49,12 @@ async function applyNoSetoranPenalty() {
             const setoranDate = new Date(s.date).toISOString().split('T')[0];
             return setoranDate === today && s.poin === -1 && s.status === 'Tidak Setor';
         });
-        
+
         if (alreadyPenalized) {
             console.log(`⏭️ Penalty already applied for ${student.name}`);
             continue;
         }
-        
+
         // Create penalty record
         const penaltyRecord = {
             id: Date.now() + Math.floor(Math.random() * 1000),
@@ -67,32 +73,32 @@ async function applyNoSetoranPenalty() {
             timestamp: new Date().toLocaleString('id-ID'),
             isAutoPenalty: true
         };
-        
+
         // Add penalty to student record
         if (!student.setoran) student.setoran = [];
         student.setoran.push(penaltyRecord);
         student.total_points += -1; // Subtract 1 point
         student.lastActivity = 'Tidak setor';
-        
+
         // Reset streak
         student.streak = 0;
-        
+
         penaltyRecords.push({
             studentId: student.id,
             studentName: student.name,
             halaqah: student.halaqah,
             penalty: -1
         });
-        
+
         console.log(`❌ Applied -1 penalty to ${student.name}`);
-        
+
         // Sync to Supabase if available
         if (window.supabaseClient) {
             try {
-                const halaqah = dashboardData.halaqahs.find(h => 
+                const halaqah = dashboardData.halaqahs.find(h =>
                     h.name === `Halaqah ${student.halaqah}` || h.name === student.halaqah
                 );
-                
+
                 if (halaqah) {
                     await window.SetoranHarian.create(
                         student.id,
@@ -106,19 +112,19 @@ async function applyNoSetoranPenalty() {
             }
         }
     }
-    
+
     if (penaltyRecords.length > 0) {
         recalculateRankings();
         StorageManager.save();
-        
+
         // Sync to Supabase
         if (typeof syncStudentsToSupabase === 'function') {
             syncStudentsToSupabase().catch(err => console.error('Auto-sync error:', err));
         }
-        
+
         refreshAllData();
     }
-    
+
     return {
         success: true,
         count: penaltyRecords.length,
@@ -129,13 +135,13 @@ async function applyNoSetoranPenalty() {
 // Manual trigger for admin to apply penalties
 async function manualApplyPenalties() {
     const result = await applyNoSetoranPenalty();
-    
+
     if (result.count === 0) {
         showNotification('✅ Semua santri sudah setoran hari ini');
     } else {
         showNotification(`✅ Penalty -1 poin diterapkan ke ${result.count} santri`);
     }
-    
+
     return result;
 }
 
@@ -143,11 +149,11 @@ async function manualApplyPenalties() {
 function isEndOfDay(lembagaKey) {
     const now = new Date();
     const currentTime = now.getHours() * 60 + now.getMinutes();
-    
+
     // Get sessions for specific lembaga
     const settings = appSettings.lembaga[lembagaKey] || appSettings.lembaga['MTA'];
     const sessions = settings.sesiHalaqah || [];
-    
+
     // Get last session end time
     const lastSession = sessions
         .filter(s => s.active)
@@ -156,12 +162,12 @@ function isEndOfDay(lembagaKey) {
             const bEnd = b.endTime.split(':').map(Number);
             return (bEnd[0] * 60 + bEnd[1]) - (aEnd[0] * 60 + aEnd[1]);
         })[0];
-    
+
     if (!lastSession) return false;
-    
+
     const [endHour, endMinute] = lastSession.endTime.split(':').map(Number);
     const lastSessionEnd = endHour * 60 + endMinute;
-    
+
     // End of day is 30 minutes after last session ends
     return currentTime >= (lastSessionEnd + 30);
 }
@@ -170,7 +176,7 @@ function isEndOfDay(lembagaKey) {
 async function autoCheckAndApplyPenalties() {
     console.log('🔍 Running auto-penalty check...');
     const result = await applyNoSetoranPenalty();
-    
+
     if (result.count > 0) {
         console.log(`✅ Auto-applied penalties to ${result.count} students`);
     }
@@ -185,7 +191,7 @@ function initAutoPenaltyCheck() {
 // Show penalty report
 function showPenaltyReport() {
     const studentsWithoutSetoran = getStudentsWithoutSetoranToday();
-    
+
     const content = `
         <div class="p-8">
             <div class="flex items-start justify-between mb-6">
@@ -265,7 +271,7 @@ function showPenaltyReport() {
             `}
         </div>
     `;
-    
+
     createModal(content, false);
 }
 

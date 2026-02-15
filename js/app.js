@@ -1,21 +1,21 @@
 // Main Application Module
 
 // View Switching Function - must be defined early for onclick handlers
-function scrollToSection(section) {
+function scrollToSection(section, subSection) {
     // Get target element first
     let targetElement;
     switch (section) {
+        case 'mutabaah':
+            targetElement = document.getElementById('mutabaah');
+            break;
+        case 'ranking':
+            targetElement = document.getElementById('ranking');
+            break;
         case 'home':
             targetElement = document.getElementById('home');
             break;
         case 'stats':
             targetElement = document.getElementById('stats');
-            break;
-        case 'halaqah':
-            targetElement = document.getElementById('halaqah');
-            break;
-        case 'santri':
-            targetElement = document.getElementById('santri');
             break;
         case 'poinRules':
             targetElement = document.getElementById('poinRules');
@@ -43,7 +43,7 @@ function scrollToSection(section) {
     // Use requestAnimationFrame for smooth transition
     requestAnimationFrame(() => {
         // Hide all sections first
-        const sections = ['home', 'stats', 'halaqah', 'santri', 'poinRules', 'absensi', 'settings', 'users', 'profile'];
+        const sections = ['home', 'stats', 'poinRules', 'absensi', 'settings', 'users', 'profile', 'mutabaah', 'ranking'];
         sections.forEach(s => {
             const element = document.getElementById(s);
             if (element) {
@@ -63,9 +63,19 @@ function scrollToSection(section) {
 
         // Then show target in next frame
         requestAnimationFrame(() => {
-            if (section === 'home') {
+            const isRankingInHome = section === 'home';
+
+            if (isRankingInHome) {
                 // Home View: Show Stats/Banner + Rankings
                 document.getElementById('home')?.classList.remove('hidden');
+
+                // Rankings are nested inside ranking section
+                const rankingSection = document.getElementById('ranking');
+                if (rankingSection) {
+                    rankingSection.classList.remove('hidden');
+                    // Hide tabs container in home view to focus on rankings
+                    document.getElementById('ranking-tabs-container')?.classList.add('hidden');
+                }
 
                 const halaqah = document.getElementById('halaqah');
                 if (halaqah) {
@@ -82,6 +92,21 @@ function scrollToSection(section) {
                 }
             } else {
                 targetElement.classList.remove('hidden');
+                // Show tabs container when explicitly in ranking section
+                if (section === 'ranking') {
+                    document.getElementById('ranking-tabs-container')?.classList.remove('hidden');
+                }
+            }
+
+            // Handle Add Student Shortcut (Admin only)
+            const btnAddStudent = document.getElementById('btnAddStudentShortcut');
+            if (btnAddStudent) {
+                const isAdmin = typeof currentProfile !== 'undefined' && currentProfile && currentProfile.role === 'admin';
+                if (isAdmin && (section === 'ranking' || section === 'home')) {
+                    btnAddStudent.classList.remove('hidden');
+                } else {
+                    btnAddStudent.classList.add('hidden');
+                }
             }
 
             // Handle special cases
@@ -132,6 +157,31 @@ function scrollToSection(section) {
                     // Force render profile when switching to this view
                     if (typeof renderProfile === 'function') {
                         renderProfile();
+                    }
+                    break;
+                case 'mutabaah':
+                    // Force render unified Mutaba'ah when switching to this view
+                    if (typeof showMutabaahSection === 'function') {
+                        showMutabaahSection();
+                    }
+                    break;
+                case 'ranking':
+                    // Use subSection if provided, otherwise default to halaqah
+                    showRankingSubSection(subSection || 'halaqah');
+                    break;
+                case 'home':
+                    // Home View special handling
+                    const halaqahHome = document.getElementById('halaqah');
+                    const santriHome = document.getElementById('santri');
+                    if (halaqahHome) {
+                        halaqahHome.classList.remove('hidden');
+                        halaqahHome.classList.remove('lg:col-span-12');
+                        halaqahHome.classList.add('lg:col-span-4');
+                    }
+                    if (santriHome) {
+                        santriHome.classList.remove('hidden');
+                        santriHome.classList.remove('lg:col-span-12');
+                        santriHome.classList.add('lg:col-span-8');
                     }
                     break;
             }
@@ -200,6 +250,7 @@ function initApp() {
                 if (typeof renderSortButtons === 'function') renderSortButtons();
                 if (typeof renderSantri === 'function') renderSantri();
                 if (typeof renderAbsenceWidget === 'function') renderAbsenceWidget();
+                if (typeof initTilawahData === 'function') initTilawahData();
             } catch (error) {
                 console.error('Error rendering main components:', error);
             }
@@ -290,3 +341,44 @@ function closeQuickActions() {
 
 window.showQuickActions = showQuickActions;
 window.closeQuickActions = closeQuickActions;
+
+// Sub-section handler for Ranking
+function showRankingSubSection(sub) {
+    const halaqahContent = document.getElementById('ranking-halaqah-content');
+    const santriContent = document.getElementById('ranking-santri-content');
+    const btnHalaqah = document.getElementById('btn-rank-halaqah');
+    const btnSantri = document.getElementById('btn-rank-santri');
+
+    const innerHalaqah = document.getElementById('halaqah');
+    const innerSantri = document.getElementById('santri');
+
+    if (!halaqahContent || !santriContent) return;
+
+    if (sub === 'halaqah') {
+        halaqahContent.classList.remove('hidden');
+        santriContent.classList.add('hidden');
+        if (innerHalaqah) innerHalaqah.classList.remove('hidden');
+        if (innerSantri) innerSantri.classList.add('hidden');
+
+        // Update Buttons: Emerald Block for Halaqah
+        if (btnHalaqah) btnHalaqah.className = "flex-1 py-3 rounded-xl font-bold bg-emerald-600 text-white shadow-lg shadow-emerald-200 transition-all text-sm";
+        if (btnSantri) btnSantri.className = "flex-1 py-3 rounded-xl font-bold text-slate-500 transition-all text-sm hover:text-slate-700";
+
+        // Render data
+        if (typeof renderHalaqahRankings === 'function') renderHalaqahRankings();
+    } else {
+        halaqahContent.classList.add('hidden');
+        santriContent.classList.remove('hidden');
+        if (innerHalaqah) innerHalaqah.classList.add('hidden');
+        if (innerSantri) innerSantri.classList.remove('hidden');
+
+        // Update Buttons: Blue Block for Santri
+        if (btnHalaqah) btnHalaqah.className = "flex-1 py-3 rounded-xl font-bold text-slate-500 transition-all text-sm hover:text-slate-700";
+        if (btnSantri) btnSantri.className = "flex-1 py-3 rounded-xl font-bold bg-blue-600 text-white shadow-lg shadow-blue-200 transition-all text-sm";
+
+        // Render data
+        if (typeof renderSantri === 'function') renderSantri();
+    }
+}
+
+window.showRankingSubSection = showRankingSubSection;

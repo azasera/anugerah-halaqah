@@ -7,7 +7,8 @@ const dashboardData = {
         totalHalaqahs: 0,
         totalPoints: 0,
         avgPointsPerStudent: 0
-    }
+    },
+    tilawah: []
 };
 
 // Local Storage Management
@@ -15,7 +16,7 @@ const StorageManager = {
     save() {
         localStorage.setItem('halaqahData', JSON.stringify(dashboardData));
     },
-    
+
     load() {
         const saved = localStorage.getItem('halaqahData');
         if (saved) {
@@ -23,7 +24,7 @@ const StorageManager = {
             Object.assign(dashboardData, data);
         }
     },
-    
+
     clear() {
         localStorage.removeItem('halaqahData');
     }
@@ -32,13 +33,13 @@ const StorageManager = {
 // Data filtering and sorting functions
 function filterStudents(searchTerm, halaqahFilter = 'all', lembagaFilter = 'all') {
     let filtered = dashboardData.students;
-    
+
     if (searchTerm) {
-        filtered = filtered.filter(s => 
+        filtered = filtered.filter(s =>
             s.name.toLowerCase().includes(searchTerm.toLowerCase())
         );
     }
-    
+
     if (halaqahFilter !== 'all') {
         filtered = filtered.filter(s => s.halaqah === halaqahFilter);
     }
@@ -46,14 +47,14 @@ function filterStudents(searchTerm, halaqahFilter = 'all', lembagaFilter = 'all'
     if (lembagaFilter !== 'all') {
         filtered = filtered.filter(s => s.lembaga === lembagaFilter);
     }
-    
+
     return filtered;
 }
 
 function sortStudents(students, sortBy = 'rank') {
     const sorted = [...students];
-    
-    switch(sortBy) {
+
+    switch (sortBy) {
         case 'rank':
             return sorted.sort((a, b) => a.overall_ranking - b.overall_ranking);
         case 'points':
@@ -85,16 +86,16 @@ function calculateStats() {
         }, 0),
         avgPointsPerStudent: 0
     };
-    
+
     // Prevent NaN when no students
     if (stats.totalStudents > 0) {
         stats.avgPointsPerStudent = (stats.totalPoints / stats.totalStudents).toFixed(1);
     } else {
         stats.avgPointsPerStudent = '0';
     }
-    
+
     dashboardData.stats = stats;
-    
+
     return stats;
 }
 
@@ -106,18 +107,18 @@ calculateStats();
 function recalculateRankings() {
     // Sort students by points
     dashboardData.students.sort((a, b) => b.total_points - a.total_points);
-    
+
     // Update rankings
     dashboardData.students.forEach((student, index) => {
         student.overall_ranking = index + 1;
         student.daily_ranking = index + 1;
     });
-    
+
     // Recalculate halaqah stats
     dashboardData.halaqahs.forEach(halaqah => {
         const halaqahName = halaqah.name.replace('Halaqah ', '');
         const members = dashboardData.students.filter(s => s.halaqah === halaqahName);
-        
+
         halaqah.members = members.length;
         // FIX: Ensure total_points is a number, default to 0 if undefined/null/NaN
         halaqah.points = members.reduce((sum, m) => {
@@ -126,17 +127,17 @@ function recalculateRankings() {
         }, 0);
         halaqah.avgPoints = halaqah.members > 0 ? (halaqah.points / halaqah.members).toFixed(1) : '0';
     });
-    
+
     // Sort halaqahs by points
     dashboardData.halaqahs.sort((a, b) => b.points - a.points);
-    
+
     // Update halaqah rankings
     dashboardData.halaqahs.forEach((halaqah, index) => {
         halaqah.rank = index + 1;
     });
-    
+
     calculateStats();
-    
+
     // Sync to Supabase
     if (window.autoSync) {
         autoSync();
@@ -148,23 +149,23 @@ function refreshAllData() {
     if (typeof renderStats === 'function') {
         renderStats();
     }
-    
+
     if (typeof renderBestHalaqah === 'function') {
         renderBestHalaqah();
     }
-    
+
     if (typeof renderHalaqahRankings === 'function') {
         renderHalaqahRankings();
     }
-    
+
     if (typeof renderFilters === 'function') {
         renderFilters();
     }
-    
+
     if (typeof renderSantri === 'function') {
         renderSantri();
     }
-    
+
     // Refresh admin settings if visible (to update inline tabs)
     const settingsContainer = document.getElementById('settingsContainer');
     if (settingsContainer && settingsContainer.innerHTML.trim() !== '') {
@@ -173,12 +174,20 @@ function refreshAllData() {
             renderAdminSettings();
         }
     }
-    
+
     // Render absence widget on dashboard
     if (typeof renderAbsenceWidget === 'function') {
         renderAbsenceWidget();
     }
-    
+
+    // Render tilawah dashboard if visible
+    const tilawahContainer = document.getElementById('tilawahContainer');
+    if (tilawahContainer && tilawahContainer.innerHTML.trim() !== '') {
+        if (typeof renderTilawahDashboard === 'function') {
+            renderTilawahDashboard();
+        }
+    }
+
     // Don't re-render absence tracker to prevent flickering
     // It will be rendered once on init
 }

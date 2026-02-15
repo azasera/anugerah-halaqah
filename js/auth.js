@@ -1,8 +1,12 @@
 // Authentication Module
 
 let currentUser = null;
-let currentProfile = null;
 let currentUserChild = null;
+
+// Expose to window for other modules
+window.currentProfile = null;
+window.currentUserChild = null;
+window.currentUser = null;
 
 // Check if user is logged in
 async function checkAuth() {
@@ -27,7 +31,7 @@ async function checkAuth() {
                 console.log('Restored local session:', currentUser.name);
 
                 // Create mock profile for local user
-                currentProfile = {
+                window.currentProfile = {
                     id: currentUser.id,
                     email: currentUser.email,
                     full_name: currentUser.name || currentUser.email.split('@')[0],
@@ -35,7 +39,7 @@ async function checkAuth() {
                     is_active: true
                 };
 
-                if (currentProfile.role === 'ortu') {
+                if (window.currentProfile.role === 'ortu') {
                     refreshUserChildLink();
                 }
 
@@ -48,7 +52,7 @@ async function checkAuth() {
         }
 
         currentUser = null;
-        currentProfile = null;
+        window.currentProfile = null;
         showPublicUI();
         return; // Continue without auth
     }
@@ -57,17 +61,17 @@ async function checkAuth() {
     const localUser = localStorage.getItem('localCurrentUser');
     if (localUser) {
         try {
-            currentUser = JSON.parse(localUser);
+            window.currentUser = JSON.parse(localUser);
             // Create mock profile for local user
-            currentProfile = {
-                id: currentUser.id,
-                email: currentUser.email,
-                full_name: currentUser.name || currentUser.email.split('@')[0],
-                role: currentUser.role || 'ortu',
+            window.currentProfile = {
+                id: window.currentUser.id,
+                email: window.currentUser.email,
+                full_name: window.currentUser.name || window.currentUser.email.split('@')[0],
+                role: window.currentUser.role || 'ortu',
                 is_active: true
             };
 
-            if (currentProfile.role === 'ortu') {
+            if (window.currentProfile.role === 'ortu') {
                 refreshUserChildLink();
             }
             updateUIBasedOnRole();
@@ -80,18 +84,18 @@ async function checkAuth() {
     const { data: { session } } = await window.supabaseClient.auth.getSession();
 
     if (session) {
-        currentUser = session.user;
+        window.currentUser = session.user;
         await loadUserProfile();
         // Cari data anak jika role adalah orang tua
-        if (currentProfile && currentProfile.role === 'ortu') {
+        if (window.currentProfile && window.currentProfile.role === 'ortu') {
             refreshUserChildLink();
         }
         updateUIBasedOnRole();
     } else {
         // No session - public mode
         console.log('Public mode: Dashboard accessible without login');
-        currentUser = null;
-        currentProfile = null;
+        window.currentUser = null;
+        window.currentProfile = null;
         showPublicUI();
     }
 }
@@ -99,10 +103,12 @@ async function checkAuth() {
 // Load user profile with role
 async function loadUserProfile() {
     try {
+        if (!window.currentUser) return;
+
         const { data, error } = await window.supabaseClient
             .from('profiles')
             .select('*')
-            .eq('id', currentUser.id)
+            .eq('id', window.currentUser.id)
             .single();
 
         if (error) {
@@ -112,9 +118,9 @@ async function loadUserProfile() {
                 const { data: newProfile, error: createError } = await window.supabaseClient
                     .from('profiles')
                     .insert({
-                        id: currentUser.id,
-                        email: currentUser.email,
-                        full_name: currentUser.email.split('@')[0],
+                        id: window.currentUser.id,
+                        email: window.currentUser.email,
+                        full_name: window.currentUser.email.split('@')[0],
                         role: 'ortu',
                         is_active: true
                     })
@@ -124,25 +130,25 @@ async function loadUserProfile() {
                 if (createError) {
                     console.error('Error creating profile:', createError);
                     // Continue without profile
-                    currentProfile = null;
+                    window.currentProfile = null;
                     return;
                 }
 
-                currentProfile = newProfile;
+                window.currentProfile = newProfile;
                 updateUIBasedOnRole();
                 return;
             }
 
             console.error('Error loading profile:', error);
-            currentProfile = null;
+            window.currentProfile = null;
             return;
         }
 
-        currentProfile = data;
+        window.currentProfile = data;
         updateUIBasedOnRole();
     } catch (err) {
         console.error('Unexpected error loading profile:', err);
-        currentProfile = null;
+        window.currentProfile = null;
     }
 }
 
@@ -293,6 +299,7 @@ async function login(rawInput, rawPassword) {
 
                                         if (!signUpError && signUpData?.user) {
                                             currentUser = signUpData.user;
+                                            window.currentUser = signUpData.user;
 
                                             // Ensure profile is created
                                             await new Promise(r => setTimeout(r, 1000));
@@ -459,7 +466,7 @@ function loginAsUser(user) {
     localStorage.setItem('localCurrentUser', JSON.stringify(user));
 
     // Create mock profile
-    currentProfile = {
+    window.currentProfile = {
         id: user.id,
         email: user.email,
         full_name: user.name,
@@ -514,8 +521,8 @@ async function logout() {
         }
 
         currentUser = null;
-        currentProfile = null;
-        currentUserChild = null;
+        window.currentProfile = null;
+        window.currentUserChild = null;
 
         // Reload page to show public dashboard
         showNotification('👋 Logout berhasil - Kembali ke dashboard publik', 'info');
@@ -847,9 +854,6 @@ window.handleLogin = handleLogin;
 window.handleSignup = handleSignup;
 window.switchAuthTab = switchAuthTab;
 window.hasPermission = hasPermission;
-window.currentUser = () => currentUser;
-window.currentProfile = () => currentProfile;
-window.getCurrentUserChild = () => currentUserChild;
 window.showPublicUI = showPublicUI;
 
 

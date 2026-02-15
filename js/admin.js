@@ -171,9 +171,14 @@ function showAdminSettings() {
                         <input type="number" value="${l.targetBaris}" min="1"
                             onchange="updateLembaga('${key}', 'targetBaris', this.value)"
                             class="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm">
+                    </div>
                 </div>
-                <div class="mt-3 text-xs text-slate-500 bg-blue-50 p-2 rounded">
-                    ?? Poin dihitung dari kondisi setoran (tepat waktu, lancar, capai target), bukan dari jumlah baris
+                <div class="mt-4 pt-3 border-t border-slate-200">
+                    <button onclick="toggleHoliday('${key}')" id="btn-holiday-${key}"
+                        class="w-full py-2.5 rounded-xl font-bold text-sm shadow-sm transition-all transform hover:scale-[1.02] active:scale-[0.98] ${isHoliday(key) ? 'bg-blue-600 text-white shadow-blue-200' : 'bg-white border-2 border-slate-200 text-slate-700 hover:border-blue-500 hover:text-blue-600'}">
+                        ${isHoliday(key) ? '🎉 SEDANG LIBUR (Klik untuk Masuk)' : '📅 Setel Libur Hari Ini'}
+                    </button>
+                    <p class="text-[10px] text-slate-500 mt-2 text-center">Libur akan otomatis mematikan tracking absensi & penalty poin.</p>
                 </div>
             </div>
         `;
@@ -647,9 +652,14 @@ function generateAdminSettingsContent() {
                         <input type="number" value="${l.targetBaris}" min="1"
                             onchange="updateLembaga('${key}', 'targetBaris', this.value)"
                             class="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm">
+                    </div>
                 </div>
-                <div class="mt-3 text-xs text-slate-500 bg-blue-50 p-2 rounded">
-                    ?? Poin dihitung dari kondisi setoran (tepat waktu, lancar, capai target), bukan dari jumlah baris
+                <div class="mt-4 pt-3 border-t border-slate-200">
+                    <button onclick="toggleHoliday('${key}')" id="btn-holiday-inline-${key}"
+                        class="w-full py-2.5 rounded-xl font-bold text-sm shadow-sm transition-all transform hover:scale-[1.02] active:scale-[0.98] ${isHoliday(key) ? 'bg-blue-600 text-white shadow-blue-200' : 'bg-white border-2 border-slate-200 text-slate-700 hover:border-blue-500 hover:text-blue-600'}">
+                        ${isHoliday(key) ? '🎉 SEDANG LIBUR (Klik untuk Masuk)' : '📅 Setel Libur Hari Ini'}
+                    </button>
+                    <p class="text-[10px] text-slate-500 mt-2 text-center">Libur akan otomatis mematikan tracking absensi & penalty poin.</p>
                 </div>
             </div>
         `;
@@ -1698,5 +1708,48 @@ function updateAutoPoinStatsInline() {
 }
 
 // Make globally accessible
+// Toggle Holiday for a Lembaga
+function toggleHoliday(lembagaKey) {
+    const today = new Date().toISOString().split('T')[0];
+    const lembaga = appSettings.lembaga[lembagaKey];
+
+    if (!lembaga) return;
+    if (!lembaga.holidays) lembaga.holidays = [];
+
+    const index = lembaga.holidays.indexOf(today);
+    if (index === -1) {
+        lembaga.holidays.push(today);
+        showNotification(`🎉 ${lembaga.name} disetel LIBUR untuk hari ini`);
+    } else {
+        lembaga.holidays.splice(index, 1);
+        showNotification(`📅 ${lembaga.name} disetel MASUK (Tidak Libur)`);
+    }
+
+    saveSettings();
+
+    // Update button states in UI
+    const btn = document.getElementById(`btn-holiday-${lembagaKey}`);
+    const btnInline = document.getElementById(`btn-holiday-inline-${lembagaKey}`);
+
+    const isLibur = holidayCheck(lembagaKey); // Use helper
+
+    [btn, btnInline].forEach(b => {
+        if (b) {
+            b.className = `flex-1 py-2 rounded-lg font-bold text-xs transition-all ${isLibur ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'}`;
+            b.innerHTML = isLibur ? '🎉 SEDANG LIBUR' : '📅 Setel Libur Hari Ini';
+        }
+    });
+
+    // Refresh dashboard if visible
+    if (typeof refreshAllData === 'function') refreshAllData();
+}
+
+// Helper for local toggle check to avoid re-reading state before UI update
+function holidayCheck(key) {
+    const today = new Date().toISOString().split('T')[0];
+    return appSettings.lembaga[key].holidays.includes(today);
+}
+
+window.toggleHoliday = toggleHoliday;
 window.updateAutoPoinStats = updateAutoPoinStats;
 window.updateAutoPoinStatsInline = updateAutoPoinStatsInline;

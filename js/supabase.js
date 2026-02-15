@@ -45,7 +45,7 @@ async function syncStudentsToSupabase() {
     }
 
     // AUTH CHECK: Only admin can write to DB
-    const profile = window.currentProfile ? window.currentProfile() : null;
+    const profile = window.currentProfile;
     if (!profile || profile.role !== 'admin') {
         console.warn('⛔ Sync blocked: User is not admin');
         return;
@@ -173,9 +173,10 @@ async function syncHalaqahsToSupabase() {
     if (!isOnline) return;
 
     // AUTH CHECK: Only admin can write to DB
-    const profile = window.currentProfile ? window.currentProfile() : null;
-    if (!profile || profile.role !== 'admin') return;
-
+    const profile = window.currentProfile;
+    if (!profile || profile.role !== 'admin') {
+        return;
+    }
     try {
         // Silent sync - no notification to avoid confusion
         const { data, error } = await supabaseClient
@@ -497,7 +498,7 @@ async function autoSync() {
 
     // Only allow admin to sync data TO server
     // Public users/Parents/Guru only READ data via realtime
-    const profile = window.currentProfile ? window.currentProfile() : null;
+    const profile = window.currentProfile;
     if (!profile || profile.role !== 'admin') {
         // console.log('⏭️ Skipping auto-sync (not admin)');
         return;

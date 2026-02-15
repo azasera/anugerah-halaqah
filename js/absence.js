@@ -57,6 +57,21 @@ function renderAbsenceWidget() {
     const percentage = totalStudents > 0 ? Math.round((submittedCount / totalStudents) * 100) : 0;
 
     // Only show widget if there are students who haven't submitted
+    // AND it's not a holiday (if filtered by a single lembaga that is on holiday)
+    const userLembaga = (typeof getUserLembaga === 'function') ? getUserLembaga() : null;
+    if (userLembaga && isHoliday(userLembaga)) {
+        container.innerHTML = `
+            <div class="glass rounded-2xl p-4 border border-blue-200 bg-blue-50/50 flex items-center gap-3">
+                <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-xl">🎉</div>
+                <div>
+                    <div class="font-bold text-blue-800">Hari ini Libur Halaqah</div>
+                    <div class="text-xs text-blue-600">Selamat beristirahat!</div>
+                </div>
+            </div>
+        `;
+        return;
+    }
+
     if (notSubmittedCount === 0) {
         container.innerHTML = '';
         return;
@@ -148,6 +163,7 @@ function renderAbsenceTracker(force = false) {
         : dashboardData.students;
 
     // Secondary Filter: Filter by Lembaga (Parent/Admin Restrictions)
+    let isCurrentLembagaHoliday = false;
     if (typeof getUserLembaga === 'function') {
         const userLembaga = getUserLembaga();
         if (userLembaga) {
@@ -155,9 +171,15 @@ function renderAbsenceTracker(force = false) {
                 studentsToRender = [];
             } else {
                 studentsToRender = studentsToRender.filter(s => s.lembaga === userLembaga);
+                if (isHoliday(userLembaga)) {
+                    isCurrentLembagaHoliday = true;
+                }
             }
         }
     }
+
+    // Skip students who are in a holiday lembaga
+    studentsToRender = studentsToRender.filter(s => !isHoliday(s.lembaga));
 
     studentsToRender.forEach(student => {
         const hasSetoranToday = student.setoran?.some(s =>
@@ -224,6 +246,14 @@ function renderAbsenceTracker(force = false) {
                 </div>
                 <p class="text-sm text-red-600">Santri yang tidak setor sama sekali akan mendapat pengurangan 1 poin dan rekor istiqomah direset ke 0.</p>
             </div>
+
+            ${isCurrentLembagaHoliday ? `
+            <div class="bg-blue-50 border border-blue-200 rounded-xl p-6 mb-6 text-center">
+                <div class="text-4xl mb-3">🎉</div>
+                <h4 class="font-bold text-blue-800 text-lg mb-1">Hari ini Libur untuk Lembaga ini</h4>
+                <p class="text-sm text-blue-600">Tidak ada tracking absensi atau pengurangan poin hari ini.</p>
+            </div>
+            ` : ''}
             
             <!-- Filter Tabs -->
             <div class="flex gap-2 mb-4 border-b border-slate-200">

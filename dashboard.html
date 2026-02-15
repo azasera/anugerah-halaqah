@@ -186,6 +186,30 @@
                     <span class="font-semibold text-sm">Beranda</span>
                 </button>
 
+                <!-- Mutaba'ah Terpadu (Pusat Kegiatan) -->
+                <button onclick="scrollToSection('mutabaah')"
+                    class="sidebar-menu-item w-full flex items-center gap-3 px-3 py-3 rounded-lg text-left"
+                    data-sidebar-section="mutabaah">
+                    <svg class="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253">
+                        </path>
+                    </svg>
+                    <span class="font-bold text-sm">📖 Mutaba'ah Quran</span>
+                </button>
+
+                <!-- Data & Ranking Terpadu -->
+                <button onclick="scrollToSection('ranking')"
+                    class="sidebar-menu-item w-full flex items-center gap-3 px-3 py-3 rounded-lg text-left"
+                    data-sidebar-section="ranking">
+                    <svg class="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z">
+                        </path>
+                    </svg>
+                    <span class="font-semibold text-sm">🏆 Peringkat & Data</span>
+                </button>
+
                 <button onclick="scrollToSection('stats')"
                     class="sidebar-menu-item w-full flex items-center gap-3 px-3 py-3 rounded-lg text-left"
                     data-sidebar-section="stats">
@@ -195,30 +219,6 @@
                         </path>
                     </svg>
                     <span class="font-semibold text-sm">Statistik</span>
-                </button>
-
-                <!-- Daftar Halaqah -->
-                <button onclick="scrollToSection('halaqah')"
-                    class="sidebar-menu-item w-full flex items-center gap-3 px-3 py-3 rounded-lg text-left"
-                    data-sidebar-section="halaqah">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253">
-                        </path>
-                    </svg>
-                    <span class="font-semibold text-sm">Daftar Halaqah</span>
-                </button>
-
-                <!-- Daftar Santri -->
-                <button onclick="scrollToSection('santri')"
-                    class="sidebar-menu-item w-full flex items-center gap-3 px-3 py-3 rounded-lg text-left"
-                    data-sidebar-section="santri">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z">
-                        </path>
-                    </svg>
-                    <span class="font-semibold text-sm">Daftar Santri</span>
                 </button>
             </nav>
 
@@ -385,75 +385,6 @@
             </div>
         </section>
 
-        <!-- Ranking Layout -->
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
-
-            <!-- Halaqah Rankings Section -->
-            <section id="halaqah" class="hidden lg:col-span-4 space-y-6">
-                <div class="flex items-center justify-between">
-                    <h3 class="font-display font-bold text-2xl text-slate-800 flex items-center gap-2">
-                        <span class="w-2 h-8 bg-primary-500 rounded-full"></span>
-                        Ranking Halaqah
-                    </h3>
-                </div>
-
-                <div id="halaqahRankings" class="space-y-4">
-                    <!-- Data populated via JS -->
-                </div>
-            </section>
-
-            <!-- Santri Rankings Section -->
-            <section id="santri" class="hidden lg:col-span-8 space-y-6">
-                <div class="flex flex-col gap-4">
-                    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        <h3 class="font-display font-bold text-2xl text-slate-800 flex items-center gap-2">
-                            <span class="w-2 h-8 bg-accent-teal rounded-full"></span>
-                            Ranking Santri Terbaik
-                        </h3>
-                        <div class="relative group">
-                            <input type="text" id="santriSearch" placeholder="Cari nama santri... (Ctrl+K)"
-                                class="w-full md:w-64 pl-10 pr-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all glass">
-                            <svg class="w-5 h-5 absolute left-3 top-2.5 text-slate-400 group-focus-within:text-primary-500"
-                                fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                            </svg>
-                        </div>
-                    </div>
-
-                    <div class="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
-                        <div id="filterContainer">
-                            <!-- Filters populated via JS -->
-                        </div>
-                        <div id="sortContainer">
-                            <!-- Sort buttons populated via JS -->
-                        </div>
-                    </div>
-                </div>
-
-                <div class="glass rounded-3xl overflow-hidden border border-slate-200 shadow-sm">
-                    <div class="overflow-x-auto custom-scrollbar">
-                        <table class="w-full text-left border-collapse">
-                            <thead>
-                                <tr class="bg-slate-50/50 text-slate-500 text-xs font-bold uppercase tracking-wider">
-                                    <th class="px-6 py-4">Peringkat</th>
-                                    <th class="px-6 py-4">Nama Santri</th>
-                                    <th class="px-6 py-4">Poin Total</th>
-                                    <th class="px-6 py-4">Total Hafalan</th>
-                                    <th class="px-6 py-4 text-center">Harian</th>
-                                    <th class="px-6 py-4">Istiqomah</th>
-                                    <th class="px-6 py-4 text-right">Pencapaian</th>
-                                </tr>
-                            </thead>
-                            <tbody id="santriTableBody" class="divide-y divide-slate-100">
-                                <!-- Data populated via JS -->
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </section>
-        </div>
-
         <!-- Aturan Poin Section -->
         <section id="poinRules" class="hidden">
             <div class="glass rounded-3xl p-8 border border-slate-200 shadow-sm">
@@ -527,12 +458,118 @@
             </div>
         </section>
 
+        <!-- Unified Mutaba'ah Quran Section -->
+        <section id="mutabaah" class="hidden">
+            <div id="mutabaahContainer" class="space-y-6">
+                <!-- Content populated via JS (Unified Tilawah, Ziyadah, Murojaah) -->
+            </div>
+        </section>
+
+        <!-- Ranking & Data Terpadu Section -->
+        <section id="ranking" class="hidden">
+            <div class="grid grid-cols-12 gap-6">
+                <!-- Inner Sidebar/Tabs for Ranking Section -->
+                <div id="ranking-tabs-container"
+                    class="col-span-12 flex bg-white/50 p-1 rounded-2xl border border-slate-200 mb-2">
+                    <button onclick="showRankingSubSection('halaqah')" id="btn-rank-halaqah"
+                        class="flex-1 py-3 rounded-xl font-bold bg-emerald-600 text-white shadow-lg shadow-emerald-200 transition-all text-sm">🏆
+                        Halaqah</button>
+                    <button onclick="showRankingSubSection('santri')" id="btn-rank-santri"
+                        class="flex-1 py-3 rounded-xl font-bold text-slate-500 transition-all text-sm hover:text-slate-700">👤
+                        Santri</button>
+                </div>
+
+                <!-- Halaqah Content (Re-uses existing ID but managed in new layout) -->
+                <div id="ranking-halaqah-content" class="col-span-12">
+                    <section id="halaqah" class="space-y-6">
+                        <div class="flex items-center justify-between">
+                            <h3 class="font-display font-bold text-2xl text-slate-800 flex items-center gap-2">
+                                <span class="w-2 h-8 bg-primary-500 rounded-full"></span>
+                                Ranking Halaqah
+                            </h3>
+                        </div>
+
+                        <div id="halaqahRankings" class="space-y-4">
+                            <!-- Data populated via JS -->
+                        </div>
+                    </section>
+                </div>
+
+                <!-- Santri Content -->
+                <div id="ranking-santri-content" class="col-span-12 hidden">
+                    <section id="santri" class="space-y-6">
+                        <div class="flex flex-col gap-4">
+                            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                <h3 class="font-display font-bold text-2xl text-slate-800 flex items-center gap-2">
+                                    <span class="w-2 h-8 bg-accent-teal rounded-full"></span>
+                                    Ranking Santri Terbaik
+                                </h3>
+                                <div class="flex items-center gap-2">
+                                    <button onclick="showAddStudentForm()" id="btnAddStudentShortcut"
+                                        class="hidden bg-primary-600 text-white p-2 rounded-xl hover:bg-primary-700 transition-all shadow-lg shadow-primary-200"
+                                        title="Tambah Santri Baru">
+                                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                                        </svg>
+                                    </button>
+                                    <div class="relative group">
+                                        <input type="text" id="santriSearch" placeholder="Cari nama santri... (Ctrl+K)"
+                                            class="w-full md:w-64 pl-10 pr-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all glass">
+                                        <svg class="w-5 h-5 absolute left-3 top-2.5 text-slate-400 group-focus-within:text-primary-500"
+                                            fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                        </svg>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
+                                <div id="filterContainer">
+                                    <!-- Filters populated via JS -->
+                                </div>
+                                <div id="sortContainer">
+                                    <!-- Sort buttons populated via JS -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="glass rounded-3xl overflow-hidden border border-slate-200 shadow-sm">
+                            <div class="overflow-x-auto custom-scrollbar">
+                                <table class="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr
+                                            class="bg-slate-50/50 text-slate-500 text-xs font-bold uppercase tracking-wider">
+                                            <th class="px-6 py-4">Peringkat</th>
+                                            <th class="px-6 py-4">Nama Santri</th>
+                                            <th class="px-6 py-4">Poin Total</th>
+                                            <th class="px-6 py-4">Total Hafalan</th>
+                                            <th class="px-6 py-4 text-center">Harian</th>
+                                            <th class="px-6 py-4">Istiqomah</th>
+                                            <th class="px-6 py-4 text-right">Pencapaian</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="santriTableBody" class="divide-y divide-slate-100">
+                                        <!-- Data populated via JS -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+            </div>
+        </section>
+
         <!-- Tracking Absensi Section -->
         <section id="absensi" class="hidden">
             <div id="absensiContainer">
                 <!-- Content populated via JS -->
             </div>
         </section>
+
+        <!-- Deprecated sections (removed from main nav but IDs kept in DOM for backward compat if needed, hidden) -->
+        <section id="tilawah" class="hidden"></section>
 
         <!-- Admin Settings Section -->
         <section id="settings" class="hidden">
@@ -567,29 +604,32 @@
                         d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6">
                     </path>
                 </svg>
-                <span class="text-[10px] font-semibold">Beranda</span>
+                <span class="text-[10px] font-bold">Beranda</span>
             </button>
 
-            <button onclick="scrollToSection('halaqah')"
+            <button onclick="scrollToSection('mutabaah')"
                 class="nav-item flex-1 flex flex-col items-center justify-center gap-1 transition-all"
-                data-section="halaqah">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253">
-                    </path>
-                </svg>
-                <span class="text-[10px] font-semibold">Halaqah</span>
+                data-section="mutabaah">
+                <div class="relative">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253">
+                        </path>
+                    </svg>
+                    <div class="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+                </div>
+                <span class="text-[10px] font-bold">Mutaba'ah</span>
             </button>
 
-            <button onclick="scrollToSection('santri')"
+            <button onclick="scrollToSection('ranking')"
                 class="nav-item flex-1 flex flex-col items-center justify-center gap-1 transition-all"
-                data-section="santri">
+                data-section="ranking">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z">
+                        d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z">
                     </path>
                 </svg>
-                <span class="text-[10px] font-semibold">Santri</span>
+                <span class="text-[10px] font-bold">Peringkat</span>
             </button>
 
             <button onclick="scrollToSection('absensi')"
@@ -609,7 +649,7 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                         d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
                 </svg>
-                <span class="text-[10px] font-semibold">Profil</span>
+                <span class="text-[10px] font-bold">Profil</span>
             </button>
         </div>
     </nav>
@@ -657,6 +697,7 @@
     <script src="js/modal.js?v=6"></script>
     <script src="js/forms.js?v=6"></script>
     <script src="js/setoran.js"></script>
+    <script src="js/tilawah.js"></script>
     <script src="js/auto-poin.js"></script>
     <script src="js/absence.js"></script>
     <script src="js/admin.js?v=6"></script>

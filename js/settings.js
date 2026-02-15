@@ -106,6 +106,11 @@ function loadSettings() {
                     const sourceSesi = savedSettings.sesiHalaqah || defaultSesiHalaqah;
                     savedSettings.lembaga[key].sesiHalaqah = JSON.parse(JSON.stringify(sourceSesi));
                 }
+
+                // Ensure holidays array exists
+                if (!savedSettings.lembaga[key].holidays) {
+                    savedSettings.lembaga[key].holidays = [];
+                }
             });
         }
 
@@ -134,6 +139,16 @@ function barisToHalaman(baris, lembagaKey) {
 function calculatePoinFromBaris(baris, lembagaKey) {
     console.warn('calculatePoinFromBaris is deprecated. Use condition-based poin calculation instead.');
     return 0;
+}
+
+// Check if today is a holiday for specific lembaga
+function isHoliday(lembagaKey) {
+    const today = new Date().toISOString().split('T')[0];
+    const lembaga = appSettings.lembaga[lembagaKey];
+
+    if (!lembaga || !lembaga.holidays) return false;
+
+    return lembaga.holidays.includes(today);
 }
 
 // Check if current time is within any active session
@@ -194,3 +209,4 @@ window.barisToHalaman = barisToHalaman;
 window.calculatePoinFromBaris = calculatePoinFromBaris;
 window.getCurrentSession = getCurrentSession;
 window.isTimeInSession = isTimeInSession;
+window.isHoliday = isHoliday;
