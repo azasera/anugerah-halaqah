@@ -24,6 +24,11 @@ const slides = [
         id: 'streak-leaders',
         title: '🔥 Santri Paling Istiqomah',
         type: 'streak'
+    },
+    {
+        id: 'hafalan-leaders',
+        title: '📖 Top Hafalan per Lembaga',
+        type: 'hafalan'
     }
 ];
 
@@ -71,6 +76,8 @@ function renderSlideContent() {
             renderTopHalaqah(contentContainer);
         } else if (slide.type === 'streak') {
             renderStreakLeaders(contentContainer);
+        } else if (slide.type === 'hafalan') {
+            renderHafalanLeaders(contentContainer);
         }
     });
 }
@@ -79,6 +86,8 @@ function renderTopSantri(container) {
     const topStudent = dashboardData.students[0];
     const second = dashboardData.students[1];
     const third = dashboardData.students[2];
+
+    if (!topStudent) return;
 
     container.innerHTML = `
         <div class="flex flex-col items-center justify-center h-full px-2">
@@ -98,6 +107,7 @@ function renderTopSantri(container) {
             
             <!-- Runner-ups -->
             <div class="grid grid-cols-2 gap-2 max-w-md w-full">
+                ${second ? `
                 <div class="bg-white/10 backdrop-blur-sm rounded-xl p-2 border border-white/20 text-center">
                     <div class="text-xl mb-1">🥈</div>
                     <div class="text-sm font-bold text-white mb-1">${second.name}</div>
@@ -105,30 +115,26 @@ function renderTopSantri(container) {
                     <div class="text-lg font-bold text-white">${second.total_points}</div>
                     <div class="text-white/70 text-xs">poin</div>
                 </div>
+                ` : ''}
+                ${third ? `
                 <div class="bg-white/10 backdrop-blur-sm rounded-xl p-2 border border-white/20 text-center">
                     <div class="text-xl mb-1">🥉</div>
                     <div class="text-sm font-bold text-white mb-1">${third.name}</div>
-                    <div class="text-white/80 text-xs mb-1">Halaqah ${third.halaqah}</div>
+                    <div class="text-white/80 text-xs mb-1">${third.members || 'Halaqah ' + third.halaqah}</div>
                     <div class="text-lg font-bold text-white">${third.total_points}</div>
                     <div class="text-white/70 text-xs">poin</div>
                 </div>
+                ` : ''}
             </div>
         </div>
     `;
 }
 
 function renderBestHalaqahToday(container) {
-    // Get today's date
     const today = new Date().toDateString();
-
-    // Calculate today's points for each halaqah
     const halaqahTodayPoints = dashboardData.halaqahs.map(halaqah => {
         const halaqahName = halaqah.name.replace('Halaqah ', '');
-
-        // Get students in this halaqah
         const studentsInHalaqah = dashboardData.students.filter(s => s.halaqah === halaqahName);
-
-        // Calculate today's total points
         let todayPoints = 0;
         let todaySubmissions = 0;
 
@@ -155,6 +161,8 @@ function renderBestHalaqahToday(container) {
     const second = halaqahTodayPoints[1];
     const third = halaqahTodayPoints[2];
 
+    if (!topHalaqah) return;
+
     container.innerHTML = `
         <div class="flex flex-col items-center justify-center h-full px-2">
             <!-- Champion -->
@@ -173,6 +181,7 @@ function renderBestHalaqahToday(container) {
             
             <!-- Runner-ups -->
             <div class="grid grid-cols-2 gap-2 max-w-md w-full">
+                ${second ? `
                 <div class="bg-white/10 backdrop-blur-sm rounded-xl p-2 border border-white/20 text-center">
                     <div class="text-xl mb-1">🥈</div>
                     <div class="text-sm font-bold text-white mb-1">${second.name}</div>
@@ -180,6 +189,8 @@ function renderBestHalaqahToday(container) {
                     <div class="text-lg font-bold text-white">${second.todayPoints}</div>
                     <div class="text-white/70 text-xs">poin hari ini</div>
                 </div>
+                ` : ''}
+                ${third ? `
                 <div class="bg-white/10 backdrop-blur-sm rounded-xl p-2 border border-white/20 text-center">
                     <div class="text-xl mb-1">🥉</div>
                     <div class="text-sm font-bold text-white mb-1">${third.name}</div>
@@ -187,6 +198,7 @@ function renderBestHalaqahToday(container) {
                     <div class="text-lg font-bold text-white">${third.todayPoints}</div>
                     <div class="text-white/70 text-xs">poin hari ini</div>
                 </div>
+                ` : ''}
             </div>
         </div>
     `;
@@ -197,6 +209,8 @@ function renderTopHalaqah(container) {
     const second = dashboardData.halaqahs[1];
     const third = dashboardData.halaqahs[2];
 
+    if (!topHalaqah) return;
+
     container.innerHTML = `
         <div class="flex flex-col items-center justify-center h-full px-2">
             <!-- Champion -->
@@ -206,7 +220,7 @@ function renderTopHalaqah(container) {
                 </div>
                 <div class="text-white/80 text-xs mb-1">HALAQAH TERBAIK</div>
                 <div class="text-2xl md:text-3xl font-bold text-white mb-1">${topHalaqah.name}</div>
-                <div class="text-sm text-white/90 mb-2">${topHalaqah.members} Anggota • ${topHalaqah.status}</div>
+                <div class="text-sm text-white/90 mb-2">${topHalaqah.members} Anggota • ${topHalaqah.status || ''}</div>
                 <div class="inline-block px-4 py-2 bg-white/20 backdrop-blur-sm rounded-xl border border-white/30">
                     <div class="text-3xl font-bold text-white">${topHalaqah.points}</div>
                     <div class="text-white/80 text-xs">Total Poin</div>
@@ -215,6 +229,7 @@ function renderTopHalaqah(container) {
             
             <!-- Runner-ups -->
             <div class="grid grid-cols-2 gap-2 max-w-md w-full">
+                ${second ? `
                 <div class="bg-white/10 backdrop-blur-sm rounded-xl p-2 border border-white/20 text-center">
                     <div class="text-xl mb-1">🥈</div>
                     <div class="text-sm font-bold text-white mb-1">${second.name}</div>
@@ -222,6 +237,8 @@ function renderTopHalaqah(container) {
                     <div class="text-lg font-bold text-white">${second.points}</div>
                     <div class="text-white/70 text-xs">poin</div>
                 </div>
+                ` : ''}
+                ${third ? `
                 <div class="bg-white/10 backdrop-blur-sm rounded-xl p-2 border border-white/20 text-center">
                     <div class="text-xl mb-1">🥉</div>
                     <div class="text-sm font-bold text-white mb-1">${third.name}</div>
@@ -229,13 +246,13 @@ function renderTopHalaqah(container) {
                     <div class="text-lg font-bold text-white">${third.points}</div>
                     <div class="text-white/70 text-xs">poin</div>
                 </div>
+                ` : ''}
             </div>
         </div>
     `;
 }
 
 function renderStreakLeaders(container) {
-    // Filter students based on current user (Guru only sees members)
     const students = (typeof getStudentsForCurrentUser === 'function')
         ? getStudentsForCurrentUser()
         : dashboardData.students;
@@ -251,7 +268,6 @@ function renderStreakLeaders(container) {
     }
 
     const sorted = [...students].sort((a, b) => (b.streak || 0) - (a.streak || 0));
-
     const topStreak = sorted[0];
     const second = sorted[1];
     const third = sorted[2];
@@ -299,6 +315,42 @@ function renderStreakLeaders(container) {
     `;
 }
 
+function renderHafalanLeaders(container) {
+    const lembagas = ['MTA', 'SDITA', 'SMPITA', 'SMAITA'];
+
+    const content = lembagas.map(lembaga => {
+        const top3 = dashboardData.students
+            .filter(s => s.lembaga === lembaga)
+            .sort((a, b) => (Number(b.total_hafalan) || 0) - (Number(a.total_hafalan) || 0))
+            .slice(0, 3);
+
+        if (top3.length === 0) return '';
+
+        return `
+            <div class="bg-white/10 backdrop-blur-sm rounded-xl p-3 border border-white/20">
+                <div class="text-xs font-bold text-yellow-300 mb-2 uppercase tracking-wider border-b border-white/10 pb-1">${lembaga}</div>
+                <div class="space-y-1">
+                    ${top3.map((s, idx) => `
+                        <div class="flex items-center justify-between gap-2">
+                            <div class="flex items-center gap-2 min-w-0">
+                                <span class="text-[10px] font-bold text-white/50">${idx + 1}</span>
+                                <span class="text-xs font-bold text-white truncate">${s.name}</span>
+                            </div>
+                            <span class="text-[10px] font-bold text-emerald-400 whitespace-nowrap">${s.total_hafalan || 0} Hal</span>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    container.innerHTML = `
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-2 h-full items-center">
+            ${content || '<div class="col-span-full text-center text-white/50 text-sm">Belum ada data hafalan</div>'}
+        </div>
+    `;
+}
+
 function nextSlide() {
     currentSlide = (currentSlide + 1) % slides.length;
     updateSlider();
@@ -331,7 +383,6 @@ function updateSlider() {
         }
     });
 
-    // Update dots
     const dotsContainer = document.getElementById('sliderDots');
     if (dotsContainer) {
         dotsContainer.innerHTML = slides.map((_, index) => `
@@ -342,12 +393,10 @@ function updateSlider() {
 
 function startAutoPlay() {
     if (autoPlayInterval) return;
-
     isAutoPlaying = true;
     autoPlayInterval = setInterval(() => {
         nextSlide();
-    }, 5000); // Change slide every 5 seconds
-
+    }, 5000);
     updateAutoPlayButton();
 }
 
@@ -384,13 +433,11 @@ function updateAutoPlayButton() {
     }
 }
 
-// Initialize slider
 function initSlider() {
     renderSlider();
     startAutoPlay();
 }
 
-// Export functions
 window.renderSlider = renderSlider;
 window.initSlider = initSlider;
 window.nextSlide = nextSlide;
