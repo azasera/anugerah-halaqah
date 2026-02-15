@@ -102,7 +102,7 @@ function showStudentDetail(studentOrId) {
 
         // Generate Sesi Options
         const sesiOptions = sessions.map(s =>
-            `<option value="${s.id}" ${s.id === currentSessionId ? 'selected' : ''}>${s.name} (${s.startTime}-${s.endTime})</option>`
+            `<option value="${s.id}" ${s.id === currentSessionId ? 'selected' : ''}>${s.name.replace(/ - (Pagi|Siang|Sore)/gi, '')} (${s.startTime}-${s.endTime})</option>`
         ).join('');
 
         inputContent = `
@@ -114,63 +114,76 @@ function showStudentDetail(studentOrId) {
                     <input type="hidden" id="student-lembaga-val" value="${lembagaKey}">
                     
                     <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-4">
-                        <!-- Sesi Selection -->
-                        <div>
-                            <label class="block text-sm font-bold text-slate-700 mb-2">Sesi Halaqah</label>
-                            <select id="quick-sesi" name="sesi" class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none bg-white font-medium" onchange="calculateAutoPoin()">
-                                <option value="" disabled ${!currentSessionId ? 'selected' : ''}>Pilih Sesi...</option>
-                                ${sesiOptions}
-                            </select>
-                        </div>
+                        <!-- Sesi & Waktu Grid -->
+                        <div class="grid grid-cols-2 gap-4">
+                            <!-- Sesi Selection -->
+                            <div>
+                                <label class="block text-sm font-bold text-slate-700 mb-2">Sesi Halaqah</label>
+                                <select id="quick-sesi" name="sesi" class="w-full px-2 py-3 text-xs sm:text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none bg-white font-medium truncate" onchange="calculateAutoPoin()">
+                                    <option value="" disabled ${!currentSessionId ? 'selected' : ''}>Pilih Sesi...</option>
+                                    ${sesiOptions}
+                                </select>
+                            </div>
 
-                        <!-- Baris Input -->
-                        <div>
-                            <label class="block text-sm font-bold text-slate-700 mb-2 flex justify-between items-center">
-                                <span>Jumlah Baris</span>
-                                <div class="flex gap-2">
-                                    <span id="badge-target" class="text-xs font-bold px-2 py-1 rounded-lg bg-slate-100 text-slate-500 transition-colors">
-                                        🎯 Belum Target
-                                    </span>
-                                    <span class="text-xs text-slate-500 bg-slate-200 px-2 py-1 rounded-lg">Target: ${targetBaris}</span>
+                             <!-- Tepat Waktu (Auto & Readonly) -->
+                            <div>
+                                <label class="block text-sm font-bold text-slate-700 mb-2">Status Waktu</label>
+                                <div id="status-tepat-waktu" class="flex items-center justify-between px-3 py-3 border border-slate-200 rounded-xl bg-slate-50 transition-colors h-[50px]">
+                                    <div class="flex items-center gap-2">
+                                        <span id="icon-waktu" class="text-xl">⏱️</span>
+                                        <div id="text-waktu" class="font-bold text-sm text-slate-700 truncate">Mengecek...</div>
+                                    </div>
+                                    <input type="hidden" id="check-tepat-waktu" name="tepat_waktu" value="false">
                                 </div>
-                            </label>
-                            <input type="number" id="quick-baris" name="baris" min="0" placeholder="0" 
-                                onfocus="if(this.value=='0') this.value=''" 
-                                onblur="if(this.value=='') this.value='0'" 
-                                oninput="calculateHalamanDetail(this.value); calculateAutoPoin()"
-                                class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none font-bold text-center text-lg">
-                        </div>
-                        
-                        <!-- Auto-calculated Halaman -->
-                        <div>
-                            <label class="block text-sm font-bold text-slate-700 mb-2">Konversi Halaman (Baris / ${barisPerHalaman})</label>
-                            <input type="number" id="quick-halaman" name="halaman" step="0.01" min="0" value="0" readonly
-                                class="w-full px-4 py-3 bg-slate-100 text-slate-500 border border-slate-200 rounded-xl font-bold text-center text-lg">
-                        </div>
-                    </div>
-
-                    <!-- Conditions & Status -->
-                    <div class="grid grid-cols-2 gap-4">
-                        <!-- Tepat Waktu (Auto & Readonly) -->
-                        <div id="status-tepat-waktu" class="flex flex-col items-center justify-center p-3 border border-slate-200 rounded-xl bg-slate-50 transition-colors">
-                            <span class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Waktu</span>
-                            <div class="flex items-center gap-2">
-                                <span id="icon-waktu" class="text-lg">⏱️</span>
-                                <span id="text-waktu" class="font-bold text-slate-700">Mengecek...</span>
                             </div>
-                            <input type="hidden" id="check-tepat-waktu" name="tepat_waktu" value="false">
                         </div>
 
-                        <!-- Lancar (Manual) -->
-                        <label class="flex flex-col items-center justify-center p-3 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-50 transition-colors bg-white relative overflow-hidden group">
-                            <input type="checkbox" id="check-lancar" name="lancar" class="peer sr-only" checked onchange="calculateAutoPoin()">
-                            <span class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 group-hover:text-primary-600 transition-colors">Bacaan</span>
-                            <div class="flex items-center gap-2">
-                                <span class="text-lg opacity-30 peer-checked:opacity-100 transition-opacity">👍</span>
-                                <span class="font-bold text-slate-400 peer-checked:text-primary-600 transition-colors">Lancar</span>
+                        <!-- Baris & Halaman Grid -->
+                        <div class="grid grid-cols-2 gap-4">
+                            <!-- Baris Input -->
+                            <div>
+                                <label class="block text-sm font-bold text-slate-700 mb-2 flex justify-between items-center">
+                                    <span>Jml Baris</span>
+                                    <span class="text-[10px] text-slate-500 bg-slate-200 px-1.5 py-0.5 rounded">T: ${targetBaris}</span>
+                                </label>
+                                <div class="relative">
+                                    <input type="number" id="quick-baris" name="baris" min="0" placeholder="0" 
+                                        onfocus="if(this.value=='0') this.value=''" 
+                                        onblur="if(this.value=='') this.value='0'" 
+                                        oninput="calculateHalamanDetail(this.value); calculateAutoPoin()"
+                                        class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none font-bold text-center text-lg">
+                                    <div id="badge-target" class="absolute -top-2 -right-2 hidden">
+                                        <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-green-100 text-green-700 border border-green-200 shadow-sm">🎯</span>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="absolute inset-0 border-2 border-primary-500 rounded-xl opacity-0 peer-checked:opacity-100 pointer-events-none transition-opacity"></div>
-                        </label>
+                            
+                            <!-- Auto-calculated Halaman -->
+                            <div>
+                                <label class="block text-sm font-bold text-slate-700 mb-2 truncate" title="Konversi Halaman">Halaman (/${barisPerHalaman})</label>
+                                <input type="number" id="quick-halaman" name="halaman" step="0.01" min="0" value="0" readonly
+                                    class="w-full px-4 py-3 bg-slate-100 text-slate-500 border border-slate-200 rounded-xl font-bold text-center text-lg">
+                            </div>
+                        </div>
+                        <!-- Kelancaran & Kesalahan -->
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-bold text-slate-700 mb-2">Kelancaran</label>
+                                <select id="select-kelancaran" name="kelancaran" onchange="calculateAutoPoin()"
+                                    class="w-full px-2 py-3 text-xs sm:text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none bg-white font-medium">
+                                    <option value="lancar">✅ Lancar</option>
+                                    <option value="tidak_lancar">⚠️ Tidak Lancar</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-bold text-slate-700 mb-2">Jml Kesalahan</label>
+                                <input type="number" id="input-kesalahan" name="kesalahan" min="0" value="0" 
+                                    onfocus="if(this.value=='0') this.value=''" 
+                                    onblur="if(this.value=='') this.value='0'"
+                                    oninput="calculateAutoPoin()"
+                                    class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none font-bold text-center">
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Result Poin -->
@@ -211,12 +224,12 @@ function showStudentDetail(studentOrId) {
                     <div class="text-3xl font-bold text-accent-teal">${student.total_points}</div>
                 </div>
                 <div class="bg-orange-50 rounded-2xl p-4">
-                    <div class="text-orange-600 text-sm font-bold mb-1">Hari Beruntun</div>
+                    <div class="text-orange-600 text-sm font-bold mb-1">Istiqomah</div>
                     <div class="text-3xl font-bold text-orange-600 flex items-center gap-2">
                         🔥 ${student.streak}
                     </div>
                 </div>
-                ${(typeof currentProfile !== 'undefined' && currentProfile && currentProfile.role === 'admin') ? `
+                ${(typeof currentProfile !== 'undefined' && currentProfile && (currentProfile.role === 'admin' || currentProfile.role === 'guru')) ? `
                 <div class="bg-purple-50 rounded-2xl p-4 cursor-pointer hover:bg-purple-100 transition-colors" onclick="closeModal(); showEditHafalanForm(${JSON.stringify(student).replace(/"/g, '&quot;')})" title="Klik untuk update total hafalan awal">
                     <div class="text-purple-600 text-sm font-bold mb-1 flex items-center gap-1">
                         Total Hafalan
@@ -421,7 +434,19 @@ async function handleQuickSetoranDetail(event, studentId) {
     const formData = new FormData(event.target);
     const halaman = parseFloat(formData.get('halaman')) || 0;
     const poin = parseInt(formData.get('poin'));
-    const keterangan = formData.get('keterangan');
+    let keterangan = formData.get('keterangan') || '';
+
+    // Append details to keterangan
+    const kelancaran = formData.get('kelancaran');
+    const kesalahan = formData.get('kesalahan');
+
+    const details = [];
+    if (kelancaran) details.push(kelancaran === 'lancar' ? 'Lancar' : 'Tidak Lancar');
+    if (kesalahan && parseInt(kesalahan) > 0) details.push(`${kesalahan} Salah`);
+
+    if (details.length > 0) {
+        keterangan += (keterangan ? ' - ' : '') + `[${details.join(', ')}]`;
+    }
 
     if (isNaN(poin)) {
         showNotification('❌ Pilih kondisi setoran!', 'error');
@@ -474,8 +499,8 @@ async function handleQuickSetoranDetail(event, studentId) {
 function calculateAutoPoin() {
     const barisInput = document.getElementById('quick-baris');
     const targetInput = document.getElementById('target-baris-val');
-    // const checkTepatWaktu = document.getElementById('check-tepat-waktu'); // Now derived
-    const checkLancar = document.getElementById('check-lancar');
+    const selectKelancaran = document.getElementById('select-kelancaran');
+    const inputKesalahan = document.getElementById('input-kesalahan');
     const poinInput = document.getElementById('quick-poin');
     const poinDisplay = document.getElementById('poin-display');
     const sesiSelect = document.getElementById('quick-sesi');
@@ -487,7 +512,7 @@ function calculateAutoPoin() {
     const textWaktu = document.getElementById('text-waktu');
     const checkTepatWaktuInput = document.getElementById('check-tepat-waktu'); // hidden input
 
-    if (!barisInput || !targetInput || !checkLancar || !poinInput || !poinDisplay || !sesiSelect) return;
+    if (!barisInput || !targetInput || !selectKelancaran || !inputKesalahan || !poinInput || !poinDisplay || !sesiSelect) return;
 
     // 1. Calculate Target Reached
     const baris = parseInt(barisInput.value) || 0;
@@ -497,11 +522,9 @@ function calculateAutoPoin() {
     // Update Target Badge
     if (badgeTarget) {
         if (isTargetReached) {
-            badgeTarget.className = "text-xs font-bold px-2 py-1 rounded-lg bg-green-100 text-green-700 transition-colors";
-            badgeTarget.textContent = "🎯 Tercapai";
+            badgeTarget.classList.remove('hidden');
         } else {
-            badgeTarget.className = "text-xs font-bold px-2 py-1 rounded-lg bg-slate-100 text-slate-500 transition-colors";
-            badgeTarget.textContent = "🎯 Belum Target";
+            badgeTarget.classList.add('hidden');
         }
     }
 
@@ -509,6 +532,18 @@ function calculateAutoPoin() {
     let isTepatWaktu = false;
     const selectedSesiId = parseInt(sesiSelect.value);
     const lembagaKey = document.getElementById('student-lembaga-val')?.value || 'MTA';
+
+    // Auto-lock session logic
+    const currentSessionId = document.getElementById('active-session-id')?.value;
+    if (currentSessionId && currentSessionId !== 'undefined' && currentSessionId !== '') {
+        // If active session exists, force select it
+        if (sesiSelect.value != currentSessionId) {
+            sesiSelect.value = currentSessionId;
+        }
+        sesiSelect.disabled = true;
+    } else {
+        sesiSelect.disabled = false;
+    }
 
     if (selectedSesiId && typeof appSettings !== 'undefined') {
         const settings = appSettings.lembaga[lembagaKey] || appSettings.lembaga['MTA'];
@@ -528,12 +563,12 @@ function calculateAutoPoin() {
     // Update Tepat Waktu UI
     if (statusTepatWaktu && iconWaktu && textWaktu) {
         if (isTepatWaktu) {
-            statusTepatWaktu.className = "flex flex-col items-center justify-center p-3 border-2 border-green-500 rounded-xl bg-green-50 transition-colors";
+            statusTepatWaktu.className = "flex items-center justify-between p-4 border border-green-200 rounded-xl bg-green-50 transition-colors";
             iconWaktu.textContent = "✅";
             textWaktu.textContent = "Tepat Waktu";
             textWaktu.className = "font-bold text-green-700";
         } else {
-            statusTepatWaktu.className = "flex flex-col items-center justify-center p-3 border border-slate-200 rounded-xl bg-slate-50 transition-colors opacity-75";
+            statusTepatWaktu.className = "flex items-center justify-between p-4 border border-slate-200 rounded-xl bg-slate-50 transition-colors opacity-75";
             iconWaktu.textContent = "⏰";
             textWaktu.textContent = "Terlambat";
             textWaktu.className = "font-bold text-slate-500";
@@ -542,7 +577,28 @@ function calculateAutoPoin() {
     if (checkTepatWaktuInput) checkTepatWaktuInput.value = isTepatWaktu;
 
     // 3. Calculate Poin
-    const isLancar = checkLancar.checked;
+    let kelancaran = selectKelancaran.value;
+    const kesalahan = parseInt(inputKesalahan.value) || 0;
+
+    // UX: Auto-update select state based on mistakes input
+    // Only update if mistakes > 0 and current selection is 'lancar'
+    if (kesalahan > 0 && kelancaran === 'lancar') {
+        selectKelancaran.value = 'tidak_lancar';
+        kelancaran = 'tidak_lancar';
+    }
+    // Only update if mistakes == 0 and current selection is 'tidak_lancar' 
+    // AND user hasn't explicitly set it to tidak_lancar (hard to detect intent here, so maybe just force update for consistency)
+    else if (kesalahan === 0 && kelancaran === 'tidak_lancar') {
+        selectKelancaran.value = 'lancar';
+        kelancaran = 'lancar';
+    }
+
+    // Logic Poin
+    const isLancar = (kelancaran === 'lancar' && kesalahan === 0);
+    // Tidak Lancar: Valid if mistakes are between 1 and 3 (inclusive)
+    // Note: If mistakes > 3, it is definitely not Lancar and not valid for "Tidak Lancar (+1)" point either.
+    const isTidakLancar = (kelancaran === 'tidak_lancar' && kesalahan > 0 && kesalahan <= 3);
+
     let poin = 0;
     let label = "😐 Maqbul (0)";
 
@@ -553,13 +609,18 @@ function calculateAutoPoin() {
         if (isLancar && isTargetReached) {
             poin = 2;
             label = "✅ Mumtaz (+2)";
-        } else if (!isLancar && isTargetReached) {
+        } else if (isTidakLancar && isTargetReached) {
             poin = 1;
             label = "⚠️ Jayyid (+1)";
         } else {
-            // isLancar && !isTargetReached OR !isLancar && !isTargetReached
+            // Valid but 0 points scenarios
+            if (isTargetReached) {
+                // Target met but too many mistakes
+                label = "😐 Maqbul (0) - Byk Salah";
+            } else {
+                label = "😐 Maqbul (0) - Kurang Target";
+            }
             poin = 0;
-            label = "😐 Maqbul (0) - Kurang Target";
         }
     }
 
@@ -687,6 +748,8 @@ function showEditHafalanForm(student) {
                     <label class="block text-sm font-bold text-slate-700 mb-2">Total Hafalan (Halaman)</label>
                     <input type="number" step="0.01" name="total_hafalan" required
                         value="${student.total_hafalan || 0}"
+                        onfocus="if(this.value=='0') this.value=''" 
+                        onblur="if(this.value=='') this.value='0'"
                         class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all text-2xl font-bold text-center">
                 </div>
                 

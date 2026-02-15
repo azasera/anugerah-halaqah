@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Guru Data</title>
+</head>
+
+<body>
+    <h1>Debug Guru Data</h1>
+    <div id="output" style="white-space: pre-wrap; font-family: monospace;"></div>
+    <script src="js/data.js"></script>
+    <script>
+        // Load data from localStorage
+        StorageManager.load();
+
+        const output = document.getElementById('output');
+
+        function log(msg) {
+            output.textContent += msg + '\n';
+        }
+
+        log('--- DATA DUMP ---');
+        log('Total Halaqahs: ' + dashboardData.halaqahs.length);
+
+        dashboardData.halaqahs.forEach((h, i) => {
+            log(`[${i}] Name: "${h.name}", Guru: "${h.guru}"`);
+        });
+
+        log('\n--- USERS DUMP (Local) ---');
+        const usersData = JSON.parse(localStorage.getItem('usersData') || '{"users":[]}');
+        usersData.users.filter(u => u.role === 'guru').forEach((u, i) => {
+            log(`[Guru ${i}] Name: "${u.name}"`);
+
+            // Test matching logic
+            const guruName = u.name.toLowerCase().replace(/^(ustadz|ust|u\.)\s*/i, '').trim();
+            log(`   Normalized: "${guruName}"`);
+
+            const matches = dashboardData.halaqahs.filter(h => {
+                if (!h.guru) return false;
+                const hGuru = h.guru.toLowerCase().replace(/^(ustadz|ust|u\.)\s*/i, '').trim();
+                return hGuru.includes(guruName) || guruName.includes(hGuru);
+            });
+
+            if (matches.length > 0) {
+                log(`   MATCHED: ${matches.map(m => m.name).join(', ')}`);
+            } else {
+                log(`   NO MATCHES`);
+            }
+        });
+    </script>
+</body>
+
+</html>

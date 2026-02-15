@@ -14,8 +14,12 @@ function renderAbsenceWidget() {
     let notSubmittedCount = 0;
     let submittedCount = 0;
 
-    // Filter by Lembaga (Parent Restrictions)
-    let studentsToProcess = dashboardData.students;
+    // Priority Filter: Filter by current user (Guru only sees members, Ortu sees children)
+    let studentsToProcess = (typeof getStudentsForCurrentUser === 'function')
+        ? getStudentsForCurrentUser()
+        : dashboardData.students;
+
+    // Secondary Filter: Filter by Lembaga (Parent/Admin Restrictions)
     if (typeof getUserLembaga === 'function') {
         const userLembaga = getUserLembaga();
         if (userLembaga) {
@@ -118,8 +122,12 @@ function renderAbsenceTracker(force = false) {
     const studentsNotSubmitted = [];
     const studentsSubmitted = [];
 
-    // Filter by Lembaga (Parent Restrictions)
-    let studentsToRender = dashboardData.students;
+    // Priority Filter: Filter by current user (Guru only sees members, Ortu sees children)
+    let studentsToRender = (typeof getStudentsForCurrentUser === 'function')
+        ? getStudentsForCurrentUser()
+        : dashboardData.students;
+
+    // Secondary Filter: Filter by Lembaga (Parent/Admin Restrictions)
     if (typeof getUserLembaga === 'function') {
         const userLembaga = getUserLembaga();
         if (userLembaga) {
@@ -192,9 +200,9 @@ function renderAbsenceTracker(force = false) {
                     <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                         <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
                     </svg>
-                    <span class="font-bold text-sm">Tidak Setor = -1 Poin & Reset Streak</span>
+                    <span class="font-bold text-sm">Tidak Setor = -1 Poin & Reset Istiqomah</span>
                 </div>
-                <p class="text-sm text-red-600">Santri yang tidak setor sama sekali akan mendapat pengurangan 1 poin dan streak direset ke 0.</p>
+                <p class="text-sm text-red-600">Santri yang tidak setor sama sekali akan mendapat pengurangan 1 poin dan rekor istiqomah direset ke 0.</p>
             </div>
             
             <!-- Filter Tabs -->
@@ -243,7 +251,7 @@ function renderAbsenceTracker(force = false) {
                                     class="absent-checkbox w-5 h-5 rounded border-red-300 text-red-600 focus:ring-red-500">
                                 <label for="absent_${student.id}" class="cursor-pointer">
                                     <div class="font-bold text-slate-800">${student.name}</div>
-                                    <div class="text-xs text-slate-600">Halaqah ${student.halaqah} • Streak: ${student.streak || 0} hari</div>
+                                    <div class="text-xs text-slate-600">Halaqah ${student.halaqah} • Istiqomah: ${student.streak || 0} hari</div>
                                 </label>
                             </div>
                             <span class="px-3 py-1 bg-red-600 text-white text-xs rounded-full font-bold">❌ BELUM SETOR</span>
@@ -277,7 +285,7 @@ function renderAbsenceTracker(force = false) {
                                 </div>
                                 <div>
                                     <div class="font-bold text-slate-800">${student.name}</div>
-                                    <div class="text-xs text-slate-600">Halaqah ${student.halaqah} • Streak: ${student.streak || 0} hari</div>
+                                    <div class="text-xs text-slate-600">Halaqah ${student.halaqah} • Istiqomah: ${student.streak || 0} hari</div>
                                 </div>
                             </div>
                             <span class="px-3 py-1 bg-green-600 text-white text-xs rounded-full font-bold">✅ SUDAH SETOR</span>
@@ -285,9 +293,8 @@ function renderAbsenceTracker(force = false) {
                     `).join('')}
                 </div>
                 
-                <!-- Semua -->
                 <div id="list-semua" class="space-y-2 hidden">
-                    ${dashboardData.students.map(student => {
+                    ${studentsToRender.map(student => {
         const hasSetoranToday = student.setoran?.some(s =>
             new Date(s.date).toDateString() === today
         );
@@ -308,7 +315,7 @@ function renderAbsenceTracker(force = false) {
                                     `}
                                     <label for="absent_${hasSetoranToday ? '' : 'all_'}${student.id}" class="cursor-pointer">
                                         <div class="font-bold text-slate-800">${student.name}</div>
-                                        <div class="text-xs text-slate-600">Halaqah ${student.halaqah} • Streak: ${student.streak || 0} hari</div>
+                                        <div class="text-xs text-slate-600">Halaqah ${student.halaqah} • Istiqomah: ${student.streak || 0} hari</div>
                                     </label>
                                 </div>
                                 ${hasSetoranToday

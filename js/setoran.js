@@ -3,9 +3,10 @@
 function showSetoranForm(student) {
     const lembagaKey = student.lembaga || 'MTA';
     const currentSession = getCurrentSession(lembagaKey);
+    console.log(`[DEBUG] Session Check - Lembaga: ${lembagaKey}, Time: ${new Date().toLocaleTimeString()}, Session:`, currentSession);
     const isOnTime = currentSession !== null;
-    
-    const sessionInfo = currentSession 
+
+    const sessionInfo = currentSession
         ? `<div class="bg-green-50 border border-green-200 rounded-xl p-3 mb-4">
             <div class="flex items-center gap-2 text-green-700">
                 <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
@@ -31,7 +32,7 @@ function showSetoranForm(student) {
     const settings = appSettings.lembaga[lembagaKey] || appSettings.lembaga['MTA'];
     const sessions = settings.sesiHalaqah || [];
 
-    const sesiOptions = sessions.map(s => 
+    const sesiOptions = sessions.map(s =>
         `<option value="${s.id}" ${currentSession && currentSession.id === s.id ? 'selected' : ''}>
             ${s.name} (${s.startTime} - ${s.endTime}) ${!s.active ? '- NONAKTIF' : ''}
         </option>`
@@ -65,10 +66,23 @@ function showSetoranForm(student) {
                 
                 <div>
                     <label class="block text-sm font-bold text-slate-700 mb-2">Sesi Halaqah</label>
-                    <select name="sesi" id="sesiSelect" required onchange="updateSetoranPreview()"
-                        class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all">
-                        ${sesiOptions}
-                    </select>
+                    ${currentSession
+            ? `
+                        <input type="text" value="${currentSession.name} (${currentSession.startTime} - ${currentSession.endTime})" readonly
+                            class="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-100 text-slate-500 focus:outline-none cursor-not-allowed font-medium">
+                        <input type="hidden" name="sesi" value="${currentSession.id}">
+                        <p class="text-xs text-green-600 mt-1 flex items-center gap-1">
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                            Sesi otomatis terkunci sesuai waktu saat ini
+                        </p>
+                        `
+            : `
+                        <select name="sesi" id="sesiSelect" required onchange="updateSetoranPreview()"
+                            class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all">
+                            ${sesiOptions}
+                        </select>
+                        `
+        }
                 </div>
                 
                 <div>
@@ -132,7 +146,7 @@ function showSetoranForm(student) {
             </form>
         </div>
     `;
-    
+
     createModal(content, false);
 }
 
@@ -142,34 +156,34 @@ function updateSetoranPreview() {
     const kelancaranSelect = document.getElementById('kelancaranSelect');
     const kesalahanInput = document.getElementById('kesalahanInput');
     const preview = document.getElementById('setoranPreview');
-    
+
     if (!lembagaSelect || !barisInput || !preview) return;
-    
+
     const lembagaKey = lembagaSelect.value;
     const baris = parseInt(barisInput.value) || 0;
     const kelancaran = kelancaranSelect?.value || 'lancar';
     const kesalahan = parseInt(kesalahanInput?.value) || 0;
-    
+
     if (!lembagaKey || baris === 0) {
         preview.classList.add('hidden');
         return;
     }
-    
+
     preview.classList.remove('hidden');
-    
+
     const halaman = barisToHalaman(baris, lembagaKey);
     const lembaga = appSettings.lembaga[lembagaKey];
-    
+
     // Calculate poin based on new rules
     const currentSession = getCurrentSession(lembagaKey);
     const isOnTime = currentSession !== null;
     const targetsMet = baris >= lembaga.targetBaris;
     const isLancar = kelancaran === 'lancar' && kesalahan === 0;
     const isTidakLancar = kelancaran === 'tidak_lancar' && kesalahan <= 3;
-    
+
     let poin = 0;
     let poinExplanation = '';
-    
+
     if (isOnTime) {
         if (isLancar && targetsMet) {
             poin = poinRules.tepatWaktuLancarTarget;
@@ -188,19 +202,19 @@ function updateSetoranPreview() {
         poin = poinRules.tidakTepatWaktu;
         poinExplanation = '⏰ Tidak Tepat Waktu = 0 Poin';
     }
-    
+
     document.getElementById('halamanPreview').textContent = halaman + ' hal';
     document.getElementById('poinPreview').textContent = poin + ' poin';
-    
+
     const remaining = baris % lembaga.targetBaris;
-    
+
     let targetInfo = poinExplanation + '<br/>';
     if (targetsMet) {
         targetInfo += `<span class="text-green-600">✅ Target ${lembaga.targetBaris} baris tercapai!</span>`;
     } else {
         targetInfo += `<span class="text-amber-600">Kurang ${lembaga.targetBaris - baris} baris untuk capai target.</span>`;
     }
-    
+
     document.getElementById('targetInfo').innerHTML = targetInfo;
 }
 
@@ -214,30 +228,30 @@ function handleSetoran(event, studentId) {
     }
 
     const formData = new FormData(event.target);
-    
+
     const student = dashboardData.students.find(s => s.id === studentId);
     if (!student) return;
-    
+
     const lembagaKey = formData.get('lembaga');
     const sesiId = parseInt(formData.get('sesi'));
     const baris = parseInt(formData.get('baris'));
     const kelancaran = formData.get('kelancaran');
     const kesalahan = parseInt(formData.get('kesalahan'));
     const note = formData.get('note');
-    
+
     const halaman = barisToHalaman(baris, lembagaKey);
     const lembaga = appSettings.lembaga[lembagaKey];
-    
+
     // Calculate poin based on new rules
     const currentSession = getCurrentSession(lembagaKey);
     const isOnTime = currentSession !== null;
     const targetsMet = baris >= lembaga.targetBaris;
     const isLancar = kelancaran === 'lancar' && kesalahan === 0;
     const isTidakLancar = kelancaran === 'tidak_lancar' && kesalahan <= 3;
-    
+
     let poin = 0;
     let status = '';
-    
+
     if (isOnTime) {
         if (isLancar && targetsMet) {
             poin = poinRules.tepatWaktuLancarTarget;
@@ -256,15 +270,15 @@ function handleSetoran(event, studentId) {
         poin = poinRules.tidakTepatWaktu;
         status = 'Tidak Tepat Waktu';
     }
-    
+
     // Create setoran record
     if (!student.setoran) student.setoran = [];
-    
+
     const setoran = {
         id: Date.now(),
         date: new Date().toISOString(),
         lembaga: appSettings.lembaga[lembagaKey].name,
-        sesi: (appSettings.lembaga[lembagaKey].sesiHalaqah.find(s => s.id === sesiId) || {name: '-'}).name,
+        sesi: (appSettings.lembaga[lembagaKey].sesiHalaqah.find(s => s.id === sesiId) || { name: '-' }).name,
         baris: baris,
         halaman: parseFloat(halaman),
         kelancaran: kelancaran,
@@ -276,19 +290,19 @@ function handleSetoran(event, studentId) {
         note: note || '',
         timestamp: new Date().toLocaleString('id-ID')
     };
-    
+
     student.setoran.push(setoran);
     student.total_points += poin;
     student.lastActivity = 'Baru saja';
-    
+
     // Update streak
     const today = new Date().toDateString();
     const lastSetoranDate = student.lastSetoranDate || '';
-    
+
     if (lastSetoranDate !== today) {
         const yesterday = new Date();
         yesterday.setDate(yesterday.getDate() - 1);
-        
+
         if (lastSetoranDate === yesterday.toDateString()) {
             student.streak += 1;
         } else if (lastSetoranDate === '') {
@@ -296,10 +310,10 @@ function handleSetoran(event, studentId) {
         } else {
             student.streak = 1;
         }
-        
+
         student.lastSetoranDate = today;
     }
-    
+
     // Update Total Hafalan
     if (!student.total_hafalan) student.total_hafalan = 0;
     student.total_hafalan += parseFloat(halaman);
@@ -308,12 +322,12 @@ function handleSetoran(event, studentId) {
 
     recalculateRankings();
     StorageManager.save();
-    
+
     // Sync to Supabase immediately for real-time updates
     if (typeof syncStudentsToSupabase === 'function') {
         syncStudentsToSupabase().catch(err => console.error('Auto-sync error:', err));
     }
-    
+
     closeModal();
     refreshAllData();
     showNotification(`✅ Setoran ${baris} baris (+${poin} poin) berhasil disimpan!`);
@@ -324,11 +338,11 @@ function showSetoranHistory(student) {
         showNotification('📝 Belum ada riwayat setoran');
         return;
     }
-    
+
     const totalBaris = student.setoran.reduce((sum, s) => sum + s.baris, 0);
     const totalHalaman = student.setoran.reduce((sum, s) => sum + s.halaman, 0);
     const isAdmin = typeof currentProfile !== 'undefined' && currentProfile && currentProfile.role === 'admin';
-    
+
     const content = `
         <div class="p-8">
             <div class="flex items-start justify-between mb-6">
@@ -360,18 +374,18 @@ function showSetoranHistory(student) {
             
             <div class="space-y-3 max-h-96 overflow-y-auto custom-scrollbar">
                 ${student.setoran.slice().reverse().map(s => {
-                    const poinColor = s.poin === 2 ? 'text-green-600' : s.poin === 1 ? 'text-amber-600' : s.poin === 0 ? 'text-slate-500' : 'text-red-600';
-                    const statusBadge = s.tepatWaktu ? 
-                        '<span class="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full">⏰ Tepat Waktu</span>' : 
-                        '<span class="px-2 py-0.5 bg-red-100 text-red-700 text-xs rounded-full">⏰ Terlambat</span>';
-                    const lancarBadge = s.kelancaran === 'lancar' ? 
-                        '<span class="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full">✅ Lancar</span>' : 
-                        `<span class="px-2 py-0.5 bg-amber-100 text-amber-700 text-xs rounded-full">⚠️ ${s.kesalahan} salah</span>`;
-                    const targetBadge = s.capaiTarget ? 
-                        '<span class="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs rounded-full">🎯 Target</span>' : 
-                        '<span class="px-2 py-0.5 bg-slate-100 text-slate-600 text-xs rounded-full">Belum Target</span>';
-                    
-                    return `
+        const poinColor = s.poin === 2 ? 'text-green-600' : s.poin === 1 ? 'text-amber-600' : s.poin === 0 ? 'text-slate-500' : 'text-red-600';
+        const statusBadge = s.tepatWaktu ?
+            '<span class="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full">⏰ Tepat Waktu</span>' :
+            '<span class="px-2 py-0.5 bg-red-100 text-red-700 text-xs rounded-full">⏰ Terlambat</span>';
+        const lancarBadge = s.kelancaran === 'lancar' ?
+            '<span class="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full">✅ Lancar</span>' :
+            `<span class="px-2 py-0.5 bg-amber-100 text-amber-700 text-xs rounded-full">⚠️ ${s.kesalahan} salah</span>`;
+        const targetBadge = s.capaiTarget ?
+            '<span class="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs rounded-full">🎯 Target</span>' :
+            '<span class="px-2 py-0.5 bg-slate-100 text-slate-600 text-xs rounded-full">Belum Target</span>';
+
+        return `
                         <div class="bg-slate-50 rounded-xl p-4 hover:bg-slate-100 transition-colors group relative">
                             ${isAdmin ? `
                             <button onclick="deleteSetoran(${student.id}, ${s.id})" 
@@ -403,11 +417,11 @@ function showSetoranHistory(student) {
                             ${s.note ? `<div class="mt-2 text-sm text-slate-600 italic">"${s.note}"</div>` : ''}
                         </div>
                     `;
-                }).join('')}
+    }).join('')}
             </div>
         </div>
     `;
-    
+
     createModal(content, false);
 }
 
@@ -419,19 +433,19 @@ function deleteSetoran(studentId, setoranId) {
     }
 
     if (!confirm('Apakah Anda yakin ingin menghapus setoran ini? Poin akan dikurangi.')) return;
-    
+
     const student = dashboardData.students.find(s => s.id === studentId);
     if (!student) return;
-    
+
     const setoranIndex = student.setoran.findIndex(s => s.id === setoranId);
     if (setoranIndex === -1) return;
-    
+
     const setoran = student.setoran[setoranIndex];
-    
+
     // Revert points
     student.total_points -= setoran.poin;
     if (student.total_points < 0) student.total_points = 0;
-    
+
     // Revert hafalan
     student.total_hafalan -= setoran.halaman;
     if (student.total_hafalan < 0) student.total_hafalan = 0;
@@ -440,14 +454,14 @@ function deleteSetoran(studentId, setoranId) {
 
     // Remove setoran
     student.setoran.splice(setoranIndex, 1);
-    
+
     // Recalculate everything
     recalculateRankings();
     StorageManager.save();
-    
+
     refreshAllData();
     showNotification('🗑️ Setoran berhasil dihapus');
-    
+
     // Re-open modal to show updated history
     closeModal();
     setTimeout(() => showSetoranHistory(student), 300);

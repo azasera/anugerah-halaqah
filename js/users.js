@@ -40,7 +40,7 @@ function renderUserManagement() {
     const container = document.getElementById('userManagementContainer');
     if (!container) return;
 
-    
+
     const usersList = usersData.users.map(user => {
         const roleColors = {
             admin: 'bg-purple-100 text-purple-700',
@@ -48,14 +48,14 @@ function renderUserManagement() {
             staff: 'bg-green-100 text-green-700',
             ortu: 'bg-orange-100 text-orange-700'
         };
-        
+
         const statusColors = {
             active: 'bg-green-100 text-green-700',
             inactive: 'bg-slate-100 text-slate-500'
         };
-        
+
         const userJson = JSON.stringify(user).replace(/"/g, '&quot;');
-        
+
         return `
             <div class="bg-white border border-slate-200 rounded-2xl p-4 hover:shadow-md transition-all">
                 <!-- Mobile Layout -->
@@ -112,7 +112,7 @@ function renderUserManagement() {
             </div>
         `;
     }).join('');
-    
+
     const content = `
         <div class="glass rounded-3xl p-4 md:p-8 border border-slate-200 shadow-sm">
             <!-- Header -->
@@ -192,7 +192,7 @@ function renderUserManagement() {
             ` : ''}
         </div>
     `;
-    
+
     container.innerHTML = content;
 }
 
@@ -337,10 +337,10 @@ function showAddUserForm() {
             </div>
         </div>
     `;
-    
+
     // Prevent closing modal by clicking outside (false = tidak bisa ditutup dengan klik di luar)
     createModal(content, false);
-    
+
     // Add file change listener after modal is created
     setTimeout(() => {
         const fileInput = document.getElementById('importUserFile');
@@ -356,7 +356,7 @@ function switchAddUserTab(tab) {
     const importTab = document.getElementById('importTab');
     const tabManual = document.getElementById('tabManual');
     const tabImport = document.getElementById('tabImport');
-    
+
     if (tab === 'manual') {
         manualTab?.classList.remove('hidden');
         importTab?.classList.add('hidden');
@@ -379,26 +379,55 @@ function handleAddUser(event) {
     event.preventDefault();
     const form = event.target;
     const formData = new FormData(form);
-    
+    const email = formData.get('email');
+
+    // Check if user already exists
+    const existingUserIndex = usersData.users.findIndex(u => u.email === email);
+
+    if (existingUserIndex !== -1) {
+        if (confirm(`User dengan email "${email}" sudah ada. Apakah Anda ingin mengupdate datanya?`)) {
+            // Update existing user
+            usersData.users[existingUserIndex] = {
+                ...usersData.users[existingUserIndex],
+                name: formData.get('name'),
+                phone: formData.get('phone'),
+                role: formData.get('role'),
+                status: formData.get('status')
+            };
+
+            saveUsers();
+
+            // Sync to Supabase if available
+            if (window.syncUsersToSupabase) {
+                syncUsersToSupabase();
+            }
+
+            renderUserManagement();
+            closeModal();
+            showNotification('✅ Data user berhasil diperbarui');
+        }
+        return;
+    }
+
     const newUser = {
         id: Date.now(),
         name: formData.get('name'),
-        email: formData.get('email'),
+        email: email,
         phone: formData.get('phone'),
         role: formData.get('role'),
         status: formData.get('status'),
         createdAt: new Date().toISOString().split('T')[0],
         lastLogin: '-'
     };
-    
+
     usersData.users.push(newUser);
     saveUsers();
-    
+
     // Sync to Supabase if available
     if (window.syncUsersToSupabase) {
         syncUsersToSupabase();
     }
-    
+
     renderUserManagement();
     closeModal();
     showNotification('✅ User berhasil ditambahkan');
@@ -475,7 +504,7 @@ function showEditUserForm(user) {
             </form>
         </div>
     `;
-    
+
     // Prevent closing modal by clicking outside (false = tidak bisa ditutup dengan klik di luar)
     createModal(content, false);
 }
@@ -485,10 +514,10 @@ function handleEditUser(event, userId) {
     event.preventDefault();
     const form = event.target;
     const formData = new FormData(form);
-    
+
     const userIndex = usersData.users.findIndex(u => u.id === userId);
     if (userIndex === -1) return;
-    
+
     usersData.users[userIndex] = {
         ...usersData.users[userIndex],
         name: formData.get('name'),
@@ -497,14 +526,14 @@ function handleEditUser(event, userId) {
         role: formData.get('role'),
         status: formData.get('status')
     };
-    
+
     saveUsers();
-    
+
     // Sync to Supabase if available
     if (window.syncUsersToSupabase) {
         syncUsersToSupabase();
     }
-    
+
     renderUserManagement();
     closeModal();
     showNotification('✅ User berhasil diupdate');
@@ -514,16 +543,16 @@ function handleEditUser(event, userId) {
 function confirmDeleteUser(userId) {
     const user = usersData.users.find(u => u.id === userId);
     if (!user) return;
-    
+
     if (confirm(`Yakin ingin menghapus user "${user.name}"?\nTindakan ini tidak dapat dibatalkan.`)) {
         usersData.users = usersData.users.filter(u => u.id !== userId);
         saveUsers();
-        
+
         // Sync to Supabase if available
         if (window.syncUsersToSupabase) {
             syncUsersToSupabase();
         }
-        
+
         renderUserManagement();
         showNotification('✅ User berhasil dihapus');
     }
@@ -533,7 +562,7 @@ function confirmDeleteUser(userId) {
 function filterUsers(searchTerm) {
     const items = document.querySelectorAll('#usersList > div');
     const search = searchTerm.toLowerCase();
-    
+
     items.forEach(item => {
         const text = item.textContent.toLowerCase();
         item.style.display = text.includes(search) ? 'block' : 'none';
@@ -546,7 +575,7 @@ function filterUsersByRole(role) {
         renderUserManagement();
         return;
     }
-    
+
     const filtered = usersData.users.filter(u => u.role === role);
     const temp = { users: usersData.users };
     usersData.users = filtered;
@@ -572,37 +601,37 @@ window.filterUsersByRole = filterUsersByRole;
 function previewImportUsers(event) {
     const file = event.target.files[0];
     if (!file) return;
-    
+
     const reader = new FileReader();
-    reader.onload = function(e) {
+    reader.onload = function (e) {
         try {
             const data = new Uint8Array(e.target.result);
             const workbook = XLSX.read(data, { type: 'array' });
             const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
             const rows = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
-            
+
             // Skip header row
             const dataRows = rows.slice(1).filter(row => row.length >= 4);
-            
+
             if (dataRows.length === 0) {
                 alert('❌ Tidak ada data yang valid di file Excel');
                 return;
             }
-            
+
             // Show preview
             const preview = document.getElementById('importPreview');
             const previewContent = document.getElementById('importPreviewContent');
-            
+
             if (preview && previewContent) {
                 preview.classList.remove('hidden');
                 previewContent.innerHTML = `
                     <div class="space-y-2">
                         ${dataRows.slice(0, 5).map((row, index) => {
-                            const role = row[4] ? row[4].toString().toLowerCase() : 'guru (default)';
-                            const isValidRole = ['admin', 'guru', 'ortu', 'staff'].includes(role) || !row[4];
-                            const roleDisplay = isValidRole ? role : `<span class="text-red-600 font-bold">${role} (invalid)</span>`;
-                            
-                            return `
+                    const role = row[4] ? row[4].toString().toLowerCase() : 'guru (default)';
+                    const isValidRole = ['admin', 'guru', 'ortu', 'staff'].includes(role) || !row[4];
+                    const roleDisplay = isValidRole ? role : `<span class="text-red-600 font-bold">${role} (invalid)</span>`;
+
+                    return `
                             <div class="bg-slate-50 rounded-lg p-2">
                                 <div class="font-bold text-slate-800">${row[0]}</div>
                                 <div class="text-xs text-slate-600">
@@ -629,35 +658,36 @@ function handleImportUsers() {
         alert('❌ Pilih file Excel terlebih dahulu');
         return;
     }
-    
+
     const file = fileInput.files[0];
     const reader = new FileReader();
-    
-    reader.onload = function(e) {
+
+    reader.onload = function (e) {
         try {
             const data = new Uint8Array(e.target.result);
             const workbook = XLSX.read(data, { type: 'array' });
             const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
             const rows = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
-            
+
             // Skip header row
             const dataRows = rows.slice(1).filter(row => row.length >= 4);
-            
+
             if (dataRows.length === 0) {
                 alert('❌ Tidak ada data yang valid di file Excel');
                 return;
             }
-            
+
             let imported = 0;
+            let updated = 0;
             let skipped = 0;
-            
+
             dataRows.forEach(row => {
                 const userName = row[0]?.toString().trim();
                 const accountName = row[1]?.toString().trim();
                 const password = row[2]?.toString().trim();
                 const lembaga = row[3]?.toString().trim();
                 const roleInput = row[4] ? row[4].toString().trim().toLowerCase() : '';
-                
+
                 if (!userName || !accountName || !password || !lembaga) {
                     skipped++;
                     return;
@@ -674,14 +704,25 @@ function handleImportUsers() {
                         return;
                     }
                 }
-                
+
                 // Check if user already exists
-                const exists = usersData.users.some(u => u.email === accountName);
-                if (exists) {
-                    skipped++;
+                // Check if user already exists
+                const existingIndex = usersData.users.findIndex(u => u.email === accountName);
+
+                if (existingIndex !== -1) {
+                    // Update existing user
+                    usersData.users[existingIndex] = {
+                        ...usersData.users[existingIndex],
+                        name: userName,
+                        password: password,
+                        role: role,
+                        lembaga: lembaga,
+                        // Keep other fields like id, phone, createdAt, status
+                    };
+                    updated++;
                     return;
                 }
-                
+
                 // Add new user
                 const newUser = {
                     id: Date.now() + imported,
@@ -695,27 +736,27 @@ function handleImportUsers() {
                     createdAt: new Date().toISOString().split('T')[0],
                     lastLogin: '-'
                 };
-                
+
                 usersData.users.push(newUser);
                 imported++;
             });
-            
+
             // Save to localStorage
             saveUsers();
-            
+
             // Close modal and refresh
             closeModal();
             renderUserManagement();
-            
+
             // Show result
-            alert(`✅ Import berhasil!\n\n📥 ${imported} user berhasil diimport\n⚠️ ${skipped} user dilewati (duplikat atau data tidak lengkap)`);
-            
+            alert(`✅ Import berhasil!\n\n📥 ${imported} user baru\n🔄 ${updated} user diupdate\n⚠️ ${skipped} baris dilewati (data tidak lengkap)`);
+
         } catch (error) {
             console.error('Error importing users:', error);
             alert('❌ Gagal mengimport user. Pastikan format file Excel benar.');
         }
     };
-    
+
     reader.readAsArrayBuffer(file);
 }
 

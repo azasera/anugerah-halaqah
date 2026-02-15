@@ -608,6 +608,18 @@ function updateUIBasedOnRole() {
         return;
     }
 
+    // Hide "Masuk Dashboard" button when logged in
+    const loginSidebarBtn = document.querySelector('[data-sidebar-section="login"]');
+    if (loginSidebarBtn) {
+        if (loginSidebarBtn.tagName === 'BUTTON' || loginSidebarBtn.tagName === 'A') {
+            loginSidebarBtn.style.display = 'none';
+            // Also hide parent wrapper if it exists and only contains this button (optional, but safer to just hide button)
+            if (loginSidebarBtn.parentElement.classList.contains('border-t')) {
+                loginSidebarBtn.parentElement.style.display = 'none';
+            }
+        }
+    }
+
     const role = currentProfile.role;
 
     // Hide admin-only features for non-admin
@@ -640,6 +652,33 @@ function updateUIBasedOnRole() {
         refreshUserChildLink();
     } else {
         currentUserChild = null;
+
+        // SHOW admin features
+        document.querySelectorAll('[onclick*="showAdminSettings"]').forEach(el => {
+            el.style.display = 'block'; // Or 'flex' depending on layout, ensuring visibility
+            // Reset parent visibility if hidden
+            if (el.parentElement.style.display === 'none') {
+                el.parentElement.style.display = 'block';
+            }
+        });
+
+        const usersBtn = document.getElementById('sidebar-users');
+        if (usersBtn) usersBtn.style.display = 'flex'; // sidebar items are flex
+
+        const settingsBtn = document.getElementById('sidebar-settings');
+        if (settingsBtn) {
+            settingsBtn.parentElement.style.display = 'block';
+        }
+
+        // Show delete buttons
+        document.querySelectorAll('[onclick*="confirmDelete"]').forEach(el => {
+            el.style.display = 'inline-block';
+        });
+
+        // Show import/export
+        document.querySelectorAll('[onclick*="Import"], [onclick*="Export"]').forEach(el => {
+            el.style.display = 'inline-flex';
+        });
     }
 
     // Show user info in sidebar

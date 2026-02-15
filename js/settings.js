@@ -11,21 +11,21 @@ const poinRules = {
 const defaultSesiHalaqah = [
     {
         id: 1,
-        name: "Sesi 1 - Pagi",
+        name: "Sesi 1",
         startTime: "07:00",
         endTime: "09:00",
         active: true
     },
     {
         id: 2,
-        name: "Sesi 2 - Siang",
+        name: "Sesi 2",
         startTime: "13:00",
         endTime: "15:00",
         active: true
     },
     {
         id: 3,
-        name: "Sesi 3 - Sore",
+        name: "Sesi 3",
         startTime: "15:30",
         endTime: "17:30",
         active: true
@@ -96,7 +96,7 @@ function loadSettings() {
     const saved = localStorage.getItem('appSettings');
     if (saved) {
         const savedSettings = JSON.parse(saved);
-        
+
         // Migration logic: Ensure every lembaga has sesiHalaqah
         if (savedSettings.lembaga) {
             Object.keys(savedSettings.lembaga).forEach(key => {
@@ -108,10 +108,10 @@ function loadSettings() {
                 }
             });
         }
-        
+
         // Remove old global sesiHalaqah if it exists to clean up
         delete savedSettings.sesiHalaqah;
-        
+
         Object.assign(appSettings, savedSettings);
     }
 }
@@ -125,7 +125,7 @@ function saveSettings() {
 function barisToHalaman(baris, lembagaKey) {
     const lembaga = appSettings.lembaga[lembagaKey];
     if (!lembaga) return 0;
-    
+
     return (baris / lembaga.barisPerHalaman).toFixed(2);
 }
 
@@ -140,7 +140,7 @@ function calculatePoinFromBaris(baris, lembagaKey) {
 function getCurrentSession(lembagaKey) {
     const now = new Date();
     const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-    
+
     // Get sessions for specific lembaga, or fallback to MTA/Default
     let sessions = [];
     if (lembagaKey && appSettings.lembaga[lembagaKey] && appSettings.lembaga[lembagaKey].sesiHalaqah) {
@@ -151,15 +151,15 @@ function getCurrentSession(lembagaKey) {
         // Absolute fallback if everything is broken
         sessions = defaultSesiHalaqah;
     }
-    
+
     for (const sesi of sessions) {
         if (!sesi.active) continue;
-        
+
         if (currentTime >= sesi.startTime && currentTime <= sesi.endTime) {
             return sesi;
         }
     }
-    
+
     return null;
 }
 
@@ -170,15 +170,15 @@ function isTimeInSession(time, sesiId, lembagaKey) {
     if (lembagaKey && appSettings.lembaga[lembagaKey] && appSettings.lembaga[lembagaKey].sesiHalaqah) {
         sessions = appSettings.lembaga[lembagaKey].sesiHalaqah;
     } else {
-         // Fallback to searching in all lembagas? No, just return false or try MTA
-         if (appSettings.lembaga['MTA']) {
-             sessions = appSettings.lembaga['MTA'].sesiHalaqah;
-         }
+        // Fallback to searching in all lembagas? No, just return false or try MTA
+        if (appSettings.lembaga['MTA']) {
+            sessions = appSettings.lembaga['MTA'].sesiHalaqah;
+        }
     }
-    
+
     const sesi = sessions.find(s => s.id === sesiId);
     if (!sesi || !sesi.active) return false;
-    
+
     return time >= sesi.startTime && time <= sesi.endTime;
 }
 

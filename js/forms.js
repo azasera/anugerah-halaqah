@@ -233,11 +233,11 @@ function showEditStudentForm(student, fromAdmin = false) {
                 </div>
                 
                 <div>
-                    <label class="block text-sm font-bold text-slate-700 mb-2">Hari Beruntun</label>
+                    <label class="block text-sm font-bold text-slate-700 mb-2">Istiqomah</label>
                     <div class="w-full px-4 py-3 rounded-xl border-2 border-slate-200 bg-slate-50 text-slate-500 font-bold text-2xl text-center flex items-center justify-center gap-2">
                         🔥 ${student.streak}
                     </div>
-                    <p class="text-xs text-slate-500 mt-1">💡 Dihitung otomatis dari history setoran berturut-turut</p>
+                    <p class="text-xs text-slate-500 mt-1">💡 Dihitung otomatis dari history setoran istiqomah</p>
                 </div>
                 
                 <div class="flex gap-3 pt-4">

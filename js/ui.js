@@ -279,8 +279,10 @@ function renderSantri(searchTerm = "") {
         // Get santri for current user from user-santri relationships
         if (typeof getStudentsForCurrentUser === 'function') {
             const userStudents = getStudentsForCurrentUser();
-            const userStudentIds = userStudents.map(s => s.id);
-            filtered = filtered.filter(s => userStudentIds.includes(s.id));
+            // Map to Strings to ensure reliable comparison
+            const userStudentIds = userStudents.map(s => String(s.id));
+
+            filtered = filtered.filter(s => userStudentIds.includes(String(s.id)));
         }
     }
 
@@ -474,7 +476,7 @@ function renderSortButtons() {
     const sorts = [
         { value: 'rank', label: 'Peringkat', icon: '🏆' },
         { value: 'points', label: 'Poin', icon: '⭐' },
-        { value: 'streak', label: 'Hari Beruntun', icon: '🔥' },
+        { value: 'streak', label: 'Istiqomah', icon: '🔥' },
         { value: 'name', label: 'Nama', icon: '📝' }
     ];
 

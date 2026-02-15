@@ -42,7 +42,39 @@ function getSantriIdsForCurrentUser() {
     }
 
     // Return unique IDs
-    return [...new Set(manualIds)];
+    const uniqueIds = [...new Set(manualIds)];
+
+    // AUTO-LINK FOR GURU: Include students in Halaqahs where this user is the teacher
+    if (user.role === 'guru') {
+        // Find halaqahs taught by this guru (match by name)
+        // Normalize names for comparison (case insensitive)
+        const guruName = user.full_name.toLowerCase().replace(/^(ustadz|ust|u\.)\s*/i, '').trim();
+
+        const taughtHalaqahs = dashboardData.halaqahs.filter(h => {
+            if (!h.guru) return false;
+            const hGuru = h.guru.toLowerCase().replace(/^(ustadz|ust|u\.)\s*/i, '').trim();
+            // Match if guru name contains the user name or vice versa (for partial matches)
+            return hGuru.includes(guruName) || guruName.includes(hGuru);
+        });
+
+        if (taughtHalaqahs.length > 0) {
+            const taughtHalaqahNames = taughtHalaqahs.map(h => h.name.replace('Halaqah ', ''));
+
+            // Find students in these halaqahs
+            const studentIdsInHalaqah = dashboardData.students
+                .filter(s => taughtHalaqahNames.includes(s.halaqah))
+                .map(s => s.id);
+
+            // Merge with existing IDs
+            studentIdsInHalaqah.forEach(id => {
+                if (!uniqueIds.includes(id)) {
+                    uniqueIds.push(id);
+                }
+            });
+        }
+    }
+
+    return uniqueIds;
 }
 
 // Filter students based on current user

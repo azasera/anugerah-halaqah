@@ -22,7 +22,7 @@ const slides = [
     },
     {
         id: 'streak-leaders',
-        title: '🔥 Santri dengan Streak Terpanjang',
+        title: '🔥 Santri Paling Istiqomah',
         type: 'streak'
     }
 ];
@@ -30,7 +30,7 @@ const slides = [
 function renderSlider() {
     const container = document.getElementById('sliderContainer');
     if (!container) return;
-    
+
     container.innerHTML = slides.map((slide, index) => {
         const isActive = index === currentSlide;
         return `
@@ -45,7 +45,7 @@ function renderSlider() {
             </div>
         `;
     }).join('');
-    
+
     // Render dots
     const dotsContainer = document.getElementById('sliderDots');
     if (dotsContainer) {
@@ -53,7 +53,7 @@ function renderSlider() {
             <button onclick="goToSlide(${index})" class="w-3 h-3 rounded-full transition-all ${index === currentSlide ? 'bg-slate-700 w-8' : 'bg-slate-400'}" aria-label="Go to slide ${index + 1}"></button>
         `).join('');
     }
-    
+
     // Render content for each slide
     renderSlideContent();
 }
@@ -62,7 +62,7 @@ function renderSlideContent() {
     slides.forEach((slide, index) => {
         const contentContainer = document.getElementById(`slide-content-${index}`);
         if (!contentContainer) return;
-        
+
         if (slide.type === 'santri') {
             renderTopSantri(contentContainer);
         } else if (slide.type === 'best-halaqah-today') {
@@ -79,7 +79,7 @@ function renderTopSantri(container) {
     const topStudent = dashboardData.students[0];
     const second = dashboardData.students[1];
     const third = dashboardData.students[2];
-    
+
     container.innerHTML = `
         <div class="flex flex-col items-center justify-center h-full px-2">
             <!-- Champion -->
@@ -120,18 +120,18 @@ function renderTopSantri(container) {
 function renderBestHalaqahToday(container) {
     // Get today's date
     const today = new Date().toDateString();
-    
+
     // Calculate today's points for each halaqah
     const halaqahTodayPoints = dashboardData.halaqahs.map(halaqah => {
         const halaqahName = halaqah.name.replace('Halaqah ', '');
-        
+
         // Get students in this halaqah
         const studentsInHalaqah = dashboardData.students.filter(s => s.halaqah === halaqahName);
-        
+
         // Calculate today's total points
         let todayPoints = 0;
         let todaySubmissions = 0;
-        
+
         studentsInHalaqah.forEach(student => {
             if (student.setoran) {
                 student.setoran.forEach(s => {
@@ -142,7 +142,7 @@ function renderBestHalaqahToday(container) {
                 });
             }
         });
-        
+
         return {
             ...halaqah,
             todayPoints,
@@ -150,11 +150,11 @@ function renderBestHalaqahToday(container) {
             todayAverage: studentsInHalaqah.length > 0 ? (todayPoints / studentsInHalaqah.length).toFixed(1) : 0
         };
     }).sort((a, b) => b.todayPoints - a.todayPoints);
-    
+
     const topHalaqah = halaqahTodayPoints[0];
     const second = halaqahTodayPoints[1];
     const third = halaqahTodayPoints[2];
-    
+
     container.innerHTML = `
         <div class="flex flex-col items-center justify-center h-full px-2">
             <!-- Champion -->
@@ -196,7 +196,7 @@ function renderTopHalaqah(container) {
     const topHalaqah = dashboardData.halaqahs[0];
     const second = dashboardData.halaqahs[1];
     const third = dashboardData.halaqahs[2];
-    
+
     container.innerHTML = `
         <div class="flex flex-col items-center justify-center h-full px-2">
             <!-- Champion -->
@@ -235,13 +235,29 @@ function renderTopHalaqah(container) {
 }
 
 function renderStreakLeaders(container) {
-    const topStreak = [...dashboardData.students]
-        .sort((a, b) => b.streak - a.streak)[0];
-    const second = [...dashboardData.students]
-        .sort((a, b) => b.streak - a.streak)[1];
-    const third = [...dashboardData.students]
-        .sort((a, b) => b.streak - a.streak)[2];
-    
+    // Filter students based on current user (Guru only sees members)
+    const students = (typeof getStudentsForCurrentUser === 'function')
+        ? getStudentsForCurrentUser()
+        : dashboardData.students;
+
+    if (!students || students.length === 0) {
+        container.innerHTML = `
+            <div class="flex flex-col items-center justify-center h-full text-white/60">
+                <div class="text-4xl mb-2">🔥</div>
+                <div class="font-bold">Belum ada data istiqomah</div>
+            </div>
+        `;
+        return;
+    }
+
+    const sorted = [...students].sort((a, b) => (b.streak || 0) - (a.streak || 0));
+
+    const topStreak = sorted[0];
+    const second = sorted[1];
+    const third = sorted[2];
+
+    if (!topStreak) return;
+
     container.innerHTML = `
         <div class="flex flex-col items-center justify-center h-full px-2">
             <!-- Champion -->
@@ -249,31 +265,35 @@ function renderStreakLeaders(container) {
                 <div class="inline-block p-2 bg-gradient-to-br from-orange-400 to-red-500 rounded-full mb-2 shadow-2xl">
                     <div class="text-3xl">🔥</div>
                 </div>
-                <div class="text-white/80 text-xs mb-1">STREAK TERPANJANG</div>
+                <div class="text-white/80 text-xs mb-1">PALING ISTIQOMAH</div>
                 <div class="text-2xl md:text-3xl font-bold text-white mb-1">${topStreak.name}</div>
                 <div class="text-sm text-white/90 mb-2">Halaqah ${topStreak.halaqah}</div>
                 <div class="inline-block px-4 py-2 bg-white/20 backdrop-blur-sm rounded-xl border border-white/30">
                     <div class="text-3xl font-bold text-orange-300">${topStreak.streak}</div>
-                    <div class="text-white/80 text-xs">Hari Beruntun</div>
+                    <div class="text-white/80 text-xs">Hari Istiqomah</div>
                 </div>
             </div>
             
             <!-- Runner-ups -->
             <div class="grid grid-cols-2 gap-2 max-w-md w-full">
+                ${second ? `
                 <div class="bg-white/10 backdrop-blur-sm rounded-xl p-2 border border-white/20 text-center">
                     <div class="text-xl mb-1">🥈</div>
                     <div class="text-sm font-bold text-white mb-1">${second.name}</div>
                     <div class="text-white/80 text-xs mb-1">Halaqah ${second.halaqah}</div>
                     <div class="text-lg font-bold text-orange-300">${second.streak}</div>
-                    <div class="text-white/70 text-xs">hari beruntun</div>
+                    <div class="text-white/70 text-xs">hari istiqomah</div>
                 </div>
+                ` : ''}
+                ${third ? `
                 <div class="bg-white/10 backdrop-blur-sm rounded-xl p-2 border border-white/20 text-center">
                     <div class="text-xl mb-1">🥉</div>
                     <div class="text-sm font-bold text-white mb-1">${third.name}</div>
                     <div class="text-white/80 text-xs mb-1">Halaqah ${third.halaqah}</div>
                     <div class="text-lg font-bold text-orange-300">${third.streak}</div>
-                    <div class="text-white/70 text-xs">hari beruntun</div>
+                    <div class="text-white/70 text-xs">hari istiqomah</div>
                 </div>
+                ` : ''}
             </div>
         </div>
     `;
@@ -310,7 +330,7 @@ function updateSlider() {
             }
         }
     });
-    
+
     // Update dots
     const dotsContainer = document.getElementById('sliderDots');
     if (dotsContainer) {
@@ -322,12 +342,12 @@ function updateSlider() {
 
 function startAutoPlay() {
     if (autoPlayInterval) return;
-    
+
     isAutoPlaying = true;
     autoPlayInterval = setInterval(() => {
         nextSlide();
     }, 5000); // Change slide every 5 seconds
-    
+
     updateAutoPlayButton();
 }
 
@@ -352,7 +372,7 @@ function updateAutoPlayButton() {
     const playIcon = document.getElementById('playIcon');
     const pauseIcon = document.getElementById('pauseIcon');
     const autoPlayText = document.getElementById('autoPlayText');
-    
+
     if (isAutoPlaying) {
         playIcon?.classList.add('hidden');
         pauseIcon?.classList.remove('hidden');

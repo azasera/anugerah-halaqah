@@ -1079,7 +1079,7 @@ function renderAdminSesiList(lembagaKey) {
     return sessions.map((sesi) => `
         <div class="bg-slate-50 rounded-xl p-4">
             <div class="flex items-center justify-between mb-3">
-                <div class="font-bold text-slate-800">${sesi.name}</div>
+                <div class="font-bold text-slate-800">${sesi.name.replace(/ - (Pagi|Siang|Sore)/gi, '')}</div>
                 <label class="relative inline-flex items-center cursor-pointer">
                     <input type="checkbox" ${sesi.active ? 'checked' : ''} 
                         onchange="toggleSesi(${sesi.id}, '${lembagaKey}')" class="sr-only peer">
