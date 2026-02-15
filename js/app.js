@@ -4,7 +4,7 @@
 function scrollToSection(section) {
     // Get target element first
     let targetElement;
-    switch(section) {
+    switch (section) {
         case 'home':
             targetElement = document.getElementById('home');
             break;
@@ -36,10 +36,10 @@ function scrollToSection(section) {
             targetElement = document.getElementById(section);
             break;
     }
-    
+
     // If target doesn't exist, do nothing
     if (!targetElement) return;
-    
+
     // Use requestAnimationFrame for smooth transition
     requestAnimationFrame(() => {
         // Hide all sections first
@@ -50,7 +50,7 @@ function scrollToSection(section) {
                 element.classList.add('hidden');
             }
         });
-        
+
         // Show/hide slider - only show on home
         const slider = document.getElementById('rankingSlider');
         if (slider) {
@@ -60,20 +60,20 @@ function scrollToSection(section) {
                 slider.classList.add('hidden');
             }
         }
-        
+
         // Then show target in next frame
         requestAnimationFrame(() => {
             if (section === 'home') {
                 // Home View: Show Stats/Banner + Rankings
                 document.getElementById('home')?.classList.remove('hidden');
-                
+
                 const halaqah = document.getElementById('halaqah');
                 if (halaqah) {
                     halaqah.classList.remove('hidden');
                     halaqah.classList.remove('lg:col-span-12');
                     halaqah.classList.add('lg:col-span-4');
                 }
-                
+
                 const santri = document.getElementById('santri');
                 if (santri) {
                     santri.classList.remove('hidden');
@@ -83,9 +83,9 @@ function scrollToSection(section) {
             } else {
                 targetElement.classList.remove('hidden');
             }
-            
+
             // Handle special cases
-            switch(section) {
+            switch (section) {
                 case 'stats':
                     // Render stats to standalone container
                     if (typeof generateStatsHTML === 'function') {
@@ -135,19 +135,19 @@ function scrollToSection(section) {
                     }
                     break;
             }
-            
+
             // Update active nav item (mobile)
             document.querySelectorAll('.nav-item').forEach(item => {
                 item.classList.remove('active');
             });
             document.querySelector(`[data-section="${section}"]`)?.classList.add('active');
-            
+
             // Update active sidebar item (desktop)
             document.querySelectorAll('.sidebar-menu-item').forEach(item => {
                 item.classList.remove('active');
             });
             document.querySelector(`[data-sidebar-section="${section}"]`)?.classList.add('active');
-            
+
             // Scroll to top of main content
             window.scrollTo({ top: 0, behavior: 'instant' });
         });
@@ -161,7 +161,7 @@ function initSearchHandler() {
     const searchInput = document.getElementById('santriSearch');
     if (searchInput) {
         searchInput.addEventListener('input', (e) => {
-            renderSantri(e.target.value, currentFilter);
+            renderSantri(e.target.value);
         });
     }
 }
@@ -172,7 +172,7 @@ function initKeyboardShortcuts() {
         if (e.key === 'Escape') {
             closeModal();
         }
-        
+
         // Ctrl/Cmd + K to focus search
         if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
             e.preventDefault();
@@ -184,7 +184,7 @@ function initKeyboardShortcuts() {
 function initApp() {
     // PUBLIC MODE: App works without authentication
     // Login only required for input/edit/delete actions
-    
+
     checkAuth().then(() => {
         // Initialize Supabase (optional, works without it)
         initSupabase().then(() => {
@@ -203,18 +203,28 @@ function initApp() {
             } catch (error) {
                 console.error('Error rendering main components:', error);
             }
-            
+
             // Show home section by default
             scrollToSection('home');
-            
+
             // Setup event handlers
             if (typeof initSearchHandler === 'function') initSearchHandler();
             if (typeof initKeyboardShortcuts === 'function') initKeyboardShortcuts();
-            
+
             // Start clock
             setInterval(updateDateTime, 1000);
             updateDateTime();
-            
+
+            // Auto-Run: Fix Negative Points (One-time cleanup)
+            setTimeout(() => {
+                if (typeof fixNegativePoints === 'function') {
+                    console.log('🧹 Auto-running negative points cleanup...');
+                    fixNegativePoints();
+                } else {
+                    console.warn('⚠️ fixNegativePoints function not found');
+                }
+            }, 3000); // Run 3 seconds after load to ensure everything is ready
+
             // Auto-save to localStorage as backup
             setInterval(() => {
                 StorageManager.save();
@@ -223,7 +233,7 @@ function initApp() {
         }).catch(error => {
             console.error('Supabase init error:', error);
             // Even if Supabase fails, render app with local data
-             try {
+            try {
                 if (typeof initSlider === 'function') initSlider();
                 if (typeof renderStats === 'function') renderStats();
                 if (typeof renderHalaqahRankings === 'function') renderHalaqahRankings();
@@ -231,7 +241,7 @@ function initApp() {
                 if (typeof renderSortButtons === 'function') renderSortButtons();
                 if (typeof renderSantri === 'function') renderSantri();
                 if (typeof renderAbsenceWidget === 'function') renderAbsenceWidget();
-                
+
                 scrollToSection('home');
             } catch (e) {
                 console.error('Error rendering offline app:', e);
@@ -255,7 +265,7 @@ if (document.readyState === 'loading') {
 function toggleFABMenu() {
     const menu = document.getElementById('fabMenu');
     const button = document.getElementById('fabButton');
-    
+
     if (menu.classList.contains('hidden')) {
         menu.classList.remove('hidden');
         button.style.transform = 'rotate(45deg)';

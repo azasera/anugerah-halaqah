@@ -1,7 +1,8 @@
 // Setoran (Hafalan) Management Module
 
 function showSetoranForm(student) {
-    const currentSession = getCurrentSession();
+    const lembagaKey = student.lembaga || 'MTA';
+    const currentSession = getCurrentSession(lembagaKey);
     const isOnTime = currentSession !== null;
     
     const sessionInfo = currentSession 
@@ -27,7 +28,10 @@ function showSetoranForm(student) {
         return `<option value="${key}">${l.name}</option>`;
     }).join('');
 
-    const sesiOptions = appSettings.sesiHalaqah.map(s => 
+    const settings = appSettings.lembaga[lembagaKey] || appSettings.lembaga['MTA'];
+    const sessions = settings.sesiHalaqah || [];
+
+    const sesiOptions = sessions.map(s => 
         `<option value="${s.id}" ${currentSession && currentSession.id === s.id ? 'selected' : ''}>
             ${s.name} (${s.startTime} - ${s.endTime}) ${!s.active ? '- NONAKTIF' : ''}
         </option>`
@@ -157,7 +161,7 @@ function updateSetoranPreview() {
     const lembaga = appSettings.lembaga[lembagaKey];
     
     // Calculate poin based on new rules
-    const currentSession = getCurrentSession();
+    const currentSession = getCurrentSession(lembagaKey);
     const isOnTime = currentSession !== null;
     const targetsMet = baris >= lembaga.targetBaris;
     const isLancar = kelancaran === 'lancar' && kesalahan === 0;
@@ -225,7 +229,7 @@ function handleSetoran(event, studentId) {
     const lembaga = appSettings.lembaga[lembagaKey];
     
     // Calculate poin based on new rules
-    const currentSession = getCurrentSession();
+    const currentSession = getCurrentSession(lembagaKey);
     const isOnTime = currentSession !== null;
     const targetsMet = baris >= lembaga.targetBaris;
     const isLancar = kelancaran === 'lancar' && kesalahan === 0;
@@ -260,7 +264,7 @@ function handleSetoran(event, studentId) {
         id: Date.now(),
         date: new Date().toISOString(),
         lembaga: appSettings.lembaga[lembagaKey].name,
-        sesi: appSettings.sesiHalaqah.find(s => s.id === sesiId).name,
+        sesi: (appSettings.lembaga[lembagaKey].sesiHalaqah.find(s => s.id === sesiId) || {name: '-'}).name,
         baris: baris,
         halaman: parseFloat(halaman),
         kelancaran: kelancaran,

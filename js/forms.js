@@ -33,6 +33,67 @@ function showAddStudentForm() {
                         `).join('')}
                     </select>
                 </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2">Jenis Kelamin</label>
+                        <select name="jenis_kelamin" 
+                            class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all">
+                            <option value="">Pilih...</option>
+                            <option value="L">Laki-laki</option>
+                            <option value="P">Perempuan</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2">No. HP / WA</label>
+                        <input type="text" name="hp" 
+                            class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all"
+                            placeholder="08...">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2">Tempat Lahir</label>
+                        <input type="text" name="tempat_lahir" 
+                            class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all"
+                            placeholder="Kota Lahir">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2">Tanggal Lahir</label>
+                        <input type="date" name="tanggal_lahir" 
+                            class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-2">Alamat Lengkap</label>
+                    <textarea name="alamat" rows="2"
+                        class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all resize-none"
+                        placeholder="Alamat domisili saat ini"></textarea>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2">Nama Ayah</label>
+                        <input type="text" name="nama_ayah" 
+                            class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all"
+                            placeholder="Nama Ayah Kandung">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2">Nama Ibu</label>
+                        <input type="text" name="nama_ibu" 
+                            class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all"
+                            placeholder="Nama Ibu Kandung">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-2">Sekolah Asal</label>
+                    <input type="text" name="sekolah_asal" 
+                        class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all"
+                        placeholder="Nama Sekolah Asal">
+                </div>
                 
                 <div>
                     <label class="block text-sm font-bold text-slate-700 mb-2">Poin Awal</label>
@@ -54,12 +115,12 @@ function showAddStudentForm() {
             </form>
         </div>
     `;
-    
+
     createModal(content, false);
 }
 
 function showEditStudentForm(student, fromAdmin = false) {
-    const deleteButton = fromAdmin 
+    const deleteButton = fromAdmin
         ? `<button type="button" onclick="confirmDeleteStudent(${student.id}, true); showAdminSettings(); switchAdminTab('santri')" 
             class="px-6 py-3 rounded-xl font-bold text-red-600 hover:bg-red-50 transition-colors">
             Hapus
@@ -68,7 +129,7 @@ function showEditStudentForm(student, fromAdmin = false) {
             class="px-6 py-3 rounded-xl font-bold text-red-600 hover:bg-red-50 transition-colors">
             Hapus
         </button>`;
-    
+
     const content = `
         <div class="p-8">
             <div class="flex items-start justify-between mb-6">
@@ -101,6 +162,67 @@ function showEditStudentForm(student, fromAdmin = false) {
                         `).join('')}
                     </select>
                 </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2">Jenis Kelamin</label>
+                        <select name="jenis_kelamin" 
+                            class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all">
+                            <option value="">Pilih...</option>
+                            <option value="L" ${student.jenis_kelamin === 'L' ? 'selected' : ''}>Laki-laki</option>
+                            <option value="P" ${student.jenis_kelamin === 'P' ? 'selected' : ''}>Perempuan</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2">No. HP / WA</label>
+                        <input type="text" name="hp" value="${student.hp || ''}"
+                            class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all"
+                            placeholder="08...">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2">Tempat Lahir</label>
+                        <input type="text" name="tempat_lahir" value="${student.tempat_lahir || ''}"
+                            class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all"
+                            placeholder="Kota Lahir">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2">Tanggal Lahir</label>
+                        <input type="date" name="tanggal_lahir" value="${student.tanggal_lahir || ''}"
+                            class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-2">Alamat Lengkap</label>
+                    <textarea name="alamat" rows="2"
+                        class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all resize-none"
+                        placeholder="Alamat domisili saat ini">${student.alamat || ''}</textarea>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2">Nama Ayah</label>
+                        <input type="text" name="nama_ayah" value="${student.nama_ayah || ''}"
+                            class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all"
+                            placeholder="Nama Ayah Kandung">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2">Nama Ibu</label>
+                        <input type="text" name="nama_ibu" value="${student.nama_ibu || ''}"
+                            class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all"
+                            placeholder="Nama Ibu Kandung">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-2">Sekolah Asal</label>
+                    <input type="text" name="sekolah_asal" value="${student.sekolah_asal || ''}"
+                        class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all"
+                        placeholder="Nama Sekolah Asal">
+                </div>
                 
                 <div>
                     <label class="block text-sm font-bold text-slate-700 mb-2">Total Poin</label>
@@ -132,7 +254,7 @@ function showEditStudentForm(student, fromAdmin = false) {
             </form>
         </div>
     `;
-    
+
     createModal(content, false);
 }
 
@@ -173,7 +295,7 @@ function showAddHalaqahForm() {
             </form>
         </div>
     `;
-    
+
     createModal(content, false);
 }
 
@@ -225,7 +347,7 @@ function showAddPointsForm(student) {
             </form>
         </div>
     `;
-    
+
     createModal(content, false);
 }
 
@@ -233,23 +355,34 @@ function showAddPointsForm(student) {
 function handleAddStudent(event) {
     event.preventDefault();
     const formData = new FormData(event.target);
-    
+
     const newStudent = {
         id: Date.now(),
         name: formData.get('name'),
         halaqah: formData.get('halaqah'),
         total_points: parseInt(formData.get('points')),
+
+        // New Fields
+        jenis_kelamin: formData.get('jenis_kelamin'),
+        tempat_lahir: formData.get('tempat_lahir').trim(),
+        tanggal_lahir: formData.get('tanggal_lahir'),
+        alamat: formData.get('alamat'),
+        hp: formData.get('hp'),
+        nama_ayah: formData.get('nama_ayah'),
+        nama_ibu: formData.get('nama_ibu'),
+        sekolah_asal: formData.get('sekolah_asal'),
+
         daily_ranking: dashboardData.students.length + 1,
         overall_ranking: dashboardData.students.length + 1,
         streak: 0,
         lastActivity: 'Baru saja',
         achievements: []
     };
-    
+
     dashboardData.students.push(newStudent);
     recalculateRankings();
     StorageManager.save();
-    
+
     closeModal();
     refreshAllData();
     showNotification('✅ Santri berhasil ditambahkan!');
@@ -258,21 +391,32 @@ function handleAddStudent(event) {
 function handleEditStudent(event, studentId, fromAdmin = false) {
     event.preventDefault();
     const formData = new FormData(event.target);
-    
+
     const student = dashboardData.students.find(s => s.id === studentId);
     if (student) {
         student.name = formData.get('name');
         student.halaqah = formData.get('halaqah');
         student.total_points = parseInt(formData.get('points'));
+
+        // Update New Fields
+        student.jenis_kelamin = formData.get('jenis_kelamin');
+        student.tempat_lahir = formData.get('tempat_lahir').trim();
+        student.tanggal_lahir = formData.get('tanggal_lahir');
+        student.alamat = formData.get('alamat');
+        student.hp = formData.get('hp');
+        student.nama_ayah = formData.get('nama_ayah');
+        student.nama_ibu = formData.get('nama_ibu');
+        student.sekolah_asal = formData.get('sekolah_asal');
+
         student.streak = parseInt(formData.get('streak'));
-        
+
         recalculateRankings();
         StorageManager.save();
         if (window.autoSync) autoSync();
-        
+
         closeModal();
         refreshAllData();
-        
+
         if (fromAdmin) {
             // Kembali ke admin settings
             showAdminSettings();
@@ -284,16 +428,16 @@ function handleEditStudent(event, studentId, fromAdmin = false) {
 function handleAddPoints(event, studentId) {
     event.preventDefault();
     const formData = new FormData(event.target);
-    
+
     const student = dashboardData.students.find(s => s.id === studentId);
     if (student) {
         const points = parseInt(formData.get('points'));
         student.total_points += points;
         student.lastActivity = 'Baru saja';
-        
+
         recalculateRankings();
         StorageManager.save();
-        
+
         closeModal();
         refreshAllData();
         showNotification(`✅ +${points} poin untuk ${student.name}!`);
@@ -303,7 +447,7 @@ function handleAddPoints(event, studentId) {
 function handleAddHalaqah(event) {
     event.preventDefault();
     const formData = new FormData(event.target);
-    
+
     const newHalaqah = {
         id: Date.now(),
         name: `Halaqah ${formData.get('name')}`,
@@ -314,10 +458,10 @@ function handleAddHalaqah(event) {
         avgPoints: 0,
         trend: 0
     };
-    
+
     dashboardData.halaqahs.push(newHalaqah);
     StorageManager.save();
-    
+
     closeModal();
     refreshAllData();
     showNotification('✅ Halaqah baru berhasil ditambahkan!');
@@ -326,13 +470,13 @@ function handleAddHalaqah(event) {
 function confirmDeleteStudent(studentId, keepModalOpen = false) {
     const student = dashboardData.students.find(s => s.id === studentId);
     if (!student) return;
-    
+
     console.log('Attempting to delete student:', studentId, 'Name:', student.name);
-    
+
     if (confirm(`Yakin ingin menghapus ${student.name}? Data tidak dapat dikembalikan.`)) {
         // Set flag to prevent realtime listener from reloading
         window.deleteOperationInProgress = true;
-        
+
         // Hapus dari database Supabase (jika online)
         console.log('Calling deleteStudentFromSupabase for ID:', studentId);
         if (window.deleteStudentFromSupabase) {
@@ -353,15 +497,15 @@ function confirmDeleteStudent(studentId, keepModalOpen = false) {
 
 function performLocalStudentDelete(studentId, keepModalOpen) {
     console.log('Performing local student delete...');
-    
+
     // Hapus dari array lokal
     dashboardData.students = dashboardData.students.filter(s => s.id !== studentId);
-    
+
     recalculateRankings();
     StorageManager.save();
-    
+
     refreshAllData();
-    
+
     if (keepModalOpen) {
         // Update list tanpa refresh modal
         if (typeof updateAdminSantriList === 'function') {
@@ -374,13 +518,13 @@ function performLocalStudentDelete(studentId, keepModalOpen) {
         }
         closeModal();
     }
-    
+
     // Clear the delete flag after a delay
     setTimeout(() => {
         window.deleteOperationInProgress = false;
         console.log('Delete student operation completed');
     }, 2000);
-    
+
     showNotification('✅ Data santri berhasil dihapus');
 }
 
@@ -395,9 +539,9 @@ function showNotification(message) {
             <span class="text-lg">${message}</span>
         </div>
     `;
-    
+
     document.body.appendChild(notification);
-    
+
     setTimeout(() => {
         notification.style.opacity = '0';
         notification.style.transform = 'translateY(-20px)';

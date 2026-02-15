@@ -100,6 +100,155 @@ function resetAllPointsToZero() {
     }
 }
 
+// Fix negative points (remove penalties)
+function fixNegativePoints(silent = false) {
+    console.log('🧹 Checking for negative points/penalties...');
+    
+    // 1. Check if there are any negative points first
+    let hasNegative = false;
+    let penaltyCount = 0;
+    let mismatchCount = 0;
+    
+    dashboardData.students.forEach(s => {
+        // Calculate real points from history
+        const historyPoints = (s.setoran || []).reduce((sum, p) => sum + (Number(p.poin) || 0), 0);
+        
+        // Check for mismatch (e.g. total says -9 but history is empty/0)
+        if (s.total_points !== historyPoints) {
+            mismatchCount++;
+            hasNegative = true; // Treat mismatch as something to fix
+        }
+        
+        if (s.total_points < 0) hasNegative = true;
+        
+        if (s.setoran && s.setoran.length > 0) {
+            const penalties = s.setoran.filter(p => 
+                Number(p.poin) < 0 || 
+                p.status === 'Tidak Setor' || 
+                p.isAutoPenalty === true || 
+                (Number(p.poin) === 0 && p.status === 'Tidak Setor')
+            );
+            if (penalties.length > 0) {
+                hasNegative = true;
+                penaltyCount += penalties.length;
+            }
+        }
+    });
+
+    if (!hasNegative) {
+        console.log('✅ Data santri bersih. Memaksa recalculateRankings untuk memastikan data halaqah konsisten.');
+        // Force recalculate just in case halaqah stats are stale
+        recalculateRankings();
+        StorageManager.save();
+        refreshAllData();
+        return; 
+    }
+
+    // 2. Ask for confirmation (unless silent mode is forced true)
+    if (!silent) {
+        const msg = `⚠️ Terdeteksi masalah data:\n` +
+                    `- ${penaltyCount} data penalty/poin negatif\n` +
+                    `- ${mismatchCount} data tidak sinkron (total vs riwayat)\n\n` +
+                    `Apakah Anda ingin membersihkan dan memperbaiki data sekarang?`;
+                    
+        if (!confirm(msg)) {
+            return;
+        }
+    }
+    
+    let removedCount = 0;
+    let studentsFixed = 0;
+    
+    dashboardData.students.forEach(student => {
+        // Ensure setoran is an array
+        if (!student.setoran) student.setoran = [];
+        
+        const initialCount = student.setoran.length;
+        
+        // Filter out negative points (penalties)
+        const cleanSetoran = student.setoran.filter(s => {
+            const isPenalty = Number(s.poin) < 0 || s.status === 'Tidak Setor' || s.isAutoPenalty === true || (Number(s.poin) === 0 && s.status === 'Tidak Setor');
+            return !isPenalty;
+        });
+        
+        const removed = initialCount - cleanSetoran.length;
+        
+        // Calculate correct points from clean history
+        const newPoints = cleanSetoran.reduce((sum, s) => sum + (Number(s.poin) || 0), 0);
+        
+        // Update if:
+        // 1. We removed penalties
+        // 2. OR current points are negative (even if setoran list was empty/clean)
+        // 3. OR current points don't match calculated points (sync error)
+        if (removed > 0 || student.total_points < 0 || student.total_points !== newPoints) {
+            student.setoran = cleanSetoran;
+            student.total_points = newPoints;
+            
+            // Safety net: ensure no negative total
+            if (student.total_points < 0) student.total_points = 0;
+            
+            removedCount += (removed > 0 ? removed : 1);
+            studentsFixed++;
+        }
+    });
+    
+    if (removedCount > 0 || studentsFixed > 0) {
+        recalculateRankings();
+        StorageManager.save();
+        
+        if (typeof syncStudentsToSupabase === 'function' && navigator.onLine) {
+            syncStudentsToSupabase();
+        }
+        
+        refreshAllData();
+        showNotification(`✅ Berhasil menghapus ${removedCount} data penalty dari ${studentsFixed} santri.`);
+        console.log(`✅ Berhasil menghapus ${removedCount} data penalty dari ${studentsFixed} santri.`);
+    } else {
+        // Silent if no negative points found (to avoid spamming on auto-run)
+        console.log('✅ Tidak ditemukan poin negatif (Clean).');
+    }
+}
+
+// Reset single student data (points & history only)
+async function resetSingleStudent(studentId) {
+    const student = dashboardData.students.find(s => s.id === studentId);
+    if (!student) return;
+
+    if (!confirm(`⚠️ Reset data untuk ${student.name}?\n\nPoin, hafalan, dan riwayat setoran akan dihapus.\nNama santri TETAP ADA.`)) {
+        return;
+    }
+
+    try {
+        // Reset local data
+        student.total_points = 0;
+        student.streak = 0;
+        student.setoran = [];
+        student.lastSetoranDate = '';
+        student.total_hafalan = 0;
+        student.achievements = []; // Reset achievements too? Maybe yes for full reset.
+
+        // Sync to Supabase
+        if (typeof syncStudentsToSupabase === 'function') {
+            await syncStudentsToSupabase();
+        } else {
+            StorageManager.save();
+        }
+
+        recalculateRankings();
+        refreshAllData();
+        
+        // If inside modal, reload modal content if needed or close it
+        // Better to close modal to reflect changes in list
+        if (typeof closeModal === 'function') closeModal();
+        
+        showNotification(`✅ Data ${student.name} berhasil di-reset!`, 'success');
+
+    } catch (error) {
+        console.error('Reset error:', error);
+        showNotification('❌ Gagal reset: ' + error.message, 'error');
+    }
+}
+
 // Show reset options modal
 function showResetDataModal() {
     const content = `
@@ -121,6 +270,17 @@ function showResetDataModal() {
                     <h3 class="font-bold text-blue-900 mb-2">ℹ️ Informasi</h3>
                     <p class="text-sm text-blue-800">Pilih salah satu opsi di bawah untuk memperbaiki data yang corrupt.</p>
                 </div>
+                
+                <button onclick="closeModal(); fixNegativePoints()" 
+                    class="w-full p-4 bg-purple-50 border-2 border-purple-200 text-purple-800 rounded-xl font-bold hover:bg-purple-100 transition-colors text-left">
+                    <div class="flex items-center gap-3">
+                        <div class="text-3xl">🧹</div>
+                        <div class="flex-1">
+                            <div class="font-bold text-lg">Hapus Poin Negatif</div>
+                            <div class="text-sm font-normal">Hapus semua penalty (-1) dan hitung ulang poin</div>
+                        </div>
+                    </div>
+                </button>
                 
                 <button onclick="closeModal(); clearCacheAndReload()" 
                     class="w-full p-4 bg-green-50 border-2 border-green-200 text-green-800 rounded-xl font-bold hover:bg-green-100 transition-colors text-left">
@@ -173,3 +333,5 @@ window.clearCacheAndReload = clearCacheAndReload;
 window.resetAllDataInSupabase = resetAllDataInSupabase;
 window.resetAllPointsToZero = resetAllPointsToZero;
 window.showResetDataModal = showResetDataModal;
+window.fixNegativePoints = fixNegativePoints;
+window.resetSingleStudent = resetSingleStudent;

@@ -14,7 +14,7 @@ function renderProfile() {
         content = renderAdminProfile();
     } else if (role === 'guru') {
         content = renderGuruProfile();
-    } else if (role === 'parent') {
+    } else if (role === 'ortu') {
         content = renderParentProfile();
     } else {
         content = renderGuestProfile();

@@ -4,20 +4,20 @@ function createModal(content, allowClickOutside = true) {
     const modal = document.createElement('div');
     modal.id = 'detailModal';
     modal.className = 'fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm';
-    
+
     // Only allow closing by clicking outside if allowClickOutside is true
     if (allowClickOutside) {
         modal.onclick = (e) => {
             if (e.target === modal) closeModal();
         };
     }
-    
+
     modal.innerHTML = `
         <div class="glass rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto custom-scrollbar shadow-2xl border border-slate-200 animate-scale-in">
             ${content}
         </div>
     `;
-    
+
     document.body.appendChild(modal);
     document.body.style.overflow = 'hidden';
 }
@@ -30,45 +30,177 @@ function closeModal() {
     }
 }
 
-function showStudentDetail(student) {
-    const content = `
-        <div class="p-8">
-            <div class="flex items-start justify-between mb-6">
-                <div>
-                    <h2 class="font-display font-bold text-3xl text-slate-800 mb-2">${student.name}</h2>
-                    <p class="text-slate-500">Halaqah ${student.halaqah}</p>
-                </div>
-                <div class="flex gap-2">
-                    ${(typeof currentProfile !== 'undefined' && currentProfile && (currentProfile.role === 'guru' || currentProfile.role === 'admin')) ? `
-                    <button onclick="closeModal(); showSetoranFormV2(${JSON.stringify(student).replace(/"/g, '&quot;')})" 
-                        class="p-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors" title="Input Setoran">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
-                        </svg>
-                    </button>
-                    ` : ''}
-                    <button onclick="closeModal(); showSetoranHistory(${student.id})" 
-                        class="p-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors" title="Riwayat Setoran">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
-                    </button>
-                    ${(typeof currentProfile !== 'undefined' && currentProfile && currentProfile.role === 'admin') ? `
-                    <button onclick="closeModal(); showEditStudentForm(${JSON.stringify(student).replace(/"/g, '&quot;')})" 
-                        class="p-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors" title="Edit">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
-                        </svg>
-                    </button>
-                    ` : ''}
-                    <button onclick="closeModal()" class="p-2 hover:bg-slate-100 rounded-lg transition-colors">
-                        <svg class="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                        </svg>
-                    </button>
-                </div>
+function showStudentDetail(studentOrId) {
+    // Resolve student object from ID if needed
+    let student = studentOrId;
+    if (typeof studentOrId === 'number' || typeof studentOrId === 'string') {
+        student = dashboardData.students.find(s => s.id == studentOrId);
+    }
+    if (!student) return;
+
+    console.log('[DEBUG] Rendering student details:', student.name);
+    console.log('[DEBUG] TTL Data:', student.tempat_lahir, student.tanggal_lahir);
+
+    const isAuthorized = typeof currentProfile !== 'undefined' &&
+        (currentProfile.role === 'guru' || currentProfile.role === 'admin');
+
+    // Determine default tab
+    const defaultTab = isAuthorized ? 'input' : 'profil';
+
+    // Determine current session
+    let currentSessionId = '';
+    let isCurrentSessionActive = false;
+
+    const lembagaKey = student.lembaga || 'MTA';
+
+    if (typeof getCurrentSession === 'function') {
+        const activeSession = getCurrentSession(lembagaKey);
+        if (activeSession) {
+            currentSessionId = activeSession.id;
+            isCurrentSessionActive = true;
+        }
+    } else {
+        // Fallback if helper not available
+        const sessions = appSettings.lembaga[lembagaKey]?.sesiHalaqah || [];
+        const now = new Date();
+        const currentTime = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+        const activeSession = sessions.find(s =>
+            s.active && currentTime >= s.startTime && currentTime <= s.endTime
+        );
+        if (activeSession) {
+            currentSessionId = activeSession.id;
+            isCurrentSessionActive = true;
+        }
+    }
+
+    // Generate tabs HTML
+    const tabs = `
+        <div class="flex border-b border-slate-200 mb-6">
+            ${isAuthorized ? `
+            <button onclick="switchDetailTab('input')" id="tab-btn-input" class="flex-1 py-3 text-sm font-bold text-primary-600 border-b-2 border-primary-600 transition-colors">
+                📝 Input Setoran
+            </button>
+            ` : ''}
+            <button onclick="switchDetailTab('profil')" id="tab-btn-profil" class="flex-1 py-3 text-sm font-bold ${!isAuthorized ? 'text-primary-600 border-b-2 border-primary-600' : 'text-slate-500 border-transparent'} transition-colors">
+                👤 Profil
+            </button>
+            <button onclick="switchDetailTab('riwayat')" id="tab-btn-riwayat" class="flex-1 py-3 text-sm font-bold text-slate-500 border-b-2 border-transparent transition-colors">
+                📜 Riwayat
+            </button>
+        </div>
+    `;
+
+    // Input Content
+    let inputContent = '';
+    if (isAuthorized) {
+        // Get Lembaga Target
+        const lembagaKey = student.lembaga || 'MTA';
+        const lembagaSettings = appSettings.lembaga[lembagaKey] || appSettings.lembaga['MTA'];
+        const targetBaris = lembagaSettings.targetBaris || 15;
+        const barisPerHalaman = lembagaSettings.barisPerHalaman || 15;
+        const sessions = lembagaSettings.sesiHalaqah || [];
+
+        // Generate Sesi Options
+        const sesiOptions = sessions.map(s =>
+            `<option value="${s.id}" ${s.id === currentSessionId ? 'selected' : ''}>${s.name} (${s.startTime}-${s.endTime})</option>`
+        ).join('');
+
+        inputContent = `
+            <div id="tab-content-input" class="animate-fade-in">
+                <form onsubmit="handleQuickSetoranDetail(event, ${student.id})" class="space-y-4">
+                    <input type="hidden" id="target-baris-val" value="${targetBaris}">
+                    <input type="hidden" id="lines-per-page-val" value="${barisPerHalaman}">
+                    <input type="hidden" id="active-session-id" value="${currentSessionId}">
+                    <input type="hidden" id="student-lembaga-val" value="${lembagaKey}">
+                    
+                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-4">
+                        <!-- Sesi Selection -->
+                        <div>
+                            <label class="block text-sm font-bold text-slate-700 mb-2">Sesi Halaqah</label>
+                            <select id="quick-sesi" name="sesi" class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none bg-white font-medium" onchange="calculateAutoPoin()">
+                                <option value="" disabled ${!currentSessionId ? 'selected' : ''}>Pilih Sesi...</option>
+                                ${sesiOptions}
+                            </select>
+                        </div>
+
+                        <!-- Baris Input -->
+                        <div>
+                            <label class="block text-sm font-bold text-slate-700 mb-2 flex justify-between items-center">
+                                <span>Jumlah Baris</span>
+                                <div class="flex gap-2">
+                                    <span id="badge-target" class="text-xs font-bold px-2 py-1 rounded-lg bg-slate-100 text-slate-500 transition-colors">
+                                        🎯 Belum Target
+                                    </span>
+                                    <span class="text-xs text-slate-500 bg-slate-200 px-2 py-1 rounded-lg">Target: ${targetBaris}</span>
+                                </div>
+                            </label>
+                            <input type="number" id="quick-baris" name="baris" min="0" placeholder="0" 
+                                onfocus="if(this.value=='0') this.value=''" 
+                                onblur="if(this.value=='') this.value='0'" 
+                                oninput="calculateHalamanDetail(this.value); calculateAutoPoin()"
+                                class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none font-bold text-center text-lg">
+                        </div>
+                        
+                        <!-- Auto-calculated Halaman -->
+                        <div>
+                            <label class="block text-sm font-bold text-slate-700 mb-2">Konversi Halaman (Baris / ${barisPerHalaman})</label>
+                            <input type="number" id="quick-halaman" name="halaman" step="0.01" min="0" value="0" readonly
+                                class="w-full px-4 py-3 bg-slate-100 text-slate-500 border border-slate-200 rounded-xl font-bold text-center text-lg">
+                        </div>
+                    </div>
+
+                    <!-- Conditions & Status -->
+                    <div class="grid grid-cols-2 gap-4">
+                        <!-- Tepat Waktu (Auto & Readonly) -->
+                        <div id="status-tepat-waktu" class="flex flex-col items-center justify-center p-3 border border-slate-200 rounded-xl bg-slate-50 transition-colors">
+                            <span class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Waktu</span>
+                            <div class="flex items-center gap-2">
+                                <span id="icon-waktu" class="text-lg">⏱️</span>
+                                <span id="text-waktu" class="font-bold text-slate-700">Mengecek...</span>
+                            </div>
+                            <input type="hidden" id="check-tepat-waktu" name="tepat_waktu" value="false">
+                        </div>
+
+                        <!-- Lancar (Manual) -->
+                        <label class="flex flex-col items-center justify-center p-3 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-50 transition-colors bg-white relative overflow-hidden group">
+                            <input type="checkbox" id="check-lancar" name="lancar" class="peer sr-only" checked onchange="calculateAutoPoin()">
+                            <span class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 group-hover:text-primary-600 transition-colors">Bacaan</span>
+                            <div class="flex items-center gap-2">
+                                <span class="text-lg opacity-30 peer-checked:opacity-100 transition-opacity">👍</span>
+                                <span class="font-bold text-slate-400 peer-checked:text-primary-600 transition-colors">Lancar</span>
+                            </div>
+                            <div class="absolute inset-0 border-2 border-primary-500 rounded-xl opacity-0 peer-checked:opacity-100 pointer-events-none transition-opacity"></div>
+                        </label>
+                    </div>
+
+                    <!-- Result Poin -->
+                    <div class="bg-primary-50 p-4 rounded-xl border border-primary-100 text-center">
+                        <div class="text-xs font-bold text-primary-600 uppercase tracking-wider mb-1">Hasil Penilaian</div>
+                        <div id="poin-display" class="text-2xl font-black text-primary-700">Menunggu Input...</div>
+                        <input type="hidden" id="quick-poin" name="poin" value="">
+                    </div>
+
+                    <div>
+                         <label class="block text-sm font-bold text-slate-700 mb-2">Catatan (Opsional)</label>
+                         <input type="text" name="keterangan" placeholder="Juz, Surat, Ayat..." class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                         <button type="button" onclick="setTidakSetor()" class="py-4 bg-slate-100 text-slate-600 rounded-xl font-bold hover:bg-slate-200 transition-colors">
+                            ❌ Ghaib (-1)
+                        </button>
+                        <button type="submit" class="py-4 bg-primary-600 text-white rounded-xl font-bold text-lg hover:bg-primary-700 transition-transform hover:scale-[1.02] shadow-lg shadow-primary-200">
+                            💾 Simpan
+                        </button>
+                    </div>
+                </form>
             </div>
-            
+        `;
+    }
+
+    // Profil Content (Existing)
+    const profilContent = `
+        <div id="tab-content-profil" class="${isAuthorized ? 'hidden' : ''} animate-fade-in">
             <div class="grid grid-cols-2 gap-4 mb-6">
                 <div class="bg-primary-50 rounded-2xl p-4">
                     <div class="text-primary-600 text-sm font-bold mb-1">Ranking Keseluruhan</div>
@@ -101,32 +233,384 @@ function showStudentDetail(student) {
                 </div>
                 `}
             </div>
+
+            <!-- Data Pribadi Section -->
+            <div class="mb-6 bg-slate-50 rounded-2xl p-5 border border-slate-100">
+                <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                    <span class="text-xl">📋</span> Data Pribadi
+                </h3>
+                <div class="space-y-3">
+                    <div class="grid grid-cols-3 gap-2 text-sm border-b border-slate-200 pb-2">
+                        <div class="text-slate-500 font-medium">NISN / NIK</div>
+                        <div class="col-span-2 font-bold text-slate-700">${student.nisn || '-'} / ${student.nik || '-'}</div>
+                    </div>
+                    <div class="grid grid-cols-3 gap-2 text-sm border-b border-slate-200 pb-2">
+                        <div class="text-slate-500 font-medium">TTL</div>
+                        <div class="col-span-2 font-bold text-slate-700">
+                            ${(() => {
+            const tempat = (student.tempat_lahir || '').trim();
+            const tanggal = student.tanggal_lahir ? new Date(student.tanggal_lahir).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
+            if (tempat && tanggal) return `${tempat}, ${tanggal}`;
+            if (tempat) return tempat;
+            if (tanggal) return tanggal;
+            return '-';
+        })()}
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-3 gap-2 text-sm border-b border-slate-200 pb-2">
+                        <div class="text-slate-500 font-medium">Jenis Kelamin</div>
+                        <div class="col-span-2 font-bold text-slate-700">${student.jenis_kelamin === 'L' ? 'Laki-laki' : (student.jenis_kelamin === 'P' ? 'Perempuan' : '-')}</div>
+                    </div>
+                    <div class="grid grid-cols-3 gap-2 text-sm border-b border-slate-200 pb-2">
+                        <div class="text-slate-500 font-medium">Alamat</div>
+                        <div class="col-span-2 font-bold text-slate-700">${student.alamat || '-'}</div>
+                    </div>
+                    <div class="grid grid-cols-3 gap-2 text-sm border-b border-slate-200 pb-2">
+                        <div class="text-slate-500 font-medium">No. HP</div>
+                        <div class="col-span-2 font-bold text-slate-700">${student.hp || '-'}</div>
+                    </div>
+                    <div class="grid grid-cols-3 gap-2 text-sm border-b border-slate-200 pb-2">
+                        <div class="text-slate-500 font-medium">Orang Tua</div>
+                        <div class="col-span-2 font-bold text-slate-700">
+                            Ayah: ${student.nama_ayah || '-'}<br>
+                            Ibu: ${student.nama_ibu || '-'}
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-3 gap-2 text-sm">
+                        <div class="text-slate-500 font-medium">Sekolah Asal</div>
+                        <div class="col-span-2 font-bold text-slate-700">${student.sekolah_asal || '-'}</div>
+                    </div>
+                </div>
+            </div>
             
             <div class="mb-6">
                 <h3 class="font-bold text-slate-800 mb-3">Pencapaian</h3>
                 <div class="flex gap-2 flex-wrap">
-                    ${student.achievements.length > 0 
-                        ? student.achievements.map(a => `<span class="text-4xl">${a}</span>`).join('')
-                        : '<span class="text-slate-400 text-sm">Belum ada pencapaian</span>'
-                    }
+                    ${student.achievements.length > 0
+            ? student.achievements.map(a => `<span class="text-4xl">${a}</span>`).join('')
+            : '<span class="text-slate-400 text-sm">Belum ada pencapaian</span>'
+        }
                 </div>
             </div>
-            
-            <div class="border-t border-slate-200 pt-4">
-                <div class="flex items-center justify-between text-sm">
-                    <span class="text-slate-500">Aktivitas terakhir</span>
-                    <span class="font-semibold text-slate-700">${student.lastActivity}</span>
+
+             ${(typeof currentProfile !== 'undefined' && currentProfile && currentProfile.role === 'admin') ? `
+            <div class="flex flex-col gap-3 pt-4 border-t border-slate-100">
+                 <button onclick="closeModal(); showEditStudentForm(${JSON.stringify(student).replace(/"/g, '&quot;')})" 
+                    class="w-full py-3 bg-slate-50 text-slate-600 rounded-xl font-bold hover:bg-slate-100 transition-colors flex items-center justify-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                    Edit Data Santri
+                </button>
+                
+                <div class="grid grid-cols-2 gap-3">
+                    <button onclick="resetSingleStudent(${student.id})" 
+                        class="py-3 bg-amber-50 text-amber-700 rounded-xl font-bold hover:bg-amber-100 transition-colors flex items-center justify-center gap-2 border border-amber-200">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                        Reset Poin
+                    </button>
+                    
+                    <button onclick="confirmDeleteStudent(${student.id}); closeModal();" 
+                        class="py-3 bg-red-50 text-red-700 rounded-xl font-bold hover:bg-red-100 transition-colors flex items-center justify-center gap-2 border border-red-200">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                        Hapus
+                    </button>
                 </div>
             </div>
+            ` : ''}
         </div>
     `;
-    
+
+    // Riwayat Content (Placeholder - loaded dynamically usually)
+    const riwayatContent = `
+        <div id="tab-content-riwayat" class="hidden animate-fade-in">
+             <div class="text-center py-8">
+                <button onclick="closeModal(); showSetoranHistory(${student.id})" class="px-6 py-2 bg-slate-100 text-slate-600 rounded-lg font-bold hover:bg-slate-200">
+                    Buka Riwayat Lengkap
+                </button>
+             </div>
+        </div>
+    `;
+
+    const content = `
+        <div class="p-6 md:p-8">
+            <div class="flex items-start justify-between mb-2">
+                <div>
+                    <h2 class="font-display font-bold text-2xl md:text-3xl text-slate-800 mb-1">${student.name}</h2>
+                    <p class="text-slate-500 font-medium">Halaqah ${student.halaqah}</p>
+                </div>
+                <button onclick="closeModal()" class="p-2 hover:bg-slate-100 rounded-lg transition-colors">
+                    <svg class="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+
+            ${tabs}
+            ${inputContent}
+            ${profilContent}
+            ${riwayatContent}
+        </div>
+    `;
+
     createModal(content, false);
+
+    // Initialize auto poin logic if input tab is active
+    if (isAuthorized) {
+        setTimeout(calculateAutoPoin, 100);
+    }
 }
 
+// Helper functions for the new modal
+function switchDetailTab(tabName) {
+    // Update buttons
+    document.querySelectorAll('[id^="tab-btn-"]').forEach(btn => {
+        btn.classList.remove('text-primary-600', 'border-primary-600');
+        btn.classList.add('text-slate-500', 'border-transparent');
+    });
+    const activeBtn = document.getElementById(`tab-btn-${tabName}`);
+    if (activeBtn) {
+        activeBtn.classList.add('text-primary-600', 'border-primary-600');
+        activeBtn.classList.remove('text-slate-500', 'border-transparent');
+    }
+
+    // Update content
+    document.querySelectorAll('[id^="tab-content-"]').forEach(content => {
+        content.classList.add('hidden');
+    });
+    document.getElementById(`tab-content-${tabName}`).classList.remove('hidden');
+}
+
+function calculateHalamanDetail(baris) {
+    const input = document.getElementById('quick-halaman');
+    const linesPerPageInput = document.getElementById('lines-per-page-val');
+
+    if (input) {
+        let val = parseInt(baris) || 0;
+        let divisor = 15; // Default fallback
+
+        if (linesPerPageInput) {
+            divisor = parseInt(linesPerPageInput.value) || 15;
+        }
+
+        let halaman = val / divisor;
+        // Format to max 2 decimal places, but remove trailing zeros
+        input.value = parseFloat(halaman.toFixed(2));
+    }
+}
+
+function adjustBarisInput(amount) {
+    const input = document.getElementById('quick-baris');
+    if (input) {
+        let val = parseInt(input.value) || 0;
+        let newVal = val + amount;
+        if (newVal < 0) newVal = 0;
+        input.value = newVal;
+        calculateHalamanDetail(newVal);
+    }
+}
+
+function adjustHalamanInput(amount) {
+    const input = document.getElementById('quick-halaman');
+    if (input) {
+        let val = parseFloat(input.value) || 0;
+        input.value = (val + amount).toFixed(1);
+    }
+}
+
+async function handleQuickSetoranDetail(event, studentId) {
+    event.preventDefault();
+    const formData = new FormData(event.target);
+    const halaman = parseFloat(formData.get('halaman')) || 0;
+    const poin = parseInt(formData.get('poin'));
+    const keterangan = formData.get('keterangan');
+
+    if (isNaN(poin)) {
+        showNotification('❌ Pilih kondisi setoran!', 'error');
+        return;
+    }
+
+    try {
+        const student = dashboardData.students.find(s => s.id === studentId);
+        if (!student) throw new Error('Santri not found');
+
+        // 1. Update Points & Streak (via SetoranHarian API if available)
+        const halaqah = dashboardData.halaqahs.find(h => h.name === student.halaqah);
+
+        if (window.SetoranHarian && halaqah) {
+            await SetoranHarian.create(studentId, halaqah.id, poin, keterangan);
+            await updateStudentStreak(studentId);
+        } else {
+            // Fallback logic
+            student.total_points += poin;
+            student.streak = (student.streak || 0) + 1;
+        }
+
+        // 2. Update Hafalan (Manual Update)
+        if (halaman > 0) {
+            if (!student.total_hafalan) student.total_hafalan = 0;
+            student.total_hafalan += halaman;
+            student.total_hafalan = Math.round(student.total_hafalan * 100) / 100;
+        }
+
+        // 3. Save & Refresh
+        recalculateRankings();
+        StorageManager.save();
+
+        // Sync to Supabase if available
+        if (typeof syncStudentsToSupabase === 'function') {
+            syncStudentsToSupabase().catch(err => console.error('Auto-sync error:', err));
+        }
+
+        refreshAllData();
+
+        showNotification(`✅ Setoran berhasil! (+${poin} poin, +${halaman} hal)`);
+        closeModal();
+
+    } catch (error) {
+        console.error('Error:', error);
+        showNotification('❌ Gagal menyimpan: ' + error.message, 'error');
+    }
+}
+
+function calculateAutoPoin() {
+    const barisInput = document.getElementById('quick-baris');
+    const targetInput = document.getElementById('target-baris-val');
+    // const checkTepatWaktu = document.getElementById('check-tepat-waktu'); // Now derived
+    const checkLancar = document.getElementById('check-lancar');
+    const poinInput = document.getElementById('quick-poin');
+    const poinDisplay = document.getElementById('poin-display');
+    const sesiSelect = document.getElementById('quick-sesi');
+
+    // UI Elements for feedback
+    const badgeTarget = document.getElementById('badge-target');
+    const statusTepatWaktu = document.getElementById('status-tepat-waktu');
+    const iconWaktu = document.getElementById('icon-waktu');
+    const textWaktu = document.getElementById('text-waktu');
+    const checkTepatWaktuInput = document.getElementById('check-tepat-waktu'); // hidden input
+
+    if (!barisInput || !targetInput || !checkLancar || !poinInput || !poinDisplay || !sesiSelect) return;
+
+    // 1. Calculate Target Reached
+    const baris = parseInt(barisInput.value) || 0;
+    const target = parseInt(targetInput.value) || 15;
+    const isTargetReached = baris >= target;
+
+    // Update Target Badge
+    if (badgeTarget) {
+        if (isTargetReached) {
+            badgeTarget.className = "text-xs font-bold px-2 py-1 rounded-lg bg-green-100 text-green-700 transition-colors";
+            badgeTarget.textContent = "🎯 Tercapai";
+        } else {
+            badgeTarget.className = "text-xs font-bold px-2 py-1 rounded-lg bg-slate-100 text-slate-500 transition-colors";
+            badgeTarget.textContent = "🎯 Belum Target";
+        }
+    }
+
+    // 2. Calculate Tepat Waktu (Strict Mode)
+    let isTepatWaktu = false;
+    const selectedSesiId = parseInt(sesiSelect.value);
+    const lembagaKey = document.getElementById('student-lembaga-val')?.value || 'MTA';
+
+    if (selectedSesiId && typeof appSettings !== 'undefined') {
+        const settings = appSettings.lembaga[lembagaKey] || appSettings.lembaga['MTA'];
+        const sessions = settings.sesiHalaqah || [];
+        const sesi = sessions.find(s => s.id === selectedSesiId);
+
+        if (sesi) {
+            const now = new Date();
+            const currentTime = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+            // Check if current time is within session time
+            if (currentTime >= sesi.startTime && currentTime <= sesi.endTime) {
+                isTepatWaktu = true;
+            }
+        }
+    }
+
+    // Update Tepat Waktu UI
+    if (statusTepatWaktu && iconWaktu && textWaktu) {
+        if (isTepatWaktu) {
+            statusTepatWaktu.className = "flex flex-col items-center justify-center p-3 border-2 border-green-500 rounded-xl bg-green-50 transition-colors";
+            iconWaktu.textContent = "✅";
+            textWaktu.textContent = "Tepat Waktu";
+            textWaktu.className = "font-bold text-green-700";
+        } else {
+            statusTepatWaktu.className = "flex flex-col items-center justify-center p-3 border border-slate-200 rounded-xl bg-slate-50 transition-colors opacity-75";
+            iconWaktu.textContent = "⏰";
+            textWaktu.textContent = "Terlambat";
+            textWaktu.className = "font-bold text-slate-500";
+        }
+    }
+    if (checkTepatWaktuInput) checkTepatWaktuInput.value = isTepatWaktu;
+
+    // 3. Calculate Poin
+    const isLancar = checkLancar.checked;
+    let poin = 0;
+    let label = "😐 Maqbul (0)";
+
+    if (!isTepatWaktu) {
+        poin = 0;
+        label = "😐 Maqbul (0) - Terlambat";
+    } else {
+        if (isLancar && isTargetReached) {
+            poin = 2;
+            label = "✅ Mumtaz (+2)";
+        } else if (!isLancar && isTargetReached) {
+            poin = 1;
+            label = "⚠️ Jayyid (+1)";
+        } else {
+            // isLancar && !isTargetReached OR !isLancar && !isTargetReached
+            poin = 0;
+            label = "😐 Maqbul (0) - Kurang Target";
+        }
+    }
+
+    poinInput.value = poin;
+    poinDisplay.textContent = label;
+
+    // Color coding
+    poinDisplay.className = "text-2xl font-black transition-colors " +
+        (poin === 2 ? "text-green-600" :
+            poin === 1 ? "text-amber-600" :
+                "text-slate-600");
+}
+
+function setTidakSetor() {
+    const poinInput = document.getElementById('quick-poin');
+    const poinDisplay = document.getElementById('poin-display');
+    const barisInput = document.getElementById('quick-baris');
+
+    if (confirm("Tandai santri ini sebagai Ghaib / Tidak Setor (-1)?")) {
+        poinInput.value = -1;
+        poinDisplay.textContent = "❌ Ghaib (-1)";
+        poinDisplay.className = "text-2xl font-black text-red-600";
+        barisInput.value = 0; // Reset baris
+        calculateHalamanDetail(0);
+
+        // Reset manual toggles
+        const checkLancar = document.getElementById('check-lancar');
+        if (checkLancar) checkLancar.checked = false;
+
+        // Update other indicators manually
+        const badgeTarget = document.getElementById('badge-target');
+        if (badgeTarget) {
+            badgeTarget.className = "text-xs font-bold px-2 py-1 rounded-lg bg-red-100 text-red-700 transition-colors";
+            badgeTarget.textContent = "❌ Ghaib";
+        }
+    }
+}
+
+// Make globally accessible
+window.switchDetailTab = switchDetailTab;
+window.adjustHalamanInput = adjustHalamanInput;
+window.adjustBarisInput = adjustBarisInput;
+window.calculateHalamanDetail = calculateHalamanDetail;
+window.handleQuickSetoranDetail = handleQuickSetoranDetail;
+window.calculateAutoPoin = calculateAutoPoin;
+window.setTidakSetor = setTidakSetor;
+
+// Keep existing showHalaqahDetail
 function showHalaqahDetail(halaqah) {
     const members = getStudentsByHalaqah(halaqah.name.replace('Halaqah ', ''));
-    
+
     const content = `
         <div class="p-8">
             <div class="flex items-start justify-between mb-6">
@@ -175,7 +659,7 @@ function showHalaqahDetail(halaqah) {
             </div>
         </div>
     `;
-    
+
     createModal(content, false);
 }
 
@@ -219,7 +703,7 @@ function showEditHafalanForm(student) {
             </form>
         </div>
     `;
-    
+
     createModal(content, false);
 }
 
@@ -227,7 +711,7 @@ function handleEditHafalan(event, studentId) {
     event.preventDefault();
     const formData = new FormData(event.target);
     const totalHafalan = parseFloat(formData.get('total_hafalan'));
-    
+
     const student = dashboardData.students.find(s => s.id === studentId);
     if (student) {
         student.total_hafalan = totalHafalan;
@@ -235,7 +719,7 @@ function handleEditHafalan(event, studentId) {
         refreshAllData();
         closeModal();
         showNotification('✅ Total hafalan berhasil diperbarui!');
-        
+
         // Re-open detail to show changes
         setTimeout(() => showStudentDetail(student), 300);
     }

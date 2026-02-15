@@ -23,29 +23,40 @@ function saveUserSantriRelationships() {
 // Get santri IDs for current user
 function getSantriIdsForCurrentUser() {
     const user = (typeof currentProfile !== 'undefined' && currentProfile) ? currentProfile : null;
-    
+
     // Admin can see all santri
     if (!user || user.role === 'admin') {
         return dashboardData.students.map(s => s.id);
     }
-    
+
     // Get santri IDs for this user
     const relationships = userSantriData.relationships.filter(r => r.userId === user.id);
-    return relationships.map(r => r.santriId);
+    const manualIds = relationships.map(r => r.santriId);
+
+    // Also include auto-linked child from auth (Parent Login via NIK)
+    if (window.getCurrentUserChild && typeof window.getCurrentUserChild === 'function') {
+        const autoChild = window.getCurrentUserChild();
+        if (autoChild && autoChild.id) {
+            manualIds.push(autoChild.id);
+        }
+    }
+
+    // Return unique IDs
+    return [...new Set(manualIds)];
 }
 
 // Filter students based on current user
 function getStudentsForCurrentUser() {
     const user = (typeof currentProfile !== 'undefined' && currentProfile) ? currentProfile : null;
-    
+
     // Admin can see all students
     if (!user || user.role === 'admin') {
         return dashboardData.students;
     }
-    
+
     // Get santri IDs for this user
     const santriIds = getSantriIdsForCurrentUser();
-    
+
     // Filter students
     return dashboardData.students.filter(s => santriIds.includes(s.id));
 }
@@ -56,7 +67,7 @@ function assignSantriToUser(userId, santriId) {
     const exists = userSantriData.relationships.some(
         r => r.userId === userId && r.santriId === santriId
     );
-    
+
     if (!exists) {
         userSantriData.relationships.push({
             userId: userId,
@@ -74,7 +85,7 @@ function removeSantriFromUser(userId, santriId) {
     const index = userSantriData.relationships.findIndex(
         r => r.userId === userId && r.santriId === santriId
     );
-    
+
     if (index !== -1) {
         userSantriData.relationships.splice(index, 1);
         saveUserSantriRelationships();
@@ -94,12 +105,12 @@ function getUsersForSantri(santriId) {
 function showAssignSantriDialog(userId) {
     const user = usersData.users.find(u => u.id === userId);
     if (!user) return;
-    
+
     // Get currently assigned santri
     const assignedIds = userSantriData.relationships
         .filter(r => r.userId === userId)
         .map(r => r.santriId);
-    
+
     const content = `
         <div class="p-6">
             <div class="flex items-start justify-between mb-6">
@@ -122,8 +133,8 @@ function showAssignSantriDialog(userId) {
             
             <div class="max-h-96 overflow-y-auto space-y-2" id="santriAssignList">
                 ${dashboardData.students.map(santri => {
-                    const isAssigned = assignedIds.includes(santri.id);
-                    return `
+        const isAssigned = assignedIds.includes(santri.id);
+        return `
                         <div class="santri-assign-item flex items-center justify-between p-3 rounded-xl border ${isAssigned ? 'bg-green-50 border-green-200' : 'bg-slate-50 border-slate-200'}" data-name="${santri.name.toLowerCase()}">
                             <div>
                                 <div class="font-bold text-slate-800">${santri.name}</div>
@@ -135,7 +146,7 @@ function showAssignSantriDialog(userId) {
                             </button>
                         </div>
                     `;
-                }).join('')}
+    }).join('')}
             </div>
             
             <div class="mt-6 pt-4 border-t border-slate-200">
@@ -146,7 +157,7 @@ function showAssignSantriDialog(userId) {
             </div>
         </div>
     `;
-    
+
     createModal(content, false);
 }
 
@@ -154,7 +165,7 @@ function showAssignSantriDialog(userId) {
 function filterSantriAssignList(search) {
     const items = document.querySelectorAll('.santri-assign-item');
     const searchLower = search.toLowerCase();
-    
+
     items.forEach(item => {
         const name = item.getAttribute('data-name');
         if (name.includes(searchLower)) {
@@ -170,13 +181,13 @@ function toggleSantriAssignment(userId, santriId) {
     const exists = userSantriData.relationships.some(
         r => r.userId === userId && r.santriId === santriId
     );
-    
+
     if (exists) {
         removeSantriFromUser(userId, santriId);
     } else {
         assignSantriToUser(userId, santriId);
     }
-    
+
     // Refresh the dialog
     showAssignSantriDialog(userId);
 }

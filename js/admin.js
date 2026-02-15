@@ -12,11 +12,19 @@ function showAdminSettings() {
 
     const santriList = dashboardData.students.map(student => {
         const studentJson = JSON.stringify(student).replace(/"/g, '&quot;');
+        // Format birth date if exists
+        const birthDate = student.tanggal_lahir ? new Date(student.tanggal_lahir).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+
         return `
-            <div class="santri-admin-item flex items-center justify-between p-3 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors" data-name="${student.name.toLowerCase()}">
+            <div class="santri-admin-item flex items-center justify-between p-3 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors" data-name="${student.name.toLowerCase()} ${student.nik ? student.nik : ''}">
                 <div class="flex-1">
                     <div class="font-semibold text-slate-800">${student.name}</div>
                     <div class="text-xs text-slate-500">Halaqah ${student.halaqah} • ${student.total_points} poin • Rank #${student.overall_ranking}</div>
+                    ${(student.nik || birthDate) ? `
+                    <div class="text-[10px] text-slate-400 mt-0.5 flex gap-2">
+                        ${student.nik ? `<span class="bg-slate-100 px-1.5 py-0.5 rounded text-slate-600">NIK: ${student.nik}</span>` : ''}
+                        ${birthDate ? `<span class="bg-slate-100 px-1.5 py-0.5 rounded text-slate-600">🎂 ${birthDate}</span>` : ''}
+                    </div>` : ''}
                 </div>
                 <div class="flex gap-2">
                     <button onclick='closeModal(); showEditStudentForm(${studentJson}, true)' 
@@ -35,7 +43,7 @@ function showAdminSettings() {
             </div>
         `;
     }).join('');
-    
+
     const halaqahList = dashboardData.halaqahs.map(halaqah => {
         const halaqahJson = JSON.stringify(halaqah).replace(/"/g, '&quot;');
         return `
@@ -62,33 +70,90 @@ function showAdminSettings() {
         `;
     }).join('');
 
-    const sesiList = appSettings.sesiHalaqah.map((sesi) => `
-        <div class="bg-slate-50 rounded-xl p-4">
-            <div class="flex items-center justify-between mb-3">
-                <div class="font-bold text-slate-800">${sesi.name}</div>
-                <label class="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" ${sesi.active ? 'checked' : ''} 
-                        onchange="toggleSesi(${sesi.id})" class="sr-only peer">
-                    <div class="w-11 h-6 bg-slate-300 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
-                </label>
+    // Default to first lembaga
+    const firstLembagaKey = Object.keys(appSettings.lembaga)[0] || 'MTA';
+    const sesiList = renderAdminSesiList(firstLembagaKey);
+
+    // Generate Data Induk Table Rows
+    const dataIndukRows = dashboardData.students.map((student, index) => {
+        const birthDate = student.tanggal_lahir ? new Date(student.tanggal_lahir).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-';
+
+        // Status checks
+        const hasNIK = !!student.nik;
+        const hasTTL = !!student.tanggal_lahir;
+        const isReady = hasNIK && hasTTL;
+
+        return `
+            <tr class="hover:bg-slate-50 border-b border-slate-100 text-sm">
+                <td class="px-4 py-3 text-slate-500">${index + 1}</td>
+                <td class="px-4 py-3 font-mono text-slate-600">${student.nisn || '-'}</td>
+                <td class="px-4 py-3 font-mono text-slate-600">
+                    ${student.nik || '-'}
+                    ${!hasNIK ? '<span class="ml-1 text-xs text-red-500" title="Wajib untuk login">(Missing)</span>' : ''}
+                </td>
+                <td class="px-4 py-3 font-semibold text-slate-800">${student.name}</td>
+                <td class="px-4 py-3 text-slate-600">${student.jenis_kelamin || '-'}</td>
+                <td class="px-4 py-3 text-slate-600">
+                    ${(() => {
+                const birthDate = student.tanggal_lahir ? new Date(student.tanggal_lahir).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+                const parts = [];
+                if (student.tempat_lahir) parts.push(student.tempat_lahir);
+                if (birthDate) parts.push(birthDate);
+                return parts.length > 0 ? parts.join(', ') : '-';
+            })()}
+                    ${!hasTTL ? '<span class="ml-1 text-xs text-red-500" title="Wajib untuk password">(Missing TTL)</span>' : ''}
+                </td>
+                <td class="px-4 py-3 text-slate-600 max-w-xs truncate" title="${student.alamat || ''}">${student.alamat || '-'}</td>
+                <td class="px-4 py-3 text-slate-600">
+                    <div class="text-xs">Ayah: ${student.nama_ayah || '-'}</div>
+                    <div class="text-xs">Ibu: ${student.nama_ibu || '-'}</div>
+                </td>
+                <td class="px-4 py-3 text-center">
+                    ${isReady
+                ? '<span class="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-bold">Siap Login</span>'
+                : '<span class="px-2 py-1 bg-red-100 text-red-700 rounded-full text-xs font-bold">Data Kurang</span>'}
+                </td>
+            </tr>
+        `;
+    }).join('');
+
+    // Generate Verification Stats
+    const totalStudents = dashboardData.students.length;
+    const readyStudents = dashboardData.students.filter(s => s.nik && s.tanggal_lahir).length;
+    const missingData = totalStudents - readyStudents;
+    const uniqueNiks = new Set(dashboardData.students.filter(s => s.nik).map(s => s.nik)).size;
+    const duplicateNiks = dashboardData.students.filter(s => s.nik).length - uniqueNiks;
+
+    // Add Verification Summary at top of Data Induk Tab
+    const verificationSummary = `
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                <div class="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">Total Santri</div>
+                <div class="text-2xl font-black text-slate-800">${totalStudents}</div>
             </div>
-            <div class="grid grid-cols-2 gap-3">
-                <div>
-                    <label class="text-xs text-slate-600 font-bold">Waktu Mulai</label>
-                    <input type="time" value="${sesi.startTime}" 
-                        onchange="updateSesiTime(${sesi.id}, 'start', this.value)"
-                        class="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm">
-                </div>
-                <div>
-                    <label class="text-xs text-slate-600 font-bold">Waktu Selesai</label>
-                    <input type="time" value="${sesi.endTime}" 
-                        onchange="updateSesiTime(${sesi.id}, 'end', this.value)"
-                        class="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm">
-                </div>
+            <div class="bg-green-50 p-4 rounded-xl border border-green-200 shadow-sm">
+                <div class="text-green-600 text-xs font-bold uppercase tracking-wider mb-1">Siap Login (Akun)</div>
+                <div class="text-2xl font-black text-green-700">${readyStudents}</div>
+                <div class="text-xs text-green-600 mt-1">NIK & TTL Lengkap</div>
+            </div>
+            <div class="bg-red-50 p-4 rounded-xl border border-red-200 shadow-sm">
+                <div class="text-red-600 text-xs font-bold uppercase tracking-wider mb-1">Data Kurang</div>
+                <div class="text-2xl font-black text-red-700">${missingData}</div>
+                <div class="text-xs text-red-600 mt-1">Belum bisa login</div>
+            </div>
+             <div class="bg-amber-50 p-4 rounded-xl border border-amber-200 shadow-sm">
+                <div class="text-amber-600 text-xs font-bold uppercase tracking-wider mb-1">Duplikasi NIK</div>
+                <div class="text-2xl font-black text-amber-700">${duplicateNiks}</div>
+                <div class="text-xs text-amber-600 mt-1">Perlu diperbaiki</div>
             </div>
         </div>
-    `).join('');
-    
+    `;
+
+    // Generate lembaga options for dropdown
+    const lembagaOptions = Object.keys(appSettings.lembaga).map(key =>
+        `<option value="${key}">${appSettings.lembaga[key].name}</option>`
+    ).join('');
+
     const lembagaList = Object.keys(appSettings.lembaga).map(key => {
         const l = appSettings.lembaga[key];
         return `
@@ -132,6 +197,9 @@ function showAdminSettings() {
                 <button onclick="switchAdminTab('santri')" id="tab-santri" class="admin-tab active px-4 py-2 font-bold text-sm border-b-2 border-primary-600 text-primary-600 whitespace-nowrap">
                     Kelola Santri
                 </button>
+                <button onclick="switchAdminTab('datainduk')" id="tab-datainduk" class="admin-tab px-4 py-2 font-bold text-sm border-b-2 border-transparent text-slate-500 hover:text-slate-700 whitespace-nowrap">
+                    🗃️ Data Induk
+                </button>
                 <button onclick="switchAdminTab('halaqah')" id="tab-halaqah" class="admin-tab px-4 py-2 font-bold text-sm border-b-2 border-transparent text-slate-500 hover:text-slate-700 whitespace-nowrap">
                     Kelola Halaqah
                 </button>
@@ -147,7 +215,7 @@ function showAdminSettings() {
                 <button onclick="switchAdminTab('lembaga')" id="tab-lembaga" class="admin-tab px-4 py-2 font-bold text-sm border-b-2 border-transparent text-slate-500 hover:text-slate-700 whitespace-nowrap">
                     Lembaga
                 </button>
-                <button onclick="switchAdminTab('data')" id="tab-data" class="admin-tab px-4 py-2 font-bold text-sm border-b-2 border-transparent text-slate-500 hover:text-slate-700 whitespace-nowrap">
+                <button onclick="switchAdminTab('danger-zone')" id="tab-danger-zone" class="admin-tab px-4 py-2 font-bold text-sm border-b-2 border-transparent text-slate-500 hover:text-slate-700 whitespace-nowrap">
                     Hapus Data
                 </button>
             </div>
@@ -182,6 +250,44 @@ function showAdminSettings() {
                     
                     <div class="space-y-2 max-h-96 overflow-y-auto custom-scrollbar" id="santriAdminList">
                         ${santriList}
+                    </div>
+                </div>
+
+                <div id="content-datainduk" class="admin-tab-content hidden">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="font-bold text-xl text-slate-800">Data Induk Santri (Lengkap)</h3>
+                        <button onclick="exportToExcel()" class="px-4 py-2 bg-green-600 text-white rounded-lg font-bold hover:bg-green-700 transition-colors text-sm">
+                            📥 Download Excel
+                        </button>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <input type="text" placeholder="Cari di data induk..." 
+                            oninput="const term = this.value.toLowerCase(); document.querySelectorAll('#dataIndukTableBody tr').forEach(row => { row.style.display = row.innerText.toLowerCase().includes(term) ? '' : 'none'; })"
+                            class="w-full px-4 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none">
+                    </div>
+
+                    <div class="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                        <div class="overflow-x-auto max-h-[500px]">
+                            <table class="w-full text-left border-collapse relative">
+                                <thead class="sticky top-0 z-10">
+                                    <tr class="bg-slate-50 border-b border-slate-200 text-xs uppercase text-slate-500 font-bold shadow-sm">
+                                        <th class="px-4 py-3 bg-slate-50">No</th>
+                                        <th class="px-4 py-3 bg-slate-50">NISN</th>
+                                        <th class="px-4 py-3 bg-slate-50">NIK</th>
+                                        <th class="px-4 py-3 bg-slate-50">Nama Lengkap</th>
+                                        <th class="px-4 py-3 bg-slate-50">L/P</th>
+                                        <th class="px-4 py-3 bg-slate-50">TTL</th>
+                                        <th class="px-4 py-3 bg-slate-50">Alamat</th>
+                                        <th class="px-4 py-3 bg-slate-50">Orang Tua</th>
+                                        <th class="px-4 py-3 bg-slate-50 text-center">Status Login</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="dataIndukTableBody" class="bg-white">
+                                    ${dataIndukRows}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
 
@@ -330,8 +436,17 @@ function showAdminSettings() {
                 </div>
                 
                 <div id="content-sesi" class="admin-tab-content hidden">
-                    <h3 class="font-bold text-xl text-slate-800 mb-4">Sesi Halaqah</h3>
-                    <div class="space-y-3">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="font-bold text-xl text-slate-800">Sesi Halaqah</h3>
+                        <div class="flex items-center gap-2">
+                            <label class="text-sm font-semibold text-slate-600">Pilih Lembaga:</label>
+                            <select onchange="updateAdminSesiContainer(this.value)" 
+                                class="px-3 py-1.5 rounded-lg border border-slate-200 text-sm font-semibold text-slate-700 bg-white focus:ring-2 focus:ring-primary-500 outline-none">
+                                ${lembagaOptions}
+                            </select>
+                        </div>
+                    </div>
+                    <div id="adminSesiContainer" class="space-y-3">
                         ${sesiList}
                     </div>
                 </div>
@@ -343,7 +458,7 @@ function showAdminSettings() {
                     </div>
                 </div>
                 
-                <div id="content-data" class="admin-tab-content hidden">
+                <div id="content-danger-zone" class="admin-tab-content hidden">
                     <div class="bg-red-50 border border-red-200 rounded-xl p-6 mb-4">
                         <h4 class="font-bold text-red-800 mb-2 flex items-center gap-2 text-xl">
                             <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
@@ -352,10 +467,18 @@ function showAdminSettings() {
                             Zona Bahaya
                         </h4>
                         <p class="text-sm text-red-700 mb-4">Tindakan berikut tidak dapat dibatalkan!</p>
-                        <button onclick="closeModal(); showResetDataModal()" 
-                            class="w-full bg-red-600 text-white px-4 py-3 rounded-lg font-bold hover:bg-red-700 transition-colors">
-                            🔧 Reset Data (Perbaiki Data Corrupt)
-                        </button>
+                        
+                        <div class="space-y-3">
+                            <button onclick="fixNegativePoints()" 
+                                class="w-full bg-purple-600 text-white px-4 py-3 rounded-lg font-bold hover:bg-purple-700 transition-colors flex items-center justify-center gap-2">
+                                🧹 Hapus Poin Negatif (Fix)
+                            </button>
+                            
+                            <button onclick="closeModal(); showResetDataModal()" 
+                                class="w-full bg-red-600 text-white px-4 py-3 rounded-lg font-bold hover:bg-red-700 transition-colors flex items-center justify-center gap-2">
+                                🔧 Reset Data Lengkap
+                            </button>
+                        </div>
                     </div>
                     
                     <div class="bg-blue-50 border border-blue-200 rounded-xl p-4">
@@ -390,7 +513,7 @@ function showAdminSettings() {
             </div>
         </div>
     `;
-    
+
     createModal(content, false);
 }
 
@@ -398,14 +521,54 @@ function showAdminSettings() {
 function renderAdminSettings(force = false) {
     const container = document.getElementById('settingsContainer');
     if (!container) return;
-    
+
+    // Save currently active tab
+    let activeTabId = 'santri';
+    const currentActive = container.querySelector('.admin-tab-inline.active');
+    if (currentActive) {
+        activeTabId = currentActive.id.replace('tab-inline-', '');
+    }
+
     // Use same content generation as showAdminSettings but without modal wrapper
     const content = generateAdminSettingsContent();
     container.innerHTML = content;
+
+    // Restore active tab
+    if (activeTabId && activeTabId !== 'santri') {
+        switchAdminTabInline(activeTabId);
+    }
 }
 
 // Generate admin settings content (reusable)
 function generateAdminSettingsContent() {
+    const dataIndukRows = dashboardData.students.map((student, index) => {
+        return `
+            <tr class="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                <td class="px-4 py-3 text-sm text-slate-500">${index + 1}</td>
+                <td class="px-4 py-3 text-sm font-medium text-slate-800">${student.nisn || '-'}</td>
+                <td class="px-4 py-3 text-sm text-slate-600">${student.nik || '-'}</td>
+                <td class="px-4 py-3 text-sm font-bold text-slate-800">${student.name}</td>
+                <td class="px-4 py-3 text-sm text-slate-600">${student.jenis_kelamin || '-'}</td>
+                <td class="px-4 py-3 text-sm text-slate-600">
+                    ${(() => {
+                const birthDate = student.tanggal_lahir ? new Date(student.tanggal_lahir).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+                const parts = [];
+                if (student.tempat_lahir) parts.push(student.tempat_lahir);
+                if (birthDate) parts.push(birthDate);
+                return parts.length > 0 ? parts.join(', ') : '-';
+            })()}
+                </td>
+                <td class="px-4 py-3 text-sm text-slate-600 truncate max-w-[200px]" title="${student.alamat || ''}">${student.alamat || '-'}</td>
+                <td class="px-4 py-3 text-sm text-slate-600">
+                    <div class="flex flex-col">
+                        <span class="text-xs text-slate-500">Ayah: ${student.nama_ayah || '-'}</span>
+                        <span class="text-xs text-slate-500">Ibu: ${student.nama_ibu || '-'}</span>
+                    </div>
+                </td>
+            </tr>
+        `;
+    }).join('');
+
     const santriList = dashboardData.students.map(student => {
         const studentJson = JSON.stringify(student).replace(/"/g, '&quot;');
         return `
@@ -431,7 +594,7 @@ function generateAdminSettingsContent() {
             </div>
         `;
     }).join('');
-    
+
     const halaqahList = dashboardData.halaqahs.map(halaqah => {
         const halaqahJson = JSON.stringify(halaqah).replace(/"/g, '&quot;');
         return `
@@ -458,33 +621,15 @@ function generateAdminSettingsContent() {
         `;
     }).join('');
 
-    const sesiList = appSettings.sesiHalaqah.map((sesi) => `
-        <div class="bg-slate-50 rounded-xl p-4">
-            <div class="flex items-center justify-between mb-3">
-                <div class="font-bold text-slate-800">${sesi.name}</div>
-                <label class="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" ${sesi.active ? 'checked' : ''} 
-                        onchange="toggleSesi(${sesi.id})" class="sr-only peer">
-                    <div class="w-11 h-6 bg-slate-300 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
-                </label>
-            </div>
-            <div class="grid grid-cols-2 gap-3">
-                <div>
-                    <label class="text-xs text-slate-600 font-bold">Waktu Mulai</label>
-                    <input type="time" value="${sesi.startTime}" 
-                        onchange="updateSesiTime(${sesi.id}, 'start', this.value)"
-                        class="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm">
-                </div>
-                <div>
-                    <label class="text-xs text-slate-600 font-bold">Waktu Selesai</label>
-                    <input type="time" value="${sesi.endTime}" 
-                        onchange="updateSesiTime(${sesi.id}, 'end', this.value)"
-                        class="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm">
-                </div>
-            </div>
-        </div>
-    `).join('');
-    
+    // Default to first lembaga
+    const firstLembagaKey = Object.keys(appSettings.lembaga)[0] || 'MTA';
+    const sesiList = renderAdminSesiList(firstLembagaKey);
+
+    // Generate lembaga options for dropdown
+    const lembagaOptions = Object.keys(appSettings.lembaga).map(key =>
+        `<option value="${key}">${appSettings.lembaga[key].name}</option>`
+    ).join('');
+
     const lembagaList = Object.keys(appSettings.lembaga).map(key => {
         const l = appSettings.lembaga[key];
         return `
@@ -523,6 +668,9 @@ function generateAdminSettingsContent() {
                 <button onclick="switchAdminTabInline('santri')" id="tab-inline-santri" class="admin-tab-inline active px-4 py-2 font-bold text-sm border-b-2 border-primary-600 text-primary-600 whitespace-nowrap">
                     Kelola Santri
                 </button>
+                <button onclick="switchAdminTabInline('datainduk')" id="tab-inline-datainduk" class="admin-tab-inline px-4 py-2 font-bold text-sm border-b-2 border-transparent text-slate-500 hover:text-slate-700 whitespace-nowrap">
+                    🗃️ Data Induk
+                </button>
                 <button onclick="switchAdminTabInline('halaqah')" id="tab-inline-halaqah" class="admin-tab-inline px-4 py-2 font-bold text-sm border-b-2 border-transparent text-slate-500 hover:text-slate-700 whitespace-nowrap">
                     Kelola Halaqah
                 </button>
@@ -538,12 +686,88 @@ function generateAdminSettingsContent() {
                 <button onclick="switchAdminTabInline('lembaga')" id="tab-inline-lembaga" class="admin-tab-inline px-4 py-2 font-bold text-sm border-b-2 border-transparent text-slate-500 hover:text-slate-700 whitespace-nowrap">
                     Lembaga
                 </button>
-                <button onclick="switchAdminTabInline('data')" id="tab-inline-data" class="admin-tab-inline px-4 py-2 font-bold text-sm border-b-2 border-transparent text-slate-500 hover:text-slate-700 whitespace-nowrap">
+                <button onclick="switchAdminTabInline('danger-zone')" id="tab-inline-danger-zone" class="admin-tab-inline px-4 py-2 font-bold text-sm border-b-2 border-transparent text-slate-500 hover:text-slate-700 whitespace-nowrap">
                     Hapus Data
                 </button>
             </div>
             
             <div class="space-y-6">
+                <div id="content-inline-danger-zone" class="admin-tab-inline-content hidden min-h-[200px]">
+                    <div class="bg-red-50 border border-red-200 rounded-xl p-6 shadow-sm">
+                        <h5 class="font-bold text-red-800 mb-4 flex items-center gap-2 text-xl">
+                            <span class="text-2xl">⚠️</span>
+                            Zona Bahaya
+                        </h5>
+                        <p class="text-sm text-red-700 mb-6 font-medium">Tindakan berikut tidak dapat dibatalkan!</p>
+                        
+                        <div class="space-y-4">
+                            <button onclick="if(typeof fixNegativePoints === 'function') { fixNegativePoints() } else { alert('Fungsi belum dimuat. Coba refresh halaman.') }" 
+                                class="w-full bg-purple-600 text-white px-6 py-4 rounded-xl font-bold hover:bg-purple-700 transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-3 transform hover:-translate-y-1">
+                                <span class="text-2xl">🧹</span>
+                                <div class="text-left">
+                                    <div class="text-base">Hapus Poin Negatif (Fix)</div>
+                                    <div class="text-xs font-normal opacity-80">Klik tombol ini untuk memperbaiki data</div>
+                                </div>
+                            </button>
+                            
+                            <button onclick="showResetDataModal()" 
+                                class="w-full bg-amber-500 text-white px-6 py-4 rounded-xl font-bold hover:bg-amber-600 transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-3 transform hover:-translate-y-1">
+                                <span class="text-2xl">🔧</span>
+                                <div class="text-left">
+                                    <div class="text-base">Menu Reset Data</div>
+                                    <div class="text-xs font-normal opacity-80">Reset poin 0, hapus cache, dll</div>
+                                </div>
+                            </button>
+                            
+                            <button onclick="confirmDeleteAllData()" 
+                                class="w-full bg-red-600 text-white px-6 py-4 rounded-xl font-bold hover:bg-red-700 transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-3 transform hover:-translate-y-1">
+                                <span class="text-2xl">🗑️</span>
+                                <div class="text-left">
+                                    <div class="text-base">Hapus Semua Data</div>
+                                    <div class="text-xs font-normal opacity-80">Reset total database</div>
+                                </div>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="content-inline-datainduk" class="admin-tab-inline-content hidden">
+                    <div class="flex items-center justify-between mb-4">
+                        <h4 class="font-bold text-xl text-slate-800">Data Induk Santri (Lengkap)</h4>
+                        <button onclick="exportToExcel()" class="px-4 py-2 bg-green-600 text-white rounded-lg font-bold hover:bg-green-700 transition-colors text-sm">
+                            📥 Download Excel
+                        </button>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <input type="text" placeholder="Cari di data induk..." 
+                            oninput="const term = this.value.toLowerCase(); document.querySelectorAll('#inlineDataIndukTableBody tr').forEach(row => { row.style.display = row.innerText.toLowerCase().includes(term) ? '' : 'none'; })"
+                            class="w-full px-4 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none">
+                    </div>
+
+                    <div class="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                        <div class="overflow-x-auto max-h-[500px]">
+                            <table class="w-full text-left border-collapse relative">
+                                <thead class="sticky top-0 z-10">
+                                    <tr class="bg-slate-50 border-b border-slate-200 text-xs uppercase text-slate-500 font-bold shadow-sm">
+                                        <th class="px-4 py-3 bg-slate-50">No</th>
+                                        <th class="px-4 py-3 bg-slate-50">NISN</th>
+                                        <th class="px-4 py-3 bg-slate-50">NIK</th>
+                                        <th class="px-4 py-3 bg-slate-50">Nama Lengkap</th>
+                                        <th class="px-4 py-3 bg-slate-50">L/P</th>
+                                        <th class="px-4 py-3 bg-slate-50">TTL</th>
+                                        <th class="px-4 py-3 bg-slate-50">Alamat</th>
+                                        <th class="px-4 py-3 bg-slate-50">Orang Tua</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="inlineDataIndukTableBody" class="bg-white">
+                                    ${dataIndukRows}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
                 <div id="content-inline-santri" class="admin-tab-inline-content">
                     <div class="flex items-center justify-between mb-4">
                         <h4 class="font-bold text-xl text-slate-800">Kelola Santri</h4>
@@ -696,8 +920,17 @@ function generateAdminSettingsContent() {
                 </div>
                 
                 <div id="content-inline-sesi" class="admin-tab-inline-content hidden">
-                    <h4 class="font-bold text-xl text-slate-800 mb-4">Sesi Halaqah</h4>
-                    <div class="space-y-3">
+                    <div class="flex items-center justify-between mb-4">
+                        <h4 class="font-bold text-xl text-slate-800">Sesi Halaqah</h4>
+                        <div class="flex items-center gap-2">
+                            <label class="text-sm font-semibold text-slate-600">Pilih Lembaga:</label>
+                            <select onchange="updateAdminSesiContainer(this.value)" 
+                                class="px-3 py-1.5 rounded-lg border border-slate-200 text-sm font-semibold text-slate-700 bg-white focus:ring-2 focus:ring-primary-500 outline-none">
+                                ${lembagaOptions}
+                            </select>
+                        </div>
+                    </div>
+                    <div id="adminSesiContainerInline" class="space-y-3">
                         ${sesiList}
                     </div>
                 </div>
@@ -709,21 +942,7 @@ function generateAdminSettingsContent() {
                     </div>
                 </div>
                 
-                <div id="content-inline-data" class="admin-tab-inline-content hidden">
-                    <div class="bg-red-50 border border-red-200 rounded-xl p-6">
-                        <h5 class="font-bold text-red-800 mb-2 flex items-center gap-2 text-xl">
-                            <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
-                            </svg>
-                            Zona Bahaya
-                        </h5>
-                        <p class="text-sm text-red-700 mb-4">Tindakan berikut tidak dapat dibatalkan!</p>
-                        <button onclick="confirmDeleteAllData()" 
-                            class="w-full bg-red-600 text-white px-4 py-3 rounded-lg font-bold hover:bg-red-700 transition-colors">
-                            🗑️ Hapus Semua Data
-                        </button>
-                    </div>
-                </div>
+
                 
                 <div class="flex gap-3 pt-4 border-t border-slate-200">
                     <button onclick="resetSettings()" 
@@ -737,26 +956,92 @@ function generateAdminSettingsContent() {
 }
 
 function switchAdminTabInline(tab) {
+    console.log('Switching to inline tab:', tab);
+
     document.querySelectorAll('.admin-tab-inline').forEach(btn => {
         btn.classList.remove('active', 'border-primary-600', 'text-primary-600');
         btn.classList.add('border-transparent', 'text-slate-500');
     });
-    
+
     const activeTab = document.getElementById(`tab-inline-${tab}`);
     if (activeTab) {
         activeTab.classList.add('active', 'border-primary-600', 'text-primary-600');
         activeTab.classList.remove('border-transparent', 'text-slate-500');
     }
-    
+
     document.querySelectorAll('.admin-tab-inline-content').forEach(content => {
         content.classList.add('hidden');
+        content.style.display = 'none'; // Ensure it's hidden
     });
-    
+
     const activeContent = document.getElementById(`content-inline-${tab}`);
     if (activeContent) {
+        console.log('Found content for tab:', tab);
         activeContent.classList.remove('hidden');
+        activeContent.style.display = 'block';
+
+        // Special check for danger-zone emptiness
+        if (tab === 'danger-zone') {
+            console.log('Danger zone content check:', activeContent.innerHTML.length, 'chars');
+            if (activeContent.innerHTML.trim() === '' || activeContent.children.length === 0) {
+                console.warn('Danger zone content is empty, injecting manually...');
+                activeContent.innerHTML = `
+                    <div class="bg-red-50 border border-red-200 rounded-xl p-6 shadow-sm">
+                        <h5 class="font-bold text-red-800 mb-4 flex items-center gap-2 text-xl">
+                            <span class="text-2xl">⚠️</span>
+                            Zona Bahaya
+                        </h5>
+                        <p class="text-sm text-red-700 mb-6 font-medium">Tindakan berikut tidak dapat dibatalkan!</p>
+                        
+                        <div class="space-y-4">
+                            <button onclick="if(typeof fixNegativePoints === 'function') { fixNegativePoints() } else { alert('Fungsi belum dimuat. Coba refresh halaman.') }" 
+                                class="w-full bg-purple-600 text-white px-6 py-4 rounded-xl font-bold hover:bg-purple-700 transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-3 transform hover:-translate-y-1">
+                                <span class="text-2xl">🧹</span>
+                                <div class="text-left">
+                                    <div class="text-base">Hapus Poin Negatif (Fix)</div>
+                                    <div class="text-xs font-normal opacity-80">Klik tombol ini untuk memperbaiki data</div>
+                                </div>
+                            </button>
+                            
+                            <button onclick="confirmDeleteAllData()" 
+                                class="w-full bg-red-600 text-white px-6 py-4 rounded-xl font-bold hover:bg-red-700 transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-3 transform hover:-translate-y-1">
+                                <span class="text-2xl">🗑️</span>
+                                <div class="text-left">
+                                    <div class="text-base">Hapus Semua Data</div>
+                                    <div class="text-xs font-normal opacity-80">Reset total database</div>
+                                </div>
+                            </button>
+                        </div>
+                    </div>
+                 `;
+            }
+        }
+    } else {
+        console.error('Content not found for tab:', tab);
+        // Try to recover by re-rendering if content is missing
+        const container = document.getElementById('settingsContainer');
+        if (container) {
+            console.log('Re-rendering admin settings due to missing tab content...');
+            renderAdminSettings();
+
+            // Try again
+            setTimeout(() => {
+                const retryContent = document.getElementById(`content-inline-${tab}`);
+                if (retryContent) {
+                    retryContent.classList.remove('hidden');
+                    retryContent.style.display = 'block';
+
+                    // Re-activate tab
+                    const retryTab = document.getElementById(`tab-inline-${tab}`);
+                    if (retryTab) {
+                        retryTab.classList.add('active', 'border-primary-600', 'text-primary-600');
+                        retryTab.classList.remove('border-transparent', 'text-slate-500');
+                    }
+                }
+            }, 100);
+        }
     }
-    
+
     // Update auto poin stats when tab is opened
     if (tab === 'autopoin' && typeof updateAutoPoinStatsInline === 'function') {
         updateAutoPoinStatsInline();
@@ -766,7 +1051,7 @@ function switchAdminTabInline(tab) {
 function filterAdminListInline(type, searchTerm) {
     const items = document.querySelectorAll(`.${type}-admin-item`);
     const search = searchTerm.toLowerCase();
-    
+
     items.forEach(item => {
         const name = item.getAttribute('data-name');
         if (name.includes(search)) {
@@ -789,8 +1074,61 @@ function showBulkAddHalaqahs() {
 
 
 // Helper Functions
-function toggleSesi(sesiId) {
-    const sesi = appSettings.sesiHalaqah.find(s => s.id === sesiId);
+function renderAdminSesiList(lembagaKey) {
+    const sessions = appSettings.lembaga[lembagaKey]?.sesiHalaqah || [];
+    return sessions.map((sesi) => `
+        <div class="bg-slate-50 rounded-xl p-4">
+            <div class="flex items-center justify-between mb-3">
+                <div class="font-bold text-slate-800">${sesi.name}</div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" ${sesi.active ? 'checked' : ''} 
+                        onchange="toggleSesi(${sesi.id}, '${lembagaKey}')" class="sr-only peer">
+                    <div class="w-11 h-6 bg-slate-300 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
+                </label>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="text-xs text-slate-600 font-bold">Waktu Mulai</label>
+                    <input type="time" value="${sesi.startTime}" 
+                        onchange="updateSesiTime(${sesi.id}, 'start', this.value, '${lembagaKey}')"
+                        class="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm">
+                </div>
+                <div>
+                    <label class="text-xs text-slate-600 font-bold">Waktu Selesai</label>
+                    <input type="time" value="${sesi.endTime}" 
+                        onchange="updateSesiTime(${sesi.id}, 'end', this.value, '${lembagaKey}')"
+                        class="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm">
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function updateAdminSesiContainer(lembagaKey) {
+    const container = document.getElementById('adminSesiContainer');
+    if (container) {
+        container.innerHTML = renderAdminSesiList(lembagaKey);
+    }
+    const inlineContainer = document.getElementById('adminSesiContainerInline');
+    if (inlineContainer) {
+        inlineContainer.innerHTML = renderAdminSesiList(lembagaKey);
+    }
+}
+
+function toggleSesi(sesiId, lembagaKey) {
+    if (!lembagaKey) {
+        console.error('toggleSesi: lembagaKey is required');
+        showNotification('❌ Error: Lembaga tidak valid', 'error');
+        return;
+    }
+
+    if (!appSettings.lembaga[lembagaKey]) {
+        console.error(`toggleSesi: Lembaga '${lembagaKey}' not found`);
+        showNotification('❌ Error: Data lembaga tidak ditemukan', 'error');
+        return;
+    }
+
+    const sesi = appSettings.lembaga[lembagaKey].sesiHalaqah.find(s => s.id === sesiId);
     if (sesi) {
         sesi.active = !sesi.active;
         saveSettings();
@@ -798,8 +1136,20 @@ function toggleSesi(sesiId) {
     }
 }
 
-function updateSesiTime(sesiId, type, value) {
-    const sesi = appSettings.sesiHalaqah.find(s => s.id === sesiId);
+function updateSesiTime(sesiId, type, value, lembagaKey) {
+    if (!lembagaKey) {
+        console.error('updateSesiTime: lembagaKey is required');
+        showNotification('❌ Error: Lembaga tidak valid', 'error');
+        return;
+    }
+
+    if (!appSettings.lembaga[lembagaKey]) {
+        console.error(`updateSesiTime: Lembaga '${lembagaKey}' not found`);
+        showNotification('❌ Error: Data lembaga tidak ditemukan', 'error');
+        return;
+    }
+
+    const sesi = appSettings.lembaga[lembagaKey].sesiHalaqah.find(s => s.id === sesiId);
     if (sesi) {
         if (type === 'start') {
             sesi.startTime = value;
@@ -827,26 +1177,31 @@ function resetSettings() {
 }
 
 function switchAdminTab(tab) {
+    console.log('Switching to modal tab:', tab);
     document.querySelectorAll('.admin-tab').forEach(btn => {
         btn.classList.remove('active', 'border-primary-600', 'text-primary-600');
         btn.classList.add('border-transparent', 'text-slate-500');
     });
-    
+
     const activeTab = document.getElementById(`tab-${tab}`);
     if (activeTab) {
         activeTab.classList.add('active', 'border-primary-600', 'text-primary-600');
         activeTab.classList.remove('border-transparent', 'text-slate-500');
     }
-    
+
     document.querySelectorAll('.admin-tab-content').forEach(content => {
         content.classList.add('hidden');
     });
-    
+
     const activeContent = document.getElementById(`content-${tab}`);
     if (activeContent) {
+        console.log('Found content for modal tab:', tab);
         activeContent.classList.remove('hidden');
+        activeContent.style.display = 'block';
+    } else {
+        console.error('Content not found for modal tab:', tab);
     }
-    
+
     // Update auto poin stats when tab is opened
     if (tab === 'autopoin' && typeof updateAutoPoinStats === 'function') {
         updateAutoPoinStats();
@@ -856,7 +1211,7 @@ function switchAdminTab(tab) {
 function filterAdminList(type, searchTerm) {
     const items = document.querySelectorAll(`.${type}-admin-item`);
     const search = searchTerm.toLowerCase();
-    
+
     items.forEach(item => {
         const name = item.getAttribute('data-name');
         if (name.includes(search)) {
@@ -869,21 +1224,21 @@ function filterAdminList(type, searchTerm) {
 
 function confirmDeleteHalaqah(halaqahId) {
     console.log('confirmDeleteHalaqah called with ID:', halaqahId);
-    
+
     const halaqah = dashboardData.halaqahs.find(h => h.id === halaqahId);
     if (!halaqah) {
         console.error('Halaqah not found with ID:', halaqahId);
         return;
     }
-    
+
     console.log('Halaqah found:', halaqah);
-    
-    const membersCount = dashboardData.students.filter(s => 
+
+    const membersCount = dashboardData.students.filter(s =>
         s.halaqah === halaqah.name.replace('Halaqah ', '')
     ).length;
-    
+
     console.log('Members count:', membersCount);
-    
+
     if (membersCount > 0) {
         if (!confirm(`Halaqah ${halaqah.name} memiliki ${membersCount} anggota. Yakin ingin menghapus? Semua santri di halaqah ini akan kehilangan referensi halaqah mereka.`)) {
             console.log('Delete cancelled by user');
@@ -895,12 +1250,12 @@ function confirmDeleteHalaqah(halaqahId) {
             return;
         }
     }
-    
+
     console.log('Deleting halaqah...');
-    
+
     // Set flag to prevent realtime listener from reloading
     window.deleteOperationInProgress = true;
-    
+
     // Delete from Supabase first
     if (window.deleteHalaqahFromSupabase) {
         console.log('Calling deleteHalaqahFromSupabase...');
@@ -920,26 +1275,26 @@ function confirmDeleteHalaqah(halaqahId) {
 
 function performLocalHalaqahDelete(halaqahId, halaqah) {
     console.log('Performing local delete...');
-    
+
     // Delete from local data
     dashboardData.halaqahs = dashboardData.halaqahs.filter(h => h.id !== halaqahId);
-    
+
     const halaqahName = halaqah.name.replace('Halaqah ', '');
     dashboardData.students.forEach(student => {
         if (student.halaqah === halaqahName) {
             student.halaqah = 'Tidak Ada';
         }
     });
-    
+
     console.log('Recalculating rankings...');
     recalculateRankings();
-    
+
     console.log('Saving to storage...');
     StorageManager.save();
-    
+
     console.log('Refreshing all data...');
     refreshAllData();
-    
+
     // Update list tanpa refresh modal
     console.log('Updating admin lists...');
     if (typeof updateAdminHalaqahList === 'function') {
@@ -948,7 +1303,7 @@ function performLocalHalaqahDelete(halaqahId, halaqah) {
     if (typeof updateAdminSantriList === 'function') {
         updateAdminSantriList();
     }
-    
+
     // Update inline lists if they exist
     if (typeof updateAdminHalaqahListInline === 'function') {
         updateAdminHalaqahListInline();
@@ -956,13 +1311,13 @@ function performLocalHalaqahDelete(halaqahId, halaqah) {
     if (typeof updateAdminSantriListInline === 'function') {
         updateAdminSantriListInline();
     }
-    
+
     // Clear the delete flag after a delay
     setTimeout(() => {
         window.deleteOperationInProgress = false;
         console.log('Delete operation completed');
     }, 2000);
-    
+
     console.log('Delete halaqah completed');
 }
 
@@ -970,32 +1325,32 @@ async function confirmDeleteAllData() {
     const confirmation = prompt(
         `⚠️ PERINGATAN KERAS!\n\nAnda akan menghapus SEMUA data santri, halaqah, dan setoran.\nTindakan ini TIDAK DAPAT DIBATALKAN!\n\nKetik "HAPUS SEMUA" untuk konfirmasi:`
     );
-    
+
     if (confirmation === 'HAPUS SEMUA') {
         console.log('=== DELETE ALL DATA ===');
-        
+
         // Set flag to prevent realtime listener from reloading
         window.deleteOperationInProgress = true;
-        
+
         // Delete from Supabase first
         let supabaseSuccess = true;
         if (window.deleteAllStudentsFromSupabase && window.deleteAllHalaqahsFromSupabase) {
             console.log('Deleting all data from Supabase...');
-            
+
             // Delete students first
             const studentsDeleted = await deleteAllStudentsFromSupabase();
             // Delete halaqahs
             const halaqahsDeleted = await deleteAllHalaqahsFromSupabase();
-            
+
             supabaseSuccess = studentsDeleted && halaqahsDeleted;
-            
+
             if (supabaseSuccess) {
                 console.log('✅ All data deleted from Supabase');
             } else {
                 console.warn('⚠️ Some Supabase deletes failed, continuing with local delete');
             }
         }
-        
+
         // Delete from local storage
         console.log('Deleting local data...');
         dashboardData.students = [];
@@ -1006,12 +1361,12 @@ async function confirmDeleteAllData() {
             totalPoints: 0,
             avgPointsPerStudent: 0
         };
-        
+
         StorageManager.save();
-        
+
         console.log('Refreshing UI...');
         refreshAllData();
-        
+
         // Update lists tanpa refresh modal
         if (typeof updateAdminSantriList === 'function') {
             updateAdminSantriList();
@@ -1019,7 +1374,7 @@ async function confirmDeleteAllData() {
         if (typeof updateAdminHalaqahList === 'function') {
             updateAdminHalaqahList();
         }
-        
+
         // Update inline lists if they exist
         if (typeof updateAdminSantriListInline === 'function') {
             updateAdminSantriListInline();
@@ -1027,13 +1382,13 @@ async function confirmDeleteAllData() {
         if (typeof updateAdminHalaqahListInline === 'function') {
             updateAdminHalaqahListInline();
         }
-        
+
         // Clear the delete flag after a delay
         setTimeout(() => {
             window.deleteOperationInProgress = false;
             console.log('Delete all operation completed');
         }, 3000);
-        
+
         console.log('✅ All data deleted successfully');
     } else if (confirmation !== null) {
         // User salah ketik, tidak perlu notifikasi
@@ -1124,7 +1479,7 @@ function showPoinRulesInfo() {
             </div>
         </div>
     `;
-    
+
     createModal(content);
 }
 
@@ -1148,7 +1503,7 @@ window.showPoinRulesInfo = showPoinRulesInfo;
 function updateAdminSantriList() {
     const container = document.getElementById('santriAdminList');
     if (!container) return;
-    
+
     const santriList = dashboardData.students.map(student => {
         const studentJson = JSON.stringify(student).replace(/"/g, '&quot;');
         return `
@@ -1174,9 +1529,9 @@ function updateAdminSantriList() {
             </div>
         `;
     }).join('');
-    
+
     container.innerHTML = santriList;
-    
+
     // Update total count
     const totalEl = container.previousElementSibling?.querySelector('.font-bold');
     if (totalEl) {
@@ -1187,7 +1542,7 @@ function updateAdminSantriList() {
 function updateAdminHalaqahList() {
     const container = document.getElementById('halaqahAdminList');
     if (!container) return;
-    
+
     const halaqahList = dashboardData.halaqahs.map(halaqah => {
         const halaqahJson = JSON.stringify(halaqah).replace(/"/g, '&quot;');
         return `
@@ -1213,9 +1568,9 @@ function updateAdminHalaqahList() {
             </div>
         `;
     }).join('');
-    
+
     container.innerHTML = halaqahList;
-    
+
     // Update total count
     const totalEl = container.previousElementSibling?.querySelector('.font-bold');
     if (totalEl) {
@@ -1233,7 +1588,7 @@ window.filterAdminListInline = filterAdminListInline;
 function updateAdminSantriListInline() {
     const container = document.getElementById('santriAdminListInline');
     if (!container) return;
-    
+
     const santriList = dashboardData.students.map(student => {
         const studentJson = JSON.stringify(student).replace(/"/g, '&quot;');
         return `
@@ -1259,14 +1614,14 @@ function updateAdminSantriListInline() {
             </div>
         `;
     }).join('');
-    
+
     container.innerHTML = santriList;
 }
 
 function updateAdminHalaqahListInline() {
     const container = document.getElementById('halaqahAdminListInline');
     if (!container) return;
-    
+
     const halaqahList = dashboardData.halaqahs.map(halaqah => {
         const halaqahJson = JSON.stringify(halaqah).replace(/"/g, '&quot;');
         return `
@@ -1292,7 +1647,7 @@ function updateAdminHalaqahListInline() {
             </div>
         `;
     }).join('');
-    
+
     container.innerHTML = halaqahList;
 }
 
@@ -1308,17 +1663,17 @@ function updateAutoPoinStats() {
         console.error('AutoPoin module not loaded');
         return;
     }
-    
+
     const studentsWithoutSetoran = window.AutoPoin.getStudentsWithoutSetoranToday();
     const totalStudents = dashboardData.students.length;
     const studentsWithSetoran = totalStudents - studentsWithoutSetoran.length;
-    
+
     const sudahEl = document.getElementById('autopoin-sudah');
     const belumEl = document.getElementById('autopoin-belum');
-    
+
     if (sudahEl) sudahEl.textContent = studentsWithSetoran;
     if (belumEl) belumEl.textContent = studentsWithoutSetoran.length;
-    
+
     console.log('✅ Auto Poin stats updated');
 }
 
@@ -1328,17 +1683,17 @@ function updateAutoPoinStatsInline() {
         console.error('AutoPoin module not loaded');
         return;
     }
-    
+
     const studentsWithoutSetoran = window.AutoPoin.getStudentsWithoutSetoranToday();
     const totalStudents = dashboardData.students.length;
     const studentsWithSetoran = totalStudents - studentsWithoutSetoran.length;
-    
+
     const sudahEl = document.getElementById('autopoin-inline-sudah');
     const belumEl = document.getElementById('autopoin-inline-belum');
-    
+
     if (sudahEl) sudahEl.textContent = studentsWithSetoran;
     if (belumEl) belumEl.textContent = studentsWithoutSetoran.length;
-    
+
     console.log('✅ Auto Poin inline stats updated');
 }
 

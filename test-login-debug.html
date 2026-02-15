@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Login NIK</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; }
+        .test-section { background: #f5f5f5; padding: 15px; margin: 10px 0; border-radius: 8px; }
+        .result { margin: 10px 0; padding: 10px; border-radius: 4px; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+        input { padding: 8px; margin: 5px; width: 200px; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Debug Login dengan NIK</h1>
+    
+    <div class="test-section">
+        <h3>Test 1: Cek Format Password</h3>
+        <input type="text" id="testPassword" placeholder="Masukkan password (DDMMYYYY)" value="01012000">
+        <button onclick="testPasswordFormat()">Test Format</button>
+        <div id="passwordResult"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Test 2: Cek Data Santri di LocalStorage</h3>
+        <button onclick="checkLocalData()">Cek Data Lokal</button>
+        <div id="localDataResult"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Test 3: Simulasi Login NIK</h3>
+        <input type="text" id="testNIK" placeholder="NIK Santri" value="1234567890">
+        <input type="text" id="testTTL" placeholder="Password TTL (DDMMYYYY)" value="01012000">
+        <button onclick="simulateLogin()">Simulasi Login</button>
+        <div id="loginResult"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Test 4: Cek Koneksi Supabase & Data</h3>
+        <button onclick="checkLocalAndRemote()">🕵️ Cek Data (Lokal vs Server)</button>
+        <button onclick="forceSync()">🔄 Paksa Upload Data Lokal</button>
+        <div id="supabaseResult"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/supabase.js"></script>
+    <script src="js/data.js"></script>
+    
+    <script>
+        // Test 1: Format Password
+        function testPasswordFormat() {
+            const password = document.getElementById('testPassword').value;
+            const result = document.getElementById('passwordResult');
+            
+            const isValid = /^\d{8}$/.test(password);
+            
+            if (isValid) {
+                const day = password.substring(0, 2);
+                const month = password.substring(2, 4);
+                const year = password.substring(4, 8);
+                
+                result.className = 'result success';
+                result.innerHTML = `✅ Format Valid!<br>
+                    Hari: ${day}<br>
+                    Bulan: ${month}<br>
+                    Tahun: ${year}<br>
+                    Format: DD=${day}, MM=${month}, YYYY=${year}`;
+            } else {
+                result.className = 'result error';
+                result.innerHTML = `❌ Format Tidak Valid!<br>
+                    Password harus 8 digit angka (DDMMYYYY)<br>
+                    Contoh: 01012000 untuk 1 Januari 2000`;
+            }
+        }
+
+        // Test 2: Check Local Data
+        function checkLocalData() {
+            const result = document.getElementById('localDataResult');
+            const data = localStorage.getItem('halaqahData');
+            
+            if (!data) {
+                result.className = 'result error';
+                result.innerHTML = '❌ Tidak ada data di LocalStorage';
+                return;
+            }
+            
+            try {
+                const parsed = JSON.parse(data);
+                const students = parsed.students || [];
+                
+                result.className = 'result info';
+                let html = `📊 Ditemukan ${students.length} santri<br><br>`;
+                
+                if (students.length > 0) {
+                    html += '<strong>Sample Data (3 santri pertama):</strong><br>';
+                    students.slice(0, 3).forEach((s, i) => {
+                        html += `<br>${i+1}. ${s.name}<br>`;
+                        html += `   NIK: ${s.nik || '❌ TIDAK ADA'}<br>`;
+                        html += `   NISN: ${s.nisn || '❌ TIDAK ADA'}<br>`;
+                        html += `   Tanggal Lahir: ${s.tanggal_lahir || '❌ TIDAK ADA'}<br>`;
+                        
+                        if (s.tanggal_lahir) {
+                            const formatted = formatBirthDateToPassword(s.tanggal_lahir);
+                            html += `   Password Expected: ${formatted}<br>`;
+                        }
+                    });
+                }
+                
+                result.innerHTML = html;
+            } catch (e) {
+                result.className = 'result error';
+                result.innerHTML = '❌ Error parsing data: ' + e.message;
+            }
+        }
+
+        // Helper: Format birth date to password
+        function formatBirthDateToPassword(dateStr) {
+            if (!dateStr) return null;
+            
+            let day, month, year;
+            
+            if (dateStr.includes('-')) {
+                const parts = dateStr.split('-');
+                if (parts[0].length === 4) {
+                    [year, month, day] = parts;
+                } else {
+                    [day, month, year] = parts;
+                }
+            } else if (dateStr.includes('/')) {
+                const parts = dateStr.split('/');
+                [day, month, year] = parts;
+            }
+            
+            if (day && month && year) {
+                day = day.toString().padStart(2, '0');
+                month = month.toString().padStart(2, '0');
+                year = year.toString();
+                return `${day}${month}${year}`;
+            }
+            
+            return null;
+        }
+
+        // Test 3: Simulate Login
+        function simulateLogin() {
+            const nik = document.getElementById('testNIK').value.trim();
+            const password = document.getElementById('testTTL').value.trim();
+            const result = document.getElementById('loginResult');
+            
+            result.className = 'result info';
+            result.innerHTML = '🔄 Memeriksa login...<br><br>';
+            
+            // Check format
+            if (!/^\d+$/.test(nik)) {
+                result.className = 'result error';
+                result.innerHTML += '❌ NIK harus berisi angka saja<br>';
+                return;
+            }
+            
+            if (!/^\d{8}$/.test(password)) {
+                result.className = 'result error';
+                result.innerHTML += '❌ Password harus 8 digit (DDMMYYYY)<br>';
+                return;
+            }
+            
+            // Check local data
+            const data = localStorage.getItem('halaqahData');
+            if (!data) {
+                result.className = 'result error';
+                result.innerHTML += '❌ Tidak ada data santri di LocalStorage<br>';
+                return;
+            }
+            
+            const parsed = JSON.parse(data);
+            const students = parsed.students || [];
+            
+            // Find student
+            const student = students.find(s => 
+                String(s.nik).trim() === nik || 
+                String(s.nisn).trim() === nik
+            );
+            
+            if (!student) {
+                result.className = 'result error';
+                result.innerHTML += `❌ Santri dengan NIK/NISN "${nik}" tidak ditemukan<br>`;
+                result.innerHTML += `<br>Coba cek data santri yang tersedia di Test 2`;
+                return;
+            }
+            
+            result.innerHTML += `✅ Santri ditemukan: ${student.name}<br>`;
+            result.innerHTML += `   NIK: ${student.nik}<br>`;
+            result.innerHTML += `   Tanggal Lahir: ${student.tanggal_lahir || '❌ TIDAK ADA'}<br><br>`;
+            
+            if (!student.tanggal_lahir) {
+                result.className = 'result error';
+                result.innerHTML += '❌ Data tanggal lahir kosong! Hubungi Admin untuk update data.<br>';
+                return;
+            }
+            
+            // Check password
+            const expectedPassword = formatBirthDateToPassword(student.tanggal_lahir);
+            result.innerHTML += `   Password Expected: ${expectedPassword}<br>`;
+            result.innerHTML += `   Password Input: ${password}<br><br>`;
+            
+            if (password === expectedPassword) {
+                result.className = 'result success';
+                result.innerHTML += '✅ LOGIN BERHASIL!<br>';
+                result.innerHTML += `   Email yang akan digunakan: ${nik}@sekolah.id<br>`;
+            } else {
+                result.className = 'result error';
+                result.innerHTML += '❌ PASSWORD SALAH!<br>';
+                result.innerHTML += `   Gunakan: ${expectedPassword}<br>`;
+            }
+        }
+
+        async function checkLocalAndRemote() {
+            const result = document.getElementById('supabaseResult');
+            result.className = 'result info';
+            result.innerHTML = '🔍 Membandingkan data Lokal dan Server...<br>';
+            
+            // 1. Cek Local
+            const localStudents = dashboardData.students || [];
+            const localHasTTL = localStudents.some(s => s.tanggal_lahir && s.tanggal_lahir.length > 0);
+            const localSample = localStudents[0] || {};
+
+            result.innerHTML += `<b>📱 DATA LOKAL (Browser):</b><br>`;
+            if (localStudents.length === 0) {
+                result.innerHTML += `❌ Tidak ada data lokal.<br>`;
+            } else {
+                result.innerHTML += `✅ Ada ${localStudents.length} santri.<br>`;
+                result.innerHTML += `   Sample: ${localSample.name}<br>`;
+                result.innerHTML += `   TTL: ${localSample.tempat_lahir}, ${localSample.tanggal_lahir} ${localSample.tanggal_lahir ? '✅' : '❌'}<br>`;
+            }
+
+            if (!localHasTTL) {
+                result.innerHTML += `<br>⚠️ <b>PERINGATAN:</b> Data lokal tidak memiliki Tanggal Lahir!<br>`;
+                result.innerHTML += `👉 <b>SOLUSI:</b> Silakan buka halaman Admin dan <b>Upload Ulang File Excel</b>.<br>`;
+                result.innerHTML += `   (Sync tidak akan berguna jika data lokal kosong)<br><br>`;
+            }
+
+            // 2. Cek Remote
+            result.innerHTML += `<b>☁️ DATA SERVER (Supabase):</b><br>`;
+            if (!window.supabaseClient) {
+                result.innerHTML += '❌ Client belum siap.<br>';
+                return;
+            }
+
+            try {
+                const { data, error } = await window.supabaseClient
+                    .from('students')
+                    .select('id, name, tempat_lahir, tanggal_lahir')
+                    .limit(1);
+                
+                if (error) {
+                    result.innerHTML += `❌ Error fetch: ${error.message}<br>`;
+                } else if (data && data.length > 0) {
+                    const serverSample = data[0];
+                    result.innerHTML += `✅ Koneksi OK.<br>`;
+                    result.innerHTML += `   Sample: ${serverSample.name}<br>`;
+                    result.innerHTML += `   TTL: ${serverSample.tempat_lahir}, ${serverSample.tanggal_lahir} ${serverSample.tanggal_lahir ? '✅' : '❌'}<br>`;
+                } else {
+                    result.innerHTML += `ℹ️ Data kosong di server.<br>`;
+                }
+            } catch (e) {
+                result.innerHTML += `❌ Exception: ${e.message}<br>`;
+            }
+        }
+
+        // Test 4: Check Supabase
+        async function forceSync() {
+            const result = document.getElementById('supabaseResult');
+            result.className = 'result info';
+            result.innerHTML += '<br>🔄 Mencoba memaksa sinkronisasi data lokal ke Supabase...<br>';
+            
+            if (typeof syncStudentsToSupabase === 'function') {
+                try {
+                    await syncStudentsToSupabase();
+                    result.innerHTML += '✅ Proses sinkronisasi selesai. Cek kembali data di Supabase.<br>';
+                    // Auto check after 2 seconds
+                    setTimeout(checkSupabase, 2000);
+                } catch (e) {
+                    result.className = 'result error';
+                    result.innerHTML += `❌ Error saat sinkronisasi: ${e.message}<br>`;
+                }
+            } else {
+                result.className = 'result error';
+                result.innerHTML += '❌ Fungsi syncStudentsToSupabase tidak ditemukan. Pastikan js/supabase.js termuat.<br>';
+            }
+        }
+
+        async function checkSupabase() {
+            const result = document.getElementById('supabaseResult');
+            result.className = 'result info';
+            result.innerHTML = '🔄 Memeriksa koneksi Supabase...<br>';
+            
+            if (!window.supabaseClient) {
+                result.className = 'result error';
+                result.innerHTML += '❌ Supabase client tidak tersedia<br>';
+                return;
+            }
+            
+            try {
+                // Check session
+                const { data: { session }, error: sessionError } = await window.supabaseClient.auth.getSession();
+                
+                if (sessionError) {
+                    result.innerHTML += `⚠️ Error getting session: ${sessionError.message}<br>`;
+                } else if (session) {
+                    result.innerHTML += `✅ User logged in: ${session.user.email}<br>`;
+                } else {
+                    result.innerHTML += `ℹ️ Tidak ada user yang login<br>`;
+                }
+                
+                // Try to fetch students
+                result.innerHTML += '<br>Mencoba fetch data santri...<br>';
+                const { data: students, error: studentsError } = await window.supabaseClient
+                    .from('students')
+                    .select('id, name, nik, nisn, tanggal_lahir')
+                    .limit(3);
+                
+                if (studentsError) {
+                    result.className = 'result error';
+                    result.innerHTML += `❌ Error fetching students: ${studentsError.message}<br>`;
+                } else {
+                    result.className = 'result success';
+                    result.innerHTML += `✅ Berhasil fetch ${students.length} santri<br><br>`;
+                    
+                    students.forEach((s, i) => {
+                        result.innerHTML += `${i+1}. ${s.name}<br>`;
+                        result.innerHTML += `   NIK: ${s.nik || '❌ TIDAK ADA'}<br>`;
+                        result.innerHTML += `   NISN: ${s.nisn || '❌ TIDAK ADA'}<br>`;
+                        result.innerHTML += `   Tanggal Lahir: ${s.tanggal_lahir || '❌ TIDAK ADA'}<br><br>`;
+                    });
+                }
+            } catch (e) {
+                result.className = 'result error';
+                result.innerHTML += `❌ Exception: ${e.message}<br>`;
+            }
+        }
+
+        // Auto-run on load
+        window.addEventListener('load', () => {
+            console.log('Debug page loaded');
+            checkLocalData();
+        });
+    </script>
+</body>
+</html>

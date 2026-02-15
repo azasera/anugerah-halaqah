@@ -20,18 +20,18 @@ let isOnline = navigator.onLine;
 function showSyncStatus(message, type = 'info') {
     const statusEl = document.getElementById('syncStatus');
     if (!statusEl) return;
-    
+
     const colors = {
         info: 'bg-blue-50 text-blue-700 border-blue-200',
         success: 'bg-green-50 text-green-700 border-green-200',
         error: 'bg-red-50 text-red-700 border-red-200',
         warning: 'bg-amber-50 text-amber-700 border-amber-200'
     };
-    
+
     statusEl.className = `fixed top-20 right-4 z-[100] px-4 py-2 rounded-lg border ${colors[type]} text-sm font-semibold shadow-lg animate-scale-in`;
     statusEl.textContent = message;
     statusEl.classList.remove('hidden');
-    
+
     setTimeout(() => {
         statusEl.classList.add('hidden');
     }, 3000);
@@ -43,18 +43,25 @@ async function syncStudentsToSupabase() {
         console.log('Offline - data will sync when online');
         return;
     }
-    
+
+    // AUTH CHECK: Only admin can write to DB
+    const profile = window.currentProfile ? window.currentProfile() : null;
+    if (!profile || profile.role !== 'admin') {
+        console.warn('⛔ Sync blocked: User is not admin');
+        return;
+    }
+
     // Prevent concurrent syncs and realtime loops
     if (window.syncInProgress) {
         console.log('⏭️ Sync already in progress, skipping...');
         return;
     }
-    
+
     try {
         window.syncInProgress = true;
         isSyncing = true;
         // Silent sync - no notification
-        
+
         // Upsert students
         // Validate and clean data before upsert
         const studentsToUpsert = dashboardData.students.map(s => {
@@ -62,7 +69,7 @@ async function syncStudentsToSupabase() {
             const id = parseInt(s.id);
             if (isNaN(id)) return null;
 
-            return {
+            const studentData = {
                 id: id,
                 name: s.name || 'Unknown',
                 halaqah: s.halaqah || 'Tidak Ada',
@@ -70,6 +77,16 @@ async function syncStudentsToSupabase() {
                 nik: s.nik || '',
                 lembaga: s.lembaga || 'MTA',
                 kelas: s.kelas || '',
+                // New Profile Fields
+                jenis_kelamin: s.jenis_kelamin || '',
+                tempat_lahir: s.tempat_lahir || '',
+                tanggal_lahir: s.tanggal_lahir || null,
+                alamat: s.alamat || '',
+                hp: s.hp || '',
+                nama_ayah: s.nama_ayah || '',
+                nama_ibu: s.nama_ibu || '',
+                sekolah_asal: s.sekolah_asal || '',
+
                 total_points: parseInt(s.total_points) || 0,
                 daily_ranking: parseInt(s.daily_ranking) || 0,
                 overall_ranking: parseInt(s.overall_ranking) || 0,
@@ -78,15 +95,23 @@ async function syncStudentsToSupabase() {
                 achievements: JSON.stringify(s.achievements || []),
                 setoran: JSON.stringify(s.setoran || []),
                 last_setoran_date: s.lastSetoranDate || '',
-                // total_hafalan: parseFloat(s.total_hafalan) || 0, // DISABLED: Column not in Supabase yet
+                total_hafalan: parseFloat(s.total_hafalan) || 0,
                 updated_at: new Date().toISOString()
             };
+
+            // Debug log for first student
+            if (id === dashboardData.students[0].id) {
+                console.log('[SYNC DEBUG] First student data:', studentData);
+                console.log('[SYNC DEBUG] Original tanggal_lahir:', s.tanggal_lahir);
+            }
+
+            return studentData;
         }).filter(item => item !== null); // Remove invalid items
 
         // Unique filter to prevent duplicates in same batch
         const uniqueStudents = [];
         const seenIds = new Set();
-        
+
         for (const student of studentsToUpsert) {
             if (!seenIds.has(student.id)) {
                 seenIds.add(student.id);
@@ -102,22 +127,35 @@ async function syncStudentsToSupabase() {
         }
 
         // Split into chunks to avoid too large payload or complex conflicts
-        const chunkSize = 50;
+        const chunkSize = 20; // Reduce from 50 to 20 to avoid connection issues
         for (let i = 0; i < uniqueStudents.length; i += chunkSize) {
             const chunk = uniqueStudents.slice(i, i + chunkSize);
-            const { data, error } = await supabaseClient
-                .from('students')
-                .upsert(chunk, { onConflict: 'id' });
-            
-            if (error) {
-                console.error('Supabase Upsert Chunk Error:', error);
-                throw error;
+
+            console.log(`[SYNC] Uploading chunk ${Math.floor(i / chunkSize) + 1}/${Math.ceil(uniqueStudents.length / chunkSize)}...`);
+
+            try {
+                const { data, error } = await supabaseClient
+                    .from('students')
+                    .upsert(chunk, { onConflict: 'id' });
+
+                if (error) {
+                    console.error('Supabase Upsert Chunk Error:', error);
+                    throw error;
+                }
+
+                console.log(`[SYNC] Chunk ${Math.floor(i / chunkSize) + 1} uploaded successfully`);
+
+                // Add delay between chunks to avoid rate limiting
+                await new Promise(resolve => setTimeout(resolve, 500));
+            } catch (chunkError) {
+                console.error(`[SYNC] Failed to upload chunk ${Math.floor(i / chunkSize) + 1}:`, chunkError);
+                // Continue with next chunk instead of failing completely
             }
         }
-        
+
         // Success - no notification (silent sync)
         isSyncing = false;
-        
+
         // Clear flag after a delay to allow realtime updates to settle
         setTimeout(() => {
             window.syncInProgress = false;
@@ -133,7 +171,11 @@ async function syncStudentsToSupabase() {
 // Sync halaqahs to Supabase
 async function syncHalaqahsToSupabase() {
     if (!isOnline) return;
-    
+
+    // AUTH CHECK: Only admin can write to DB
+    const profile = window.currentProfile ? window.currentProfile() : null;
+    if (!profile || profile.role !== 'admin') return;
+
     try {
         // Silent sync - no notification to avoid confusion
         const { data, error } = await supabaseClient
@@ -151,9 +193,9 @@ async function syncHalaqahsToSupabase() {
                 kelas: h.kelas || '',
                 updated_at: new Date().toISOString()
             })), { onConflict: 'id' });
-        
+
         if (error) throw error;
-        
+
         // Success - no notification (silent sync)
     } catch (error) {
         console.error('Error syncing halaqahs:', error);
@@ -167,41 +209,87 @@ async function loadStudentsFromSupabase() {
         showSyncStatus('📴 Mode Offline - menggunakan data lokal', 'warning');
         return;
     }
-    
+
     try {
         showSyncStatus('☁️ Memuat data santri...', 'info');
-        
+
         const { data, error } = await supabaseClient
             .from('students')
             .select('*')
             .order('overall_ranking', { ascending: true });
-        
+
         if (error) throw error;
-        
+
         if (data && data.length > 0) {
-            dashboardData.students = data.map(s => ({
-                id: s.id,
-                name: s.name,
-                halaqah: s.halaqah,
-                nisn: s.nisn,
-                nik: s.nik || '', // Ensure NIK is loaded
-                lembaga: s.lembaga,
-                kelas: s.kelas,
-                total_points: s.total_points,
-                daily_ranking: s.daily_ranking,
-                overall_ranking: s.overall_ranking,
-                streak: s.streak,
-                lastActivity: s.last_activity,
-                achievements: JSON.parse(s.achievements || '[]'),
-                setoran: JSON.parse(s.setoran || '[]'),
-                lastSetoranDate: s.last_setoran_date,
-                total_hafalan: s.total_points > 0 ? (s.total_points / 20) : 0 // Fallback logic if needed, ideally from DB
-            }));
-            
+            // Create a map of existing students for quick lookup to preserve local data if remote is missing
+            const existingMap = new Map();
+            if (dashboardData && dashboardData.students) {
+                dashboardData.students.forEach(s => existingMap.set(s.id, s));
+            }
+
+            dashboardData.students = data.map(s => {
+                const existing = existingMap.get(s.id);
+
+                // Helper to check if property exists in Supabase response
+                // Logic: Prefer remote value if it exists and is not empty.
+                // If remote is empty/null, preserve local value if it exists.
+                const getField = (field, fallback = '') => {
+                    const remoteVal = s[field];
+                    const localVal = existing ? existing[field] : undefined;
+
+                    // If remote has value (non-empty string/valid number), use it
+                    if (remoteVal !== undefined && remoteVal !== null && remoteVal !== '') {
+                        return remoteVal;
+                    }
+
+                    // If remote is empty, but we have local value, keep local
+                    if (localVal !== undefined && localVal !== null && localVal !== '') {
+                        console.log(`[SYNC PRESERVE] Keeping local ${field} for ${s.name}: ${localVal}`);
+                        return localVal;
+                    }
+
+                    // Default fallback
+                    return fallback;
+                };
+
+                return {
+                    id: s.id,
+                    name: s.name,
+                    halaqah: s.halaqah,
+                    nisn: s.nisn,
+                    nik: s.nik || '',
+                    lembaga: s.lembaga,
+                    kelas: s.kelas,
+
+                    // New Profile Fields - Preserve local if missing in remote
+                    jenis_kelamin: getField('jenis_kelamin'),
+                    tempat_lahir: getField('tempat_lahir'),
+                    tanggal_lahir: getField('tanggal_lahir'),
+                    alamat: getField('alamat'),
+                    hp: getField('hp'),
+                    nama_ayah: getField('nama_ayah'),
+                    nama_ibu: getField('nama_ibu'),
+                    sekolah_asal: getField('sekolah_asal'),
+
+                    total_points: s.total_points,
+                    daily_ranking: s.daily_ranking,
+                    overall_ranking: s.overall_ranking,
+                    streak: s.streak,
+                    lastActivity: s.last_activity,
+                    achievements: JSON.parse(s.achievements || '[]'),
+                    setoran: JSON.parse(s.setoran || '[]'),
+                    lastSetoranDate: s.last_setoran_date,
+                    total_hafalan: s.total_points > 0 ? (s.total_points / 20) : 0
+                };
+            });
+
+            console.log('[LOAD] Loaded', data.length, 'students from Supabase');
+            console.log('[LOAD] Sample student:', dashboardData.students[0]);
+
             showSyncStatus('✅ Data santri dimuat', 'success');
         } else {
-             // If no data in Supabase, keep local data but don't show "Demo Mode"
-             console.log('No data in Supabase, using local defaults');
+            // If no data in Supabase, keep local data but don't show "Demo Mode"
+            console.log('No data in Supabase, using local defaults');
         }
     } catch (error) {
         console.error('Error loading students:', error);
@@ -212,15 +300,15 @@ async function loadStudentsFromSupabase() {
 // Load halaqahs from Supabase
 async function loadHalaqahsFromSupabase() {
     if (!isOnline) return;
-    
+
     try {
         const { data, error } = await supabaseClient
             .from('halaqahs')
             .select('*')
             .order('rank', { ascending: true });
-        
+
         if (error) throw error;
-        
+
         if (data && data.length > 0) {
             dashboardData.halaqahs = data.map(h => ({
                 id: h.id,
@@ -246,16 +334,16 @@ async function initSupabase() {
         console.error('Supabase client not available');
         return;
     }
-    
+
     // Load initial data
     await Promise.all([
         loadStudentsFromSupabase(),
         loadHalaqahsFromSupabase()
     ]);
-    
+
     // Enable real-time
     enableRealtimeSubscription();
-    
+
     return true;
 }
 
@@ -267,12 +355,12 @@ function enableRealtimeSubscription() {
     if (!supabaseClient) return;
 
     console.log('Activating Real-time Subscription...');
-    
+
     // Subscribe to students table
     const studentChannel = supabaseClient.channel('public:students');
     studentChannel
         .on('postgres_changes', { event: '*', schema: 'public', table: 'students' }, payload => {
-            console.log('Real-time update received (students):', payload);
+            // console.log('Real-time update received (students):', payload);
             handleRealtimeUpdate(payload);
         })
         .subscribe((status) => {
@@ -283,36 +371,39 @@ function enableRealtimeSubscription() {
     const setoranChannel = supabaseClient.channel('public:setoran');
     setoranChannel
         .on('postgres_changes', { event: '*', schema: 'public', table: 'setoran' }, payload => {
-            console.log('Real-time update received (setoran):', payload);
+            // console.log('Real-time update received (setoran):', payload);
             // We might need a specific handler for setoran if it's a separate table
             // For now, reloading students might be enough if setoran triggers student update
             // Or if we need to merge it. 
             // Assuming setoran updates affect student stats, refreshing data is safe.
             if (typeof loadStudentsFromSupabase === 'function') {
-                loadStudentsFromSupabase(); 
+                loadStudentsFromSupabase();
             }
         })
         .subscribe((status) => {
-             console.log('Setoran subscription status:', status);
+            console.log('Setoran subscription status:', status);
         });
 }
 
 function handleRealtimeUpdate(payload) {
     // Prevent processing updates during delete operations
     if (window.deleteOperationInProgress) {
-        console.log('⏭️ Skipping realtime update during delete operation');
+        // console.log('⏭️ Skipping realtime update during delete operation');
         return;
     }
-    
+
     // Prevent processing updates during sync operations to avoid loops
     if (window.syncInProgress) {
-        console.log('⏭️ Skipping realtime update during sync operation');
+        // console.log('⏭️ Skipping realtime update during sync operation');
         return;
     }
-    
+
     const { eventType, new: newRecord, old: oldRecord } = payload;
-    
+
     // Helper to map DB snake_case to local camelCase
+    // FIX: Look up existing student to preserve local data if remote is empty/partial
+    const existing = dashboardData.students.find(s => s.id === (newRecord ? newRecord.id : 0));
+
     const mapStudentData = (record) => {
         return {
             id: record.id,
@@ -322,6 +413,17 @@ function handleRealtimeUpdate(payload) {
             nik: record.nik,
             lembaga: record.lembaga,
             kelas: record.kelas,
+
+            // New Profile Fields - Preserve local if remote is empty
+            jenis_kelamin: record.jenis_kelamin || (existing?.jenis_kelamin || ''),
+            tempat_lahir: record.tempat_lahir || (existing?.tempat_lahir || ''),
+            tanggal_lahir: record.tanggal_lahir || (existing?.tanggal_lahir || null),
+            alamat: record.alamat || (existing?.alamat || ''),
+            hp: record.hp || (existing?.hp || ''),
+            nama_ayah: record.nama_ayah || (existing?.nama_ayah || ''),
+            nama_ibu: record.nama_ibu || (existing?.nama_ibu || ''),
+            sekolah_asal: record.sekolah_asal || (existing?.sekolah_asal || ''),
+
             total_points: record.total_points,
             daily_ranking: record.daily_ranking,
             overall_ranking: record.overall_ranking,
@@ -339,7 +441,14 @@ function handleRealtimeUpdate(payload) {
         if (!exists) {
             console.log('📥 Realtime INSERT:', newRecord.name);
             dashboardData.students.push(mapStudentData(newRecord));
-            refreshAllData();
+
+            // Debounce refresh to prevent spam
+            if (window.refreshDebounceTimeout) clearTimeout(window.refreshDebounceTimeout);
+            window.refreshDebounceTimeout = setTimeout(() => {
+                if (typeof refreshAllData === 'function') {
+                    refreshAllData();
+                }
+            }, 500);
         }
     } else if (eventType === 'UPDATE') {
         const index = dashboardData.students.findIndex(s => s.id === newRecord.id);
@@ -347,14 +456,27 @@ function handleRealtimeUpdate(payload) {
             console.log('🔄 Realtime UPDATE:', newRecord.name);
             // Replace with new data from server (server is source of truth)
             dashboardData.students[index] = mapStudentData(newRecord);
-            refreshAllData();
-            // showSyncStatus('🔄 Data diperbarui', 'info');
+
+            // Debounce refresh to prevent spam
+            if (window.refreshDebounceTimeout) clearTimeout(window.refreshDebounceTimeout);
+            window.refreshDebounceTimeout = setTimeout(() => {
+                if (typeof refreshAllData === 'function') {
+                    refreshAllData();
+                }
+            }, 500);
         }
     } else if (eventType === 'DELETE') {
         const index = dashboardData.students.findIndex(s => s.id === oldRecord.id);
         if (index !== -1) {
             dashboardData.students.splice(index, 1);
-            refreshAllData();
+
+            // Debounce refresh to prevent spam
+            if (window.refreshDebounceTimeout) clearTimeout(window.refreshDebounceTimeout);
+            window.refreshDebounceTimeout = setTimeout(() => {
+                if (typeof refreshAllData === 'function') {
+                    refreshAllData();
+                }
+            }, 500);
         }
     }
 }
@@ -372,7 +494,15 @@ if (isOnline && window.supabaseClient) {
 // Auto-sync when data changes
 async function autoSync() {
     if (isSyncing || !isOnline) return;
-    
+
+    // Only allow admin to sync data TO server
+    // Public users/Parents/Guru only READ data via realtime
+    const profile = window.currentProfile ? window.currentProfile() : null;
+    if (!profile || profile.role !== 'admin') {
+        // console.log('⏭️ Skipping auto-sync (not admin)');
+        return;
+    }
+
     await syncStudentsToSupabase();
     await syncHalaqahsToSupabase();
 }
@@ -384,7 +514,7 @@ function setupRealtimeSubscriptions() {
         console.log('Supabase not configured, skipping realtime subscriptions');
         return;
     }
-    
+
     // Check if subscription already exists to prevent duplicate listeners
     if (window.realtimeSubscription) {
         return;
@@ -393,7 +523,7 @@ function setupRealtimeSubscriptions() {
     // Subscribe to changes
     window.realtimeSubscription = supabaseClient
         .channel('db-changes')
-        .on('postgres_changes', 
+        .on('postgres_changes',
             { event: '*', schema: 'public', table: 'students' },
             (payload) => {
                 // Skip if delete operation is in progress
@@ -401,7 +531,7 @@ function setupRealtimeSubscriptions() {
                     console.log('Delete in progress, skipping realtime update');
                     return;
                 }
-                
+
                 // Debounce updates to prevent spamming
                 if (window.studentUpdateTimeout) clearTimeout(window.studentUpdateTimeout);
                 window.studentUpdateTimeout = setTimeout(() => {
@@ -411,7 +541,7 @@ function setupRealtimeSubscriptions() {
                         loadStudentsFromSupabase().then(() => {
                             // Update parent-child link with fresh data
                             if (typeof refreshUserChildLink === 'function') refreshUserChildLink();
-                            
+
                             if (typeof refreshAllData === 'function') {
                                 refreshAllData();
                             } else if (typeof renderStats === 'function') {
@@ -446,9 +576,9 @@ function setupRealtimeSubscriptions() {
                     console.log('Delete in progress, skipping realtime update');
                     return;
                 }
-                
-                 if (window.halaqahUpdateTimeout) clearTimeout(window.halaqahUpdateTimeout);
-                 window.halaqahUpdateTimeout = setTimeout(() => {
+
+                if (window.halaqahUpdateTimeout) clearTimeout(window.halaqahUpdateTimeout);
+                window.halaqahUpdateTimeout = setTimeout(() => {
                     console.log('Halaqahs updated, refreshing...');
                     // Only reload on INSERT and UPDATE, not DELETE
                     if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
@@ -461,7 +591,7 @@ function setupRealtimeSubscriptions() {
                             }
                         });
                     }
-                 }, 1000);
+                }, 1000);
             }
         )
         .subscribe();
@@ -486,14 +616,14 @@ async function initSupabase() {
         console.log('Supabase not configured, running in demo mode');
         return;
     }
-    
+
     // Load data from Supabase
     await loadStudentsFromSupabase();
     await loadHalaqahsFromSupabase();
-    
+
     // Setup real-time subscriptions
     setupRealtimeSubscriptions();
-    
+
     // Auto-sync every 30 seconds
     setInterval(autoSync, 30000);
 }
@@ -502,17 +632,17 @@ async function initSupabase() {
 async function deleteStudentFromSupabase(studentId) {
     if (!isOnline) {
         showSyncStatus('⚠️ Offline: Penghapusan akan disinkronkan nanti', 'warning');
-        return; 
+        return;
     }
 
     console.log('=== DELETE STUDENT DEBUG ===');
     console.log('Student ID to delete:', studentId);
-    
+
     // Cek session user
     const { data: { session } } = await supabaseClient.auth.getSession();
     console.log('Current session:', session);
     console.log('Current user ID:', session?.user?.id);
-    
+
     if (!session?.user?.id) {
         console.error('❌ No user logged in!');
         showSyncStatus('❌ Anda belum login!', 'error');
@@ -526,13 +656,13 @@ async function deleteStudentFromSupabase(studentId) {
         .select('id')
         .eq('id', studentId)
         .single();
-    
+
     if (checkError || !existingStudent) {
         console.error('Student not found in Supabase:', checkError);
         showSyncStatus('⚠️ Data tidak ditemukan di server', 'warning');
         return;
     }
-    
+
     console.log('Student found, proceeding with delete...');
 
     try {
@@ -550,22 +680,22 @@ async function deleteStudentFromSupabase(studentId) {
             console.error('Error message:', error.message);
             throw error;
         }
-        
+
         console.log(`✅ Student ${studentId} deleted from Supabase`);
         showSyncStatus('✅ Santri berhasil dihapus dari server', 'success');
-        
+
     } catch (error) {
         console.error('❌ Error deleting student:', error);
-        
+
         // Show more specific error message based on code
         if (error.code === '42501' || error.message?.includes('violates row-level security policy')) {
-             showSyncStatus('⛔ Izin Ditolak: Hanya Admin yang bisa menghapus', 'error');
+            showSyncStatus('⛔ Izin Ditolak: Hanya Admin yang bisa menghapus', 'error');
         } else if (error.code === 'PGRST116') {
-             showSyncStatus('⛔ Data tidak ditemukan', 'error');
+            showSyncStatus('⛔ Data tidak ditemukan', 'error');
         } else if (error.code === '23503') {
-             showSyncStatus('⛔ Data masih digunakan di tempat lain', 'error');
+            showSyncStatus('⛔ Data masih digunakan di tempat lain', 'error');
         } else {
-             showSyncStatus(`❌ Gagal menghapus: ${error.message || 'Unknown error'}`, 'error');
+            showSyncStatus(`❌ Gagal menghapus: ${error.message || 'Unknown error'}`, 'error');
         }
         throw error;
     }
@@ -585,7 +715,7 @@ async function deleteHalaqahFromSupabase(halaqahId) {
     const { data: { session } } = await supabaseClient.auth.getSession();
     console.log('Current session:', session);
     console.log('Current user ID:', session?.user?.id);
-    
+
     if (!session?.user?.id) {
         console.error('❌ No user logged in!');
         showSyncStatus('❌ Anda belum login!', 'error');
@@ -599,31 +729,31 @@ async function deleteHalaqahFromSupabase(halaqahId) {
         .select('id, name')
         .eq('id', halaqahId)
         .single();
-    
+
     if (checkError || !existingHalaqah) {
         console.error('Halaqah not found in Supabase:', checkError);
         showSyncStatus('⚠️ Halaqah tidak ditemukan di server', 'warning');
         return Promise.resolve(); // Not an error, just doesn't exist
     }
-    
+
     console.log('Halaqah found in Supabase:', existingHalaqah);
 
     // Cek apakah ada students yang masih menggunakan halaqah ini
     console.log('Checking if halaqah is still used by students...');
     const halaqahName = existingHalaqah.name.replace('Halaqah ', '');
     console.log('Checking for students with halaqah:', halaqahName);
-    
+
     const { data: studentsInHalaqah, error: studentsError } = await supabaseClient
         .from('students')
         .select('id')
         .eq('halaqah', halaqahName);
-    
+
     if (studentsError) {
         console.error('Error checking students:', studentsError);
     }
-    
+
     console.log('Students in halaqah:', studentsInHalaqah);
-    
+
     if (studentsInHalaqah && studentsInHalaqah.length > 0) {
         console.error('Cannot delete halaqah: still has', studentsInHalaqah.length, 'students');
         showSyncStatus(`⛔ Halaqah masih memiliki ${studentsInHalaqah.length} santri, hapus santri terlebih dahulu`, 'error');
@@ -645,22 +775,22 @@ async function deleteHalaqahFromSupabase(halaqahId) {
             console.error('Error message:', error.message);
             throw error;
         }
-        
+
         console.log(`✅ Halaqah ${halaqahId} deleted from Supabase`);
         showSyncStatus('✅ Halaqah berhasil dihapus dari server', 'success');
         return Promise.resolve();
-        
+
     } catch (error) {
         console.error('❌ Error deleting halaqah:', error);
-        
+
         if (error.code === '42501' || error.message?.includes('violates row-level security policy')) {
-             showSyncStatus('⛔ Izin Ditolak: Hanya Admin yang bisa menghapus', 'error');
+            showSyncStatus('⛔ Izin Ditolak: Hanya Admin yang bisa menghapus', 'error');
         } else if (error.code === 'PGRST116') {
-             showSyncStatus('⛔ Halaqah tidak ditemukan', 'error');
+            showSyncStatus('⛔ Halaqah tidak ditemukan', 'error');
         } else if (error.code === '23503') {
-             showSyncStatus('⛔ Halaqah masih digunakan di tempat lain', 'error');
+            showSyncStatus('⛔ Halaqah masih digunakan di tempat lain', 'error');
         } else {
-             showSyncStatus(`❌ Gagal menghapus halaqah: ${error.message || 'Unknown error'}`, 'error');
+            showSyncStatus(`❌ Gagal menghapus halaqah: ${error.message || 'Unknown error'}`, 'error');
         }
         return Promise.reject(error);
     }
@@ -674,11 +804,11 @@ async function deleteAllStudentsFromSupabase() {
     }
 
     console.log('=== DELETE ALL STUDENTS ===');
-    
+
     try {
         // Set flag to prevent realtime listener from reloading
         window.deleteOperationInProgress = true;
-        
+
         const { error } = await supabaseClient
             .from('students')
             .delete()
@@ -690,10 +820,10 @@ async function deleteAllStudentsFromSupabase() {
             window.deleteOperationInProgress = false;
             return false;
         }
-        
+
         console.log('✅ All students deleted from Supabase');
         return true;
-        
+
     } catch (error) {
         console.error('❌ Error deleting all students:', error);
         showSyncStatus('❌ Gagal menghapus semua santri', 'error');
@@ -710,7 +840,7 @@ async function deleteAllHalaqahsFromSupabase() {
     }
 
     console.log('=== DELETE ALL HALAQAHS ===');
-    
+
     try {
         const { error } = await supabaseClient
             .from('halaqahs')
@@ -722,10 +852,10 @@ async function deleteAllHalaqahsFromSupabase() {
             showSyncStatus('❌ Gagal menghapus semua halaqah dari server', 'error');
             return false;
         }
-        
+
         console.log('✅ All halaqahs deleted from Supabase');
         return true;
-        
+
     } catch (error) {
         console.error('❌ Error deleting all halaqahs:', error);
         showSyncStatus('❌ Gagal menghapus semua halaqah', 'error');

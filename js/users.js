@@ -45,7 +45,8 @@ function renderUserManagement() {
         const roleColors = {
             admin: 'bg-purple-100 text-purple-700',
             guru: 'bg-blue-100 text-blue-700',
-            staff: 'bg-green-100 text-green-700'
+            staff: 'bg-green-100 text-green-700',
+            ortu: 'bg-orange-100 text-orange-700'
         };
         
         const statusColors = {
@@ -80,7 +81,7 @@ function renderUserManagement() {
                         
                         <div class="flex flex-wrap items-center gap-2 mb-3">
                             <span class="px-2 py-1 rounded-lg text-xs font-bold ${roleColors[user.role]}">
-                                ${user.role === 'admin' ? '👑 Admin' : user.role === 'guru' ? '👨‍🏫 Guru' : '👤 Staff'}
+                                ${user.role === 'admin' ? '👑 Admin' : user.role === 'guru' ? '👨‍🏫 Guru' : user.role === 'ortu' ? '👨‍👩‍👧 Ortu' : '👤 Staff'}
                             </span>
                             <span class="text-xs text-slate-500">📱 ${user.phone}</span>
                         </div>
@@ -91,7 +92,7 @@ function renderUserManagement() {
                         
                         <!-- Action Buttons -->
                         <div class="grid grid-cols-3 gap-2">
-                            ${user.role === 'guru' || user.role === 'parent' ? `
+                            ${user.role === 'guru' || user.role === 'ortu' ? `
                             <button onclick='showAssignSantriDialog(${user.id})' 
                                 class="px-3 py-2 bg-green-50 text-green-600 rounded-lg text-sm font-bold hover:bg-green-100 transition-colors">
                                 👥 Santri
@@ -144,12 +145,13 @@ function renderUserManagement() {
                     <option value="all">Semua Role</option>
                     <option value="admin">Admin</option>
                     <option value="guru">Guru</option>
+                    <option value="ortu">Orang Tua</option>
                     <option value="staff">Staff</option>
                 </select>
             </div>
             
             <!-- Stats -->
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+            <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
                 <div class="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-4">
                     <div class="text-2xl font-bold text-purple-700">${usersData.users.length}</div>
                     <div class="text-xs text-purple-600 font-semibold">Total User</div>
@@ -165,6 +167,10 @@ function renderUserManagement() {
                 <div class="bg-gradient-to-br from-amber-50 to-amber-100 rounded-xl p-4">
                     <div class="text-2xl font-bold text-amber-700">${usersData.users.filter(u => u.role === 'guru').length}</div>
                     <div class="text-xs text-amber-600 font-semibold">Guru</div>
+                </div>
+                <div class="bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl p-4">
+                    <div class="text-2xl font-bold text-orange-700">${usersData.users.filter(u => u.role === 'ortu').length}</div>
+                    <div class="text-xs text-orange-600 font-semibold">Orang Tua</div>
                 </div>
             </div>
             
@@ -245,6 +251,7 @@ function showAddUserForm() {
                             <option value="">Pilih Role</option>
                             <option value="admin">👑 Admin</option>
                             <option value="guru">👨‍🏫 Guru</option>
+                            <option value="ortu">👨‍👩‍👧 Orang Tua</option>
                             <option value="staff">👤 Staff</option>
                         </select>
                     </div>
@@ -268,6 +275,7 @@ function showAddUserForm() {
                         <ul class="text-sm text-blue-800 space-y-1">
                             <li>• <strong>Admin</strong>: Akses penuh ke semua fitur</li>
                             <li>• <strong>Guru</strong>: Kelola santri dan setoran</li>
+                            <li>• <strong>Orang Tua</strong>: Pantau perkembangan anak</li>
                             <li>• <strong>Staff</strong>: Lihat data saja</li>
                         </ul>
                     </div>
@@ -295,10 +303,12 @@ function showAddUserForm() {
                             <p><strong>Kolom 2:</strong> Nama akun (username/email)</p>
                             <p><strong>Kolom 3:</strong> Password</p>
                             <p><strong>Kolom 4:</strong> Lembaga</p>
+                            <p><strong>Kolom 5:</strong> Role (admin, guru, ortu, staff)</p>
                         </div>
                         <div class="mt-3 text-xs text-blue-600">
                             <p>⚠️ Baris pertama (header) akan diabaikan</p>
                             <p>✅ Pastikan format sesuai agar import berhasil</p>
+                            <p>ℹ️ Role yang valid: <strong>admin, guru, ortu, staff</strong> (default: guru)</p>
                         </div>
                     </div>
                     
@@ -431,6 +441,7 @@ function showEditUserForm(user) {
                         class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none">
                         <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>👑 Admin</option>
                         <option value="guru" ${user.role === 'guru' ? 'selected' : ''}>👨‍🏫 Guru</option>
+                        <option value="ortu" ${user.role === 'ortu' ? 'selected' : ''}>👨‍👩‍👧 Orang Tua</option>
                         <option value="staff" ${user.role === 'staff' ? 'selected' : ''}>👤 Staff</option>
                     </select>
                 </div>
@@ -586,14 +597,19 @@ function previewImportUsers(event) {
                 preview.classList.remove('hidden');
                 previewContent.innerHTML = `
                     <div class="space-y-2">
-                        ${dataRows.slice(0, 5).map((row, index) => `
+                        ${dataRows.slice(0, 5).map((row, index) => {
+                            const role = row[4] ? row[4].toString().toLowerCase() : 'guru (default)';
+                            const isValidRole = ['admin', 'guru', 'ortu', 'staff'].includes(role) || !row[4];
+                            const roleDisplay = isValidRole ? role : `<span class="text-red-600 font-bold">${role} (invalid)</span>`;
+                            
+                            return `
                             <div class="bg-slate-50 rounded-lg p-2">
                                 <div class="font-bold text-slate-800">${row[0]}</div>
                                 <div class="text-xs text-slate-600">
-                                    Akun: ${row[1]} | Password: ${row[2]} | Lembaga: ${row[3]}
+                                    Akun: ${row[1]} | Password: ${row[2]} | Lembaga: ${row[3]} | Role: ${roleDisplay}
                                 </div>
                             </div>
-                        `).join('')}
+                        `}).join('')}
                         ${dataRows.length > 5 ? `<div class="text-xs text-slate-500 text-center">... dan ${dataRows.length - 5} user lainnya</div>` : ''}
                     </div>
                 `;
@@ -640,10 +656,23 @@ function handleImportUsers() {
                 const accountName = row[1]?.toString().trim();
                 const password = row[2]?.toString().trim();
                 const lembaga = row[3]?.toString().trim();
+                const roleInput = row[4] ? row[4].toString().trim().toLowerCase() : '';
                 
                 if (!userName || !accountName || !password || !lembaga) {
                     skipped++;
                     return;
+                }
+
+                // Validate Role
+                let role = 'guru'; // Default
+                if (roleInput) {
+                    if (['admin', 'guru', 'ortu', 'staff'].includes(roleInput)) {
+                        role = roleInput;
+                    } else {
+                        // Invalid role provided
+                        skipped++;
+                        return;
+                    }
                 }
                 
                 // Check if user already exists
@@ -659,7 +688,7 @@ function handleImportUsers() {
                     name: userName,
                     email: accountName,
                     password: password, // In production, this should be hashed
-                    role: 'guru', // Default role
+                    role: role,
                     lembaga: lembaga,
                     phone: '-',
                     status: 'active',

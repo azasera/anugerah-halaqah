@@ -8,7 +8,7 @@ let currentUserChild = null;
 async function checkAuth() {
     // PUBLIC MODE: Allow access without login
     // Dashboard is public, login only required for specific actions
-    
+
     // Wait for Supabase client to initialize
     let retries = 0;
     while (!window.supabaseClient && retries < 10) {
@@ -18,14 +18,67 @@ async function checkAuth() {
 
     if (!window.supabaseClient) {
         console.log('Running in public mode (no authentication)');
+
+        // Check for local session fallback
+        const localUser = localStorage.getItem('localCurrentUser');
+        if (localUser) {
+            try {
+                currentUser = JSON.parse(localUser);
+                console.log('Restored local session:', currentUser.name);
+
+                // Create mock profile for local user
+                currentProfile = {
+                    id: currentUser.id,
+                    email: currentUser.email,
+                    full_name: currentUser.name || currentUser.email.split('@')[0],
+                    role: currentUser.role || 'ortu',
+                    is_active: true
+                };
+
+                if (currentProfile.role === 'ortu') {
+                    refreshUserChildLink();
+                }
+
+                updateUIBasedOnRole();
+                return;
+            } catch (e) {
+                console.error('Error parsing local session:', e);
+                localStorage.removeItem('localCurrentUser');
+            }
+        }
+
         currentUser = null;
         currentProfile = null;
         showPublicUI();
         return; // Continue without auth
     }
-    
+
+    // Check for local session first (priority over Supabase check if offline/mixed)
+    const localUser = localStorage.getItem('localCurrentUser');
+    if (localUser) {
+        try {
+            currentUser = JSON.parse(localUser);
+            // Create mock profile for local user
+            currentProfile = {
+                id: currentUser.id,
+                email: currentUser.email,
+                full_name: currentUser.name || currentUser.email.split('@')[0],
+                role: currentUser.role || 'ortu',
+                is_active: true
+            };
+
+            if (currentProfile.role === 'ortu') {
+                refreshUserChildLink();
+            }
+            updateUIBasedOnRole();
+            return;
+        } catch (e) {
+            localStorage.removeItem('localCurrentUser');
+        }
+    }
+
     const { data: { session } } = await window.supabaseClient.auth.getSession();
-    
+
     if (session) {
         currentUser = session.user;
         await loadUserProfile();
@@ -51,7 +104,7 @@ async function loadUserProfile() {
             .select('*')
             .eq('id', currentUser.id)
             .single();
-        
+
         if (error) {
             // If profile doesn't exist, create a default one
             if (error.code === 'PGRST116') {
@@ -67,24 +120,24 @@ async function loadUserProfile() {
                     })
                     .select()
                     .single();
-                
+
                 if (createError) {
                     console.error('Error creating profile:', createError);
                     // Continue without profile
                     currentProfile = null;
                     return;
                 }
-                
+
                 currentProfile = newProfile;
                 updateUIBasedOnRole();
                 return;
             }
-            
+
             console.error('Error loading profile:', error);
             currentProfile = null;
             return;
         }
-        
+
         currentProfile = data;
         updateUIBasedOnRole();
     } catch (err) {
@@ -94,15 +147,20 @@ async function loadUserProfile() {
 }
 
 // Login function
-async function login(input, password) {
+async function login(rawInput, rawPassword) {
     try {
+        // Normalize inputs
+        const input = String(rawInput).trim();
+        const password = String(rawPassword).trim();
+
         let email = input;
-        
+
         // Cek apakah input hanya berisi angka (asumsi NIK)
         if (/^\d+$/.test(input)) {
             // Untuk login NIK, kita gunakan email dummy
             email = `${input}@sekolah.id`;
-            
+            console.log(`[DEBUG] Attempting NIK login for: ${input} -> ${email}`);
+
             // Verifikasi format password tanggal lahir (DDMMYYYY)
             if (!/^\d{8}$/.test(password)) {
                 throw new Error('Format password harus tanggal lahir (DDMMYYYY)');
@@ -110,29 +168,315 @@ async function login(input, password) {
         } else {
             // Jika bukan NIK, validasi format email
             if (!input.includes('@')) {
-                 throw new Error('Format email tidak valid');
+                throw new Error('Format email tidak valid');
             }
         }
 
-        const { data, error } = await window.supabaseClient.auth.signInWithPassword({
-            email: email,
-            password: password
-        });
-        
-        if (error) throw error;
-        
-        currentUser = data.user;
-        await loadUserProfile();
-        showApp();
-        showNotification('✅ Login berhasil!', 'success');
+        // Try Supabase Login first
+        let supabaseSuccess = false;
+
+        if (window.supabaseClient) {
+            try {
+                console.log(`[DEBUG] Calling Supabase signInWithPassword for ${email}`);
+                console.log(`[DEBUG] Password length: ${password.length}`);
+
+                const { data, error } = await window.supabaseClient.auth.signInWithPassword({
+                    email: email,
+                    password: password
+                });
+
+                console.log('[DEBUG] Supabase response:', { data, error });
+
+                if (!error && data?.user) {
+                    console.log('[DEBUG] Supabase Login Success');
+                    currentUser = data.user;
+                    await loadUserProfile();
+                    showApp();
+                    showNotification('✅ Login berhasil!', 'success');
+                    supabaseSuccess = true;
+                    return;
+                } else if (error) {
+                    console.log('[DEBUG] Supabase Login Failed with error:', error);
+                    console.log('[DEBUG] Error code:', error.code);
+                    console.log('[DEBUG] Error message:', error.message);
+                    console.log('[DEBUG] Error status:', error.status);
+
+                    // Check if this is a login attempt with NIK/Default Password
+                    // If login fails but credentials match student data, assume first-time login -> Auto Register
+                    if (/^\d+$/.test(input)) {
+                        console.log('Login failed (400), attempting NIK recovery for:', input);
+
+                        // Normalize input
+                        const nikInput = String(input).trim();
+
+                        // 1. Try finding in local data
+                        let student = null;
+                        if (dashboardData && dashboardData.students) {
+                            student = dashboardData.students.find(s =>
+                                String(s.nik).trim() === nikInput ||
+                                String(s.nisn).trim() === nikInput
+                            );
+                        }
+
+                        // 2. Fallback: Try finding in Supabase directly (if not found locally)
+                        if (!student && window.supabaseClient) {
+                            console.log('Student not found locally, querying Supabase directly...');
+                            try {
+                                // Use maybeSingle() to avoid 406 error if not found
+                                // Also try with both quoted (string) and unquoted (numeric) format just in case
+                                const { data, error } = await window.supabaseClient
+                                    .from('students')
+                                    .select('*')
+                                    .or(`nik.eq."${nikInput}",nisn.eq."${nikInput}",nik.eq.${nikInput},nisn.eq.${nikInput}`)
+                                    .maybeSingle();
+
+                                if (error) {
+                                    console.warn('Error querying student direct:', error.message);
+                                } else if (data) {
+                                    console.log('Student found in Supabase:', data.name);
+                                    student = data;
+                                } else {
+                                    console.log('Student not found in Supabase (result is null).');
+                                }
+                            } catch (err) {
+                                console.error('Exception querying student:', err);
+                            }
+                        }
+
+                        if (student) {
+                            console.log('Student identified:', student.name);
+
+                            if (student.tanggal_lahir) {
+                                // Robust Date Parsing
+                                let day, month, year;
+                                if (student.tanggal_lahir.includes('-')) {
+                                    // YYYY-MM-DD
+                                    const parts = student.tanggal_lahir.split('-');
+                                    if (parts[0].length === 4) {
+                                        [year, month, day] = parts;
+                                    } else {
+                                        // DD-MM-YYYY
+                                        [day, month, year] = parts;
+                                    }
+                                } else if (student.tanggal_lahir.includes('/')) {
+                                    // DD/MM/YYYY or MM/DD/YYYY
+                                    const parts = student.tanggal_lahir.split('/');
+                                    // Assume DD/MM/YYYY for ID locale
+                                    [day, month, year] = parts;
+                                }
+
+                                // Ensure padding
+                                if (day && month && year) {
+                                    day = day.toString().padStart(2, '0');
+                                    month = month.toString().padStart(2, '0');
+                                    year = year.toString();
+
+                                    const birthDatePass = `${day}${month}${year}`;
+
+                                    // If password matches birth date (Default Password)
+                                    if (password === birthDatePass) {
+                                        console.log('Credentials valid. Registering account...');
+                                        showNotification('🔄 Mendaftarkan akun baru...', 'info');
+
+                                        const { data: signUpData, error: signUpError } = await window.supabaseClient.auth.signUp({
+                                            email: email,
+                                            password: password,
+                                            options: {
+                                                data: {
+                                                    full_name: student.name,
+                                                    role: 'ortu',
+                                                    student_id: student.id,
+                                                    nik: student.nik
+                                                }
+                                            }
+                                        });
+
+                                        if (!signUpError && signUpData?.user) {
+                                            currentUser = signUpData.user;
+
+                                            // Ensure profile is created
+                                            await new Promise(r => setTimeout(r, 1000));
+                                            await loadUserProfile();
+
+                                            showApp();
+                                            showNotification('✅ Akun berhasil dibuat & Login berhasil!', 'success');
+                                            supabaseSuccess = true;
+                                            return;
+                                        } else {
+                                            console.warn('Auto-registration failed:', signUpError?.message);
+                                            if (signUpError?.message?.includes('already registered')) {
+                                                // Retry login if already registered (race condition)
+                                                const { data: retryData, error: retryError } = await window.supabaseClient.auth.signInWithPassword({
+                                                    email: email,
+                                                    password: password
+                                                });
+                                                if (!retryError && retryData?.user) {
+                                                    currentUser = retryData.user;
+                                                    await loadUserProfile();
+                                                    showApp();
+                                                    showNotification('✅ Login berhasil!', 'success');
+                                                    supabaseSuccess = true;
+                                                    return;
+                                                }
+                                                throw new Error('Password salah atau akun bermasalah.');
+                                            }
+                                        }
+                                    } else {
+                                        console.log('Password mismatch. Input:', password, 'Expected:', birthDatePass);
+                                        // Throw specific error to inform user
+                                        throw new Error(`Password salah. Gunakan Tanggal Lahir (DDMMYYYY).`);
+                                    }
+                                }
+                            } else {
+                                console.log('Student found but no tanggal_lahir in DB');
+                                throw new Error('Data tanggal lahir kosong. Hubungi Admin.');
+                            }
+                        } else {
+                            console.log('No student found with this NIK.');
+                            throw new Error('NIK tidak ditemukan dalam database santri.');
+                        }
+                    }
+
+                    // If not handled by auto-reg, throw original error
+                    throw error;
+                }
+            } catch (err) {
+                console.warn('Supabase login failed:', err.message);
+                // Don't return here, let it fall through to local fallback
+            }
+        }
+
+        if (!supabaseSuccess) {
+            // Fallback: Check Local Storage Users
+            console.log('Checking local users...');
+            const savedUsers = localStorage.getItem('usersData');
+            let localUserFound = false;
+
+            if (savedUsers) {
+                try {
+                    const localData = JSON.parse(savedUsers);
+                    const users = localData.users || [];
+
+                    const user = users.find(u => {
+                        const emailMatch = u.email.toLowerCase() === email.toLowerCase();
+                        const passwordMatch = u.password === password;
+                        return emailMatch && passwordMatch && u.status === 'active';
+                    });
+
+                    if (user) {
+                        loginAsUser(user);
+                        localUserFound = true;
+                        return;
+                    }
+                } catch (e) {
+                    console.error('Error checking local users:', e);
+                }
+            }
+
+            // Fallback 2: Check Student Data (Login via NIK & Tanggal Lahir)
+            if (!localUserFound && /^\d+$/.test(input) && dashboardData && dashboardData.students) {
+                console.log('Checking student data for NIK login...');
+                // Normalize input
+                const nikInput = String(input).trim();
+                const student = dashboardData.students.find(s =>
+                    String(s.nik).trim() === nikInput ||
+                    String(s.nisn).trim() === nikInput
+                );
+
+                if (student && student.tanggal_lahir) {
+                    // Robust Date Parsing
+                    let day, month, year;
+                    if (student.tanggal_lahir.includes('-')) {
+                        // YYYY-MM-DD
+                        const parts = student.tanggal_lahir.split('-');
+                        if (parts[0].length === 4) {
+                            [year, month, day] = parts;
+                        } else {
+                            // DD-MM-YYYY
+                            [day, month, year] = parts;
+                        }
+                    } else if (student.tanggal_lahir.includes('/')) {
+                        // DD/MM/YYYY or MM/DD/YYYY
+                        const parts = student.tanggal_lahir.split('/');
+                        // Assume DD/MM/YYYY for ID locale
+                        [day, month, year] = parts;
+                    }
+
+                    if (day && month && year) {
+                        day = day.toString().padStart(2, '0');
+                        month = month.toString().padStart(2, '0');
+                        year = year.toString();
+
+                        const birthDatePass = `${day}${month}${year}`;
+
+                        if (password === birthDatePass) {
+                            console.log('Student found, logging in as parent of:', student.name);
+
+                            // Create virtual parent user
+                            const virtualUser = {
+                                id: 'parent_' + student.id,
+                                email: `${input}@sekolah.id`,
+                                name: `Wali Santri ${student.name}`,
+                                role: 'ortu',
+                                childId: student.id, // Special field to link directly
+                                status: 'active'
+                            };
+
+                            // Try to register to Supabase in background for next time
+                            if (window.supabaseClient) {
+                                window.supabaseClient.auth.signUp({
+                                    email: virtualUser.email,
+                                    password: password,
+                                    options: { data: { full_name: student.name, role: 'ortu', student_id: student.id, nik: student.nik } }
+                                }).then(({ data, error }) => {
+                                    if (!error && data?.user) console.log('Background registration success');
+                                });
+                            }
+
+                            loginAsUser(virtualUser);
+                            return;
+                        } else {
+                            console.log('Local fallback: Password mismatch', password, birthDatePass);
+                        }
+                    }
+                }
+            }
+
+            // If all fail
+            showNotification('❌ Login gagal: Email/NIK atau Password salah', 'error');
+        }
     } catch (error) {
         console.error('Login error:', error);
-        let msg = error.message;
-        if (msg.includes('Invalid login credentials')) {
-            msg = 'Email atau Password salah';
-        }
-        showNotification('❌ Login gagal: ' + msg, 'error');
+        showNotification('❌ ' + error.message, 'error');
     }
+}
+
+function loginAsUser(user) {
+    console.log('User logged in:', user.name);
+
+    // Set current user
+    currentUser = user;
+    localStorage.setItem('localCurrentUser', JSON.stringify(user));
+
+    // Create mock profile
+    currentProfile = {
+        id: user.id,
+        email: user.email,
+        full_name: user.name,
+        role: user.role,
+        is_active: true
+    };
+
+    if (user.childId) {
+        // If directly linked to a child (Virtual Parent)
+        currentUserChild = dashboardData.students.find(s => s.id == user.childId);
+    } else if (currentProfile.role === 'ortu') {
+        refreshUserChildLink();
+    }
+
+    updateUIBasedOnRole();
+    showApp();
+    showNotification('✅ Login berhasil!', 'success');
 }
 
 // Signup function
@@ -148,9 +492,9 @@ async function signup(email, password, fullName, role = 'ortu') {
                 }
             }
         });
-        
+
         if (error) throw error;
-        
+
         showNotification('✅ Registrasi berhasil! Silakan cek email untuk verifikasi.', 'success');
     } catch (error) {
         console.error('Signup error:', error);
@@ -161,12 +505,18 @@ async function signup(email, password, fullName, role = 'ortu') {
 // Logout function
 async function logout() {
     try {
-        const { error } = await window.supabaseClient.auth.signOut();
-        if (error) throw error;
-        
+        // Clear local session
+        localStorage.removeItem('localCurrentUser');
+
+        if (window.supabaseClient) {
+            const { error } = await window.supabaseClient.auth.signOut();
+            if (error) console.warn('Supabase logout error:', error);
+        }
+
         currentUser = null;
         currentProfile = null;
-        
+        currentUserChild = null;
+
         // Reload page to show public dashboard
         showNotification('👋 Logout berhasil - Kembali ke dashboard publik', 'info');
         setTimeout(() => {
@@ -174,7 +524,9 @@ async function logout() {
         }, 1000);
     } catch (error) {
         console.error('Logout error:', error);
-        showNotification('❌ Logout gagal', 'error');
+        // Force logout locally anyway
+        localStorage.removeItem('localCurrentUser');
+        window.location.reload();
     }
 }
 
@@ -250,14 +602,14 @@ function updateUIBasedOnRole() {
         // This is handled by showPublicUI() function
         return;
     }
-    
+
     if (!currentProfile) {
         // Logged in but no profile yet
         return;
     }
-    
+
     const role = currentProfile.role;
-    
+
     // Hide admin-only features for non-admin
     if (role !== 'admin') {
         // Hide admin settings
@@ -268,15 +620,15 @@ function updateUIBasedOnRole() {
         // Hide sidebar admin items
         const usersBtn = document.getElementById('sidebar-users');
         if (usersBtn) usersBtn.style.display = 'none';
-        
+
         const settingsBtn = document.getElementById('sidebar-settings');
         if (settingsBtn) settingsBtn.parentElement.style.display = 'none';
-        
+
         // Hide delete buttons
         document.querySelectorAll('[onclick*="confirmDelete"]').forEach(el => {
             el.style.display = 'none';
         });
-        
+
         // Hide import/export for ortu and guru
         if (role === 'ortu' || role === 'guru') {
             document.querySelectorAll('[onclick*="Import"], [onclick*="Export"]').forEach(el => {
@@ -307,7 +659,7 @@ function updateUIBasedOnRole() {
             </button>
         </div>
     `;
-    
+
     // Add to sidebar
     if (sidebar) {
         const firstChild = sidebar.querySelector('.p-6');
@@ -325,25 +677,25 @@ function refreshUserChildLink() {
     }
 
     const nikOrNisn = currentUser.email.split('@')[0];
-    
+
     // 1. Try to find student by NIK or NISN (Exact Match)
-    let student = dashboardData.students.find(s => 
-        (s.nik && s.nik === nikOrNisn) || 
+    let student = dashboardData.students.find(s =>
+        (s.nik && s.nik === nikOrNisn) ||
         (s.nisn && s.nisn === nikOrNisn)
     );
-    
+
     // 2. If not found, try fuzzy match by name (using email prefix)
     if (!student) {
         const emailPrefix = nikOrNisn.toLowerCase();
         // Exact name match first
         student = dashboardData.students.find(s => s.name.toLowerCase() === emailPrefix);
-        
+
         // Then contains match
         if (!student) {
             student = dashboardData.students.find(s => s.name.toLowerCase().includes(emailPrefix));
         }
     }
-    
+
     if (student) {
         currentUserChild = student;
         console.log('Parent logged in. Linked to student:', student.name);
@@ -355,6 +707,27 @@ function refreshUserChildLink() {
 
 // Export for external use
 window.refreshUserChildLink = refreshUserChildLink;
+
+// Helper to get current user's lembaga (for filtering)
+function getUserLembaga() {
+    if (!currentProfile) return null; // Public/Guest sees all (or restricted elsewhere)
+
+    // Admin & Guru sees all
+    if (currentProfile.role === 'admin' || currentProfile.role === 'guru') return null;
+
+    // Parent: Get from linked child
+    if (currentProfile.role === 'ortu') {
+        if (currentUserChild) {
+            return currentUserChild.lembaga;
+        }
+        // If parent but no child linked yet, strict security: return 'NONE' or similar to show nothing?
+        // Or default to 'MTA'? Let's return a special value.
+        return 'RESTRICTED_NO_CHILD';
+    }
+
+    return null;
+}
+window.getUserLembaga = getUserLembaga;
 
 function getRoleLabel(role) {
     const labels = {
@@ -390,10 +763,10 @@ function switchAuthTab(tab) {
         btn.classList.remove('border-primary-600', 'text-primary-600');
         btn.classList.add('border-transparent', 'text-slate-500');
     });
-    
+
     document.getElementById(`tab-${tab}`).classList.add('border-primary-600', 'text-primary-600');
     document.getElementById(`tab-${tab}`).classList.remove('border-transparent', 'text-slate-500');
-    
+
     if (tab === 'login') {
         document.getElementById('loginForm').classList.remove('hidden');
         document.getElementById('signupForm').classList.add('hidden');
@@ -406,15 +779,15 @@ function switchAuthTab(tab) {
 // Check permission
 function hasPermission(action) {
     if (!currentProfile) return false;
-    
+
     const role = currentProfile.role;
-    
+
     const permissions = {
         'admin': ['view', 'create', 'edit', 'delete', 'manage_users', 'manage_settings'],
         'guru': ['view', 'create'],
         'ortu': ['view']
     };
-    
+
     return permissions[role]?.includes(action) || false;
 }
 
@@ -430,44 +803,45 @@ window.switchAuthTab = switchAuthTab;
 window.hasPermission = hasPermission;
 window.currentUser = () => currentUser;
 window.currentProfile = () => currentProfile;
+window.getCurrentUserChild = () => currentUserChild;
 window.showPublicUI = showPublicUI;
 
 
 // Show public UI (no login required)
 function showPublicUI() {
     console.log('📊 Public Dashboard Mode - Real-time monitoring');
-    
+
     // Hide admin/sensitive features
     document.querySelectorAll('[onclick*="showAdminSettings"]').forEach(el => {
         el.style.display = 'none';
     });
-    
+
     document.querySelectorAll('[onclick*="confirmDelete"]').forEach(el => {
         el.style.display = 'none';
     });
-    
+
     document.querySelectorAll('[onclick*="Import"], [onclick*="Export"]').forEach(el => {
         el.style.display = 'none';
     });
-    
+
     // Hide user management in sidebar
     const usersBtn = document.getElementById('sidebar-users');
     if (usersBtn) usersBtn.style.display = 'none';
-    
+
     // Hide settings in sidebar
     const settingsBtn = document.getElementById('sidebar-settings');
     if (settingsBtn) settingsBtn.parentElement.style.display = 'none';
-    
+
     // Hide user management in burger menu
     document.querySelectorAll('[onclick*="scrollToSection(\'users\')"]').forEach(el => {
         el.style.display = 'none';
     });
-    
+
     // Hide settings in burger menu
     document.querySelectorAll('[onclick*="scrollToSection(\'settings\')"]').forEach(el => {
         el.style.display = 'none';
     });
-    
+
     // Add login button to header
     const header = document.querySelector('header .max-w-7xl');
     if (header && !document.getElementById('public-login-btn')) {
@@ -478,7 +852,7 @@ function showPublicUI() {
         loginBtn.innerHTML = '🔐 Login';
         header.appendChild(loginBtn);
     }
-    
+
     // Add public mode badge to sidebar
     const sidebar = document.querySelector('aside .p-6');
     if (sidebar && !document.getElementById('public-mode-badge')) {

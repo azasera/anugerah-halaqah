@@ -7,34 +7,50 @@ const ABSENCE_RENDER_COOLDOWN = 5000; // Only re-render every 5 seconds
 function renderAbsenceWidget() {
     const container = document.getElementById('absenceWidgetContainer');
     if (!container) return;
-    
+
     const today = new Date().toDateString();
-    
+
     // Count students by status
     let notSubmittedCount = 0;
     let submittedCount = 0;
-    
-    dashboardData.students.forEach(student => {
-        const hasSetoranToday = student.setoran?.some(s => 
+
+    // Filter by Lembaga (Parent Restrictions)
+    let studentsToProcess = dashboardData.students;
+    if (typeof getUserLembaga === 'function') {
+        const userLembaga = getUserLembaga();
+        if (userLembaga) {
+            if (userLembaga === 'RESTRICTED_NO_CHILD') {
+                studentsToProcess = [];
+            } else {
+                studentsToProcess = studentsToProcess.filter(s => s.lembaga === userLembaga);
+            }
+        }
+    }
+
+    studentsToProcess.forEach(student => {
+        const hasSetoranToday = student.setoran?.some(s =>
             new Date(s.date).toDateString() === today
         );
-        
+
         if (hasSetoranToday) {
             submittedCount++;
         } else {
             notSubmittedCount++;
         }
     });
-    
-    const totalStudents = dashboardData.students.length;
+
+
+
+    // Fix stats for filtered view
+    const totalStudents = studentsToProcess.length;
     const percentage = totalStudents > 0 ? Math.round((submittedCount / totalStudents) * 100) : 0;
-    
+
     // Only show widget if there are students who haven't submitted
     if (notSubmittedCount === 0) {
         container.innerHTML = '';
         return;
     }
-    
+
     const content = `
         <div class="glass rounded-3xl p-6 border-2 ${notSubmittedCount > 0 ? 'border-red-200 bg-red-50/50' : 'border-green-200 bg-green-50/50'}">
             <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
@@ -81,44 +97,60 @@ function renderAbsenceWidget() {
             </div>
         </div>
     `;
-    
+
     container.innerHTML = content;
 }
 
 function renderAbsenceTracker(force = false) {
     const container = document.getElementById('absensiContainer');
     if (!container) return;
-    
+
     // Prevent frequent re-renders to avoid flickering
     const now = Date.now();
     if (!force && (now - lastAbsenceRender) < ABSENCE_RENDER_COOLDOWN) {
         return;
     }
     lastAbsenceRender = now;
-    
+
     const today = new Date().toDateString();
-    
+
     // Separate students by status
     const studentsNotSubmitted = [];
     const studentsSubmitted = [];
-    
-    dashboardData.students.forEach(student => {
-        const hasSetoranToday = student.setoran?.some(s => 
+
+    // Filter by Lembaga (Parent Restrictions)
+    let studentsToRender = dashboardData.students;
+    if (typeof getUserLembaga === 'function') {
+        const userLembaga = getUserLembaga();
+        if (userLembaga) {
+            if (userLembaga === 'RESTRICTED_NO_CHILD') {
+                studentsToRender = [];
+            } else {
+                studentsToRender = studentsToRender.filter(s => s.lembaga === userLembaga);
+            }
+        }
+    }
+
+    studentsToRender.forEach(student => {
+        const hasSetoranToday = student.setoran?.some(s =>
             new Date(s.date).toDateString() === today
         );
-        
+
         if (hasSetoranToday) {
             studentsSubmitted.push(student);
         } else {
             studentsNotSubmitted.push(student);
         }
     });
-    
-    const totalStudents = dashboardData.students.length;
+
+
+
+    // Fix stats for filtered view
+    const totalStudents = studentsToRender.length;
     const notSubmittedCount = studentsNotSubmitted.length;
     const submittedCount = studentsSubmitted.length;
     const percentage = totalStudents > 0 ? Math.round((submittedCount / totalStudents) * 100) : 0;
-    
+
     const content = `
         <div class="glass rounded-3xl p-4 md:p-8 border border-slate-200 shadow-sm">
             <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
@@ -256,11 +288,11 @@ function renderAbsenceTracker(force = false) {
                 <!-- Semua -->
                 <div id="list-semua" class="space-y-2 hidden">
                     ${dashboardData.students.map(student => {
-                        const hasSetoranToday = student.setoran?.some(s => 
-                            new Date(s.date).toDateString() === today
-                        );
-                        
-                        return `
+        const hasSetoranToday = student.setoran?.some(s =>
+            new Date(s.date).toDateString() === today
+        );
+
+        return `
                             <div class="flex items-center justify-between p-4 ${hasSetoranToday ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200 border-2'} border rounded-xl hover:opacity-80 transition-colors">
                                 <div class="flex items-center gap-3">
                                     ${hasSetoranToday ? `
@@ -279,13 +311,13 @@ function renderAbsenceTracker(force = false) {
                                         <div class="text-xs text-slate-600">Halaqah ${student.halaqah} • Streak: ${student.streak || 0} hari</div>
                                     </label>
                                 </div>
-                                ${hasSetoranToday 
-                                    ? '<span class="px-3 py-1 bg-green-600 text-white text-xs rounded-full font-bold">✅ SUDAH</span>'
-                                    : '<span class="px-3 py-1 bg-red-600 text-white text-xs rounded-full font-bold">❌ BELUM</span>'
-                                }
+                                ${hasSetoranToday
+                ? '<span class="px-3 py-1 bg-green-600 text-white text-xs rounded-full font-bold">✅ SUDAH</span>'
+                : '<span class="px-3 py-1 bg-red-600 text-white text-xs rounded-full font-bold">❌ BELUM</span>'
+            }
                             </div>
                         `;
-                    }).join('')}
+    }).join('')}
                 </div>
             </div>
             
@@ -299,7 +331,7 @@ function renderAbsenceTracker(force = false) {
             ` : ''}
         </div>
     `;
-    
+
     container.innerHTML = content;
 }
 
@@ -312,26 +344,26 @@ function showAbsenceTracker() {
 function applyAbsencePenalty() {
     const checkboxes = document.querySelectorAll('[id^="absent_"]:checked, [id^="absent_all_"]:checked');
     let count = 0;
-    
+
     if (checkboxes.length === 0) {
         showNotification('⚠️ Tidak ada santri yang dipilih', 'warning');
         return;
     }
-    
+
     const confirmMsg = `Yakin ingin menerapkan pengurangan poin untuk ${checkboxes.length} santri?\n\nSetiap santri akan:\n- Mendapat -1 poin\n- Streak direset ke 0\n\nTindakan ini tidak dapat dibatalkan!`;
-    
+
     if (!confirm(confirmMsg)) {
         return;
     }
-    
+
     checkboxes.forEach(checkbox => {
         const studentId = parseInt(checkbox.id.replace('absent_', '').replace('absent_all_', ''));
         const student = dashboardData.students.find(s => s.id === studentId);
-        
+
         if (student) {
             // Add absence record
             if (!student.setoran) student.setoran = [];
-            
+
             student.setoran.push({
                 id: Date.now() + Math.floor(Math.random() * 1000),
                 date: new Date().toISOString(),
@@ -348,20 +380,20 @@ function applyAbsencePenalty() {
                 note: 'Tidak hadir/tidak setor',
                 timestamp: new Date().toLocaleString('id-ID')
             });
-            
+
             student.total_points += poinRules.tidakSetor;
             student.streak = 0; // Reset streak
             count++;
         }
     });
-    
+
     if (count > 0) {
         recalculateRankings();
         StorageManager.save();
         if (window.autoSync) autoSync();
         refreshAllData();
         showNotification(`⚠️ ${count} santri mendapat pengurangan poin karena tidak setor`, 'success');
-        
+
         // Re-render to update the list
         setTimeout(() => renderAbsenceTracker(true), 500);
     }
@@ -374,12 +406,12 @@ function filterAbsence(filter) {
         tab.classList.remove('active', 'border-red-600', 'text-red-600', 'border-green-600', 'text-green-600', 'border-primary-600', 'text-primary-600');
         tab.classList.add('border-transparent', 'text-slate-500');
     });
-    
+
     const activeTab = document.getElementById(`tab-${filter}`);
     if (activeTab) {
         activeTab.classList.add('active');
         activeTab.classList.remove('border-transparent', 'text-slate-500');
-        
+
         if (filter === 'belum') {
             activeTab.classList.add('border-red-600', 'text-red-600');
         } else if (filter === 'sudah') {
@@ -388,12 +420,12 @@ function filterAbsence(filter) {
             activeTab.classList.add('border-primary-600', 'text-primary-600');
         }
     }
-    
+
     // Show/hide lists
     document.getElementById('list-belum').classList.add('hidden');
     document.getElementById('list-sudah').classList.add('hidden');
     document.getElementById('list-semua').classList.add('hidden');
-    
+
     document.getElementById(`list-${filter}`).classList.remove('hidden');
 }
 

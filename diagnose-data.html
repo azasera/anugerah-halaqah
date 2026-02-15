@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diagnosa Data</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 p-8">
+    <div class="max-w-4xl mx-auto">
+        <div class="bg-white rounded-2xl shadow-lg p-8">
+            <h1 class="text-3xl font-bold text-slate-800 mb-6">🔍 Diagnosa Data localStorage</h1>
+            
+            <button onclick="diagnose()" 
+                class="w-full mb-6 p-4 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-colors">
+                🔍 Mulai Diagnosa
+            </button>
+            
+            <div id="output" class="space-y-4"></div>
+        </div>
+    </div>
+    
+    <script>
+        function addOutput(title, content, type = 'info') {
+            const output = document.getElementById('output');
+            
+            let bgColor = 'bg-slate-50';
+            let borderColor = 'border-slate-200';
+            let textColor = 'text-slate-700';
+            
+            if (type === 'success') {
+                bgColor = 'bg-green-50';
+                borderColor = 'border-green-200';
+                textColor = 'text-green-700';
+            } else if (type === 'error') {
+                bgColor = 'bg-red-50';
+                borderColor = 'border-red-200';
+                textColor = 'text-red-700';
+            } else if (type === 'warning') {
+                bgColor = 'bg-amber-50';
+                borderColor = 'border-amber-200';
+                textColor = 'text-amber-700';
+            }
+            
+            const div = document.createElement('div');
+            div.className = `${bgColor} border ${borderColor} rounded-xl p-4`;
+            div.innerHTML = `
+                <h3 class="font-bold ${textColor} mb-2">${title}</h3>
+                <pre class="text-sm ${textColor} whitespace-pre-wrap font-mono">${content}</pre>
+            `;
+            output.appendChild(div);
+        }
+        
+        function diagnose() {
+            document.getElementById('output').innerHTML = '';
+            
+            try {
+                // Check localStorage
+                addOutput('📦 localStorage Keys', 
+                    Object.keys(localStorage).join('\n') || 'Kosong', 
+                    'info');
+                
+                // Check halaqahData
+                const data = localStorage.getItem('halaqahData');
+                if (!data) {
+                    addOutput('❌ halaqahData', 'Tidak ditemukan di localStorage', 'error');
+                    return;
+                }
+                
+                addOutput('✅ halaqahData', 'Ditemukan', 'success');
+                
+                // Parse data
+                let parsed;
+                try {
+                    parsed = JSON.parse(data);
+                    addOutput('✅ JSON Parse', 'Berhasil parse JSON', 'success');
+                } catch (e) {
+                    addOutput('❌ JSON Parse Error', e.message, 'error');
+                    return;
+                }
+                
+                // Check structure
+                addOutput('📊 Struktur Data', 
+                    `Keys: ${Object.keys(parsed).join(', ')}`, 
+                    'info');
+                
+                // Check students
+                if (parsed.students) {
+                    addOutput('👥 Students', 
+                        `Total: ${parsed.students.length}\nType: ${Array.isArray(parsed.students) ? 'Array' : typeof parsed.students}`, 
+                        parsed.students.length > 0 ? 'success' : 'warning');
+                    
+                    if (parsed.students.length > 0) {
+                        const sample = parsed.students[0];
+                        addOutput('👤 Sample Student', 
+                            JSON.stringify(sample, null, 2), 
+                            'info');
+                        
+                        // Calculate total points
+                        const totalPoints = parsed.students.reduce((sum, s) => sum + (s.total_points || 0), 0);
+                        const negativePoints = parsed.students.filter(s => s.total_points < 0);
+                        
+                        addOutput('📈 Statistik Poin', 
+                            `Total Poin: ${totalPoints}\nSantri dengan poin negatif: ${negativePoints.length}\n\nDetail poin negatif:\n${negativePoints.map(s => `- ${s.name}: ${s.total_points} poin`).join('\n')}`, 
+                            negativePoints.length > 0 ? 'warning' : 'success');
+                    }
+                } else {
+                    addOutput('❌ Students', 'Tidak ditemukan atau null', 'error');
+                }
+                
+                // Check halaqahs
+                if (parsed.halaqahs) {
+                    addOutput('🏛️ Halaqahs', 
+                        `Total: ${parsed.halaqahs.length}\nType: ${Array.isArray(parsed.halaqahs) ? 'Array' : typeof parsed.halaqahs}`, 
+                        'info');
+                } else {
+                    addOutput('⚠️ Halaqahs', 'Tidak ditemukan', 'warning');
+                }
+                
+                // Check stats
+                if (parsed.stats) {
+                    addOutput('📊 Stats', 
+                        JSON.stringify(parsed.stats, null, 2), 
+                        'info');
+                } else {
+                    addOutput('⚠️ Stats', 'Tidak ditemukan', 'warning');
+                }
+                
+                // Size info
+                const sizeKB = (data.length / 1024).toFixed(2);
+                addOutput('💾 Ukuran Data', 
+                    `${sizeKB} KB (${data.length} characters)`, 
+                    'info');
+                
+                // Recommendations
+                let recommendations = [];
+                if (parsed.students && parsed.students.length === 0) {
+                    recommendations.push('⚠️ Data students kosong - mungkin perlu reload dari Supabase');
+                }
+                if (parsed.students && parsed.students.some(s => s.total_points < 0)) {
+                    recommendations.push('⚠️ Ada poin negatif - gunakan script reset poin');
+                }
+                if (!parsed.students) {
+                    recommendations.push('❌ Struktur data corrupt - gunakan script hapus semua data');
+                }
+                
+                if (recommendations.length > 0) {
+                    addOutput('💡 Rekomendasi', 
+                        recommendations.join('\n\n'), 
+                        'warning');
+                } else {
+                    addOutput('✅ Status', 
+                        'Data terlihat normal!', 
+                        'success');
+                }
+                
+            } catch (error) {
+                addOutput('❌ Error', error.message + '\n\n' + error.stack, 'error');
+            }
+        }
+        
+        // Auto diagnose on load
+        window.addEventListener('load', () => {
+            setTimeout(diagnose, 500);
+        });
+    </script>
+</body>
+</html>

@@ -32,6 +32,12 @@ async function applyNoSetoranPenalty() {
     const penaltyRecords = [];
     
     for (const student of studentsWithoutSetoran) {
+        // Check if day has ended for this student's lembaga
+        const lembagaKey = student.lembaga || 'MTA';
+        if (!isEndOfDay(lembagaKey)) {
+            continue;
+        }
+
         // Check if penalty already applied today
         const alreadyPenalized = student.setoran?.some(s => {
             const setoranDate = new Date(s.date).toISOString().split('T')[0];
@@ -134,12 +140,16 @@ async function manualApplyPenalties() {
 }
 
 // Check if it's end of day (after last session)
-function isEndOfDay() {
+function isEndOfDay(lembagaKey) {
     const now = new Date();
     const currentTime = now.getHours() * 60 + now.getMinutes();
     
+    // Get sessions for specific lembaga
+    const settings = appSettings.lembaga[lembagaKey] || appSettings.lembaga['MTA'];
+    const sessions = settings.sesiHalaqah || [];
+    
     // Get last session end time
-    const lastSession = appSettings.sesiHalaqah
+    const lastSession = sessions
         .filter(s => s.active)
         .sort((a, b) => {
             const aEnd = a.endTime.split(':').map(Number);
@@ -158,12 +168,6 @@ function isEndOfDay() {
 
 // Auto-check and apply penalties (runs periodically)
 async function autoCheckAndApplyPenalties() {
-    // Only run if it's end of day
-    if (!isEndOfDay()) {
-        console.log('⏰ Not end of day yet, skipping auto-penalty check');
-        return;
-    }
-    
     console.log('🔍 Running auto-penalty check...');
     const result = await applyNoSetoranPenalty();
     
@@ -174,21 +178,8 @@ async function autoCheckAndApplyPenalties() {
 
 // Initialize auto-check (runs every hour)
 function initAutoPenaltyCheck() {
-    // DISABLED: Auto-penalty check to prevent duplicate penalties
-    // Admin can manually apply penalties from the dashboard
-    console.log('⚠️ Auto-penalty check is DISABLED. Use manual trigger from admin panel.');
-    
-    /* ORIGINAL CODE - DISABLED
-    // Run check every hour
-    setInterval(autoCheckAndApplyPenalties, 60 * 60 * 1000);
-    
-    // Also run on page load if it's end of day
-    if (isEndOfDay()) {
-        setTimeout(autoCheckAndApplyPenalties, 5000); // Wait 5 seconds after page load
-    }
-    */
-    
-    console.log('✅ Auto-penalty check initialized (DISABLED)');
+    // COMPLETELY DISABLED: Auto-penalty check to prevent duplicate penalties
+    console.log('🛑 Auto-penalty check is PERMANENTLY DISABLED.');
 }
 
 // Show penalty report

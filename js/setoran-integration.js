@@ -2,8 +2,29 @@
 // This file bridges the new setoran_harian table with existing UI
 
 // Enhanced showSetoranForm with setoran_harian integration
-async function showSetoranFormV2(student) {
-    const currentSession = getCurrentSession();
+async function showSetoranFormV2(studentOrId) {
+    let student = studentOrId;
+    
+    // Handle if ID is passed instead of object
+    if (typeof studentOrId === 'number' || typeof studentOrId === 'string') {
+        const found = dashboardData.students.find(s => s.id == studentOrId);
+        if (found) {
+            student = found;
+        } else {
+            console.error('Student not found with ID:', studentOrId);
+            showNotification('❌ Data santri tidak ditemukan', 'error');
+            return;
+        }
+    }
+
+    if (!student || !student.name) {
+        console.error('Invalid student data:', student);
+        showNotification('❌ Data santri tidak valid', 'error');
+        return;
+    }
+
+    const lembagaKey = student.lembaga || 'MTA';
+    const currentSession = getCurrentSession(lembagaKey);
     const isOnTime = currentSession !== null;
     
     // Get recent setoran history

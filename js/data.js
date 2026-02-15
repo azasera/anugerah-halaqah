@@ -79,7 +79,10 @@ function calculateStats() {
     const stats = {
         totalStudents: dashboardData.students.length,
         totalHalaqahs: dashboardData.halaqahs.length,
-        totalPoints: dashboardData.students.reduce((sum, s) => sum + s.total_points, 0),
+        totalPoints: dashboardData.students.reduce((sum, s) => {
+            const points = Number(s.total_points) || 0;
+            return sum + points;
+        }, 0),
         avgPointsPerStudent: 0
     };
     
@@ -87,7 +90,7 @@ function calculateStats() {
     if (stats.totalStudents > 0) {
         stats.avgPointsPerStudent = (stats.totalPoints / stats.totalStudents).toFixed(1);
     } else {
-        stats.avgPointsPerStudent = 0;
+        stats.avgPointsPerStudent = '0';
     }
     
     dashboardData.stats = stats;
@@ -116,8 +119,12 @@ function recalculateRankings() {
         const members = dashboardData.students.filter(s => s.halaqah === halaqahName);
         
         halaqah.members = members.length;
-        halaqah.points = members.reduce((sum, m) => sum + m.total_points, 0);
-        halaqah.avgPoints = halaqah.members > 0 ? (halaqah.points / halaqah.members).toFixed(1) : 0;
+        // FIX: Ensure total_points is a number, default to 0 if undefined/null/NaN
+        halaqah.points = members.reduce((sum, m) => {
+            const points = Number(m.total_points) || 0;
+            return sum + points;
+        }, 0);
+        halaqah.avgPoints = halaqah.members > 0 ? (halaqah.points / halaqah.members).toFixed(1) : '0';
     });
     
     // Sort halaqahs by points
@@ -137,11 +144,35 @@ function recalculateRankings() {
 }
 
 function refreshAllData() {
-    renderStats();
-    renderBestHalaqah();
-    renderHalaqahRankings();
-    renderFilters();
-    renderSantri();
+    // Guard: Check if render functions exist before calling
+    if (typeof renderStats === 'function') {
+        renderStats();
+    }
+    
+    if (typeof renderBestHalaqah === 'function') {
+        renderBestHalaqah();
+    }
+    
+    if (typeof renderHalaqahRankings === 'function') {
+        renderHalaqahRankings();
+    }
+    
+    if (typeof renderFilters === 'function') {
+        renderFilters();
+    }
+    
+    if (typeof renderSantri === 'function') {
+        renderSantri();
+    }
+    
+    // Refresh admin settings if visible (to update inline tabs)
+    const settingsContainer = document.getElementById('settingsContainer');
+    if (settingsContainer && settingsContainer.innerHTML.trim() !== '') {
+        // Only re-render if it's already rendered
+        if (typeof renderAdminSettings === 'function') {
+            renderAdminSettings();
+        }
+    }
     
     // Render absence widget on dashboard
     if (typeof renderAbsenceWidget === 'function') {

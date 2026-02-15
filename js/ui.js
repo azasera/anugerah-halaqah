@@ -5,7 +5,41 @@ let currentHalaqahFilter = 'all';
 let currentLembagaFilter = 'all';
 
 function generateStatsHTML() {
-    const stats = calculateStats();
+    let stats = calculateStats();
+
+    // Filter by Lembaga (Parent Restrictions)
+    if (typeof getUserLembaga === 'function') {
+        const userLembaga = getUserLembaga();
+        if (userLembaga) {
+            if (userLembaga === 'RESTRICTED_NO_CHILD') {
+                stats = {
+                    totalStudents: 0,
+                    totalHalaqahs: 0,
+                    totalPoints: 0,
+                    avgPointsPerStudent: 0
+                };
+            } else {
+                // Calculate filtered stats on the fly
+                const filteredStudents = dashboardData.students.filter(s => s.lembaga === userLembaga);
+                const filteredHalaqahs = dashboardData.halaqahs.filter(h => {
+                    // Same logic as renderHalaqahRankings
+                    const halaqahName = h.name.replace('Halaqah ', '');
+                    const sampleStudent = dashboardData.students.find(s => s.halaqah === halaqahName && s.lembaga === userLembaga);
+                    return !!sampleStudent;
+                });
+
+                const totalPoints = filteredStudents.reduce((sum, s) => sum + (Number(s.total_points) || 0), 0);
+                const avg = filteredStudents.length > 0 ? (totalPoints / filteredStudents.length).toFixed(1) : 0;
+
+                stats = {
+                    totalStudents: filteredStudents.length,
+                    totalHalaqahs: filteredHalaqahs.length,
+                    totalPoints: totalPoints,
+                    avgPointsPerStudent: avg
+                };
+            }
+        }
+    }
     return `
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div class="glass rounded-2xl p-4 border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
@@ -31,23 +65,50 @@ function generateStatsHTML() {
 function renderStats() {
     const container = document.getElementById('statsContainer');
     if (!container) return;
-    
+
     container.innerHTML = generateStatsHTML();
 }
 
 function renderBestHalaqah() {
     const container = document.getElementById('bestHalaqahBanner');
     if (!container) return;
-    
+
     // Get best halaqah (rank 1)
-    const bestHalaqah = dashboardData.halaqahs.find(h => h.rank === 1);
-    
+    // Get best halaqah (rank 1)
+    let bestHalaqah = dashboardData.halaqahs.find(h => h.rank === 1);
+
+    // Filter by Lembaga (Parent Restrictions)
+    if (typeof getUserLembaga === 'function') {
+        const userLembaga = getUserLembaga();
+        if (userLembaga) {
+            if (userLembaga === 'RESTRICTED_NO_CHILD') {
+                bestHalaqah = null;
+            } else {
+                // Find best halaqah among those valid for this lembaga
+                // We can reuse the filter logic from renderHalaqahRankings, or just sort the filtered list
+                const filteredHalaqahs = dashboardData.halaqahs.filter(h => {
+                    const halaqahName = h.name.replace('Halaqah ', '');
+                    const sampleStudent = dashboardData.students.find(s => s.halaqah === halaqahName && s.lembaga === userLembaga);
+                    return !!sampleStudent;
+                });
+
+                // Sort by points (desc) to find the best among filtered
+                if (filteredHalaqahs.length > 0) {
+                    filteredHalaqahs.sort((a, b) => b.points - a.points);
+                    bestHalaqah = filteredHalaqahs[0];
+                } else {
+                    bestHalaqah = null;
+                }
+            }
+        }
+    }
+
     if (!bestHalaqah) {
         // No halaqah data, hide banner
         container.style.display = 'none';
         return;
     }
-    
+
     container.style.display = 'block';
     container.innerHTML = `
         <div class="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
@@ -90,12 +151,41 @@ function renderBestHalaqah() {
 function renderHalaqahRankings() {
     const container = document.getElementById('halaqahRankings');
     if (!container) return;
-    
+
     container.innerHTML = "";
-    
+
     // Check if user is logged in
     const isLoggedIn = typeof currentProfile !== 'undefined' && currentProfile;
-    
+
+    // Filter by Lembaga (Parent Restrictions)
+    if (typeof getUserLembaga === 'function') {
+        const userLembaga = getUserLembaga();
+        if (userLembaga) {
+            dashboardData.halaqahs = dashboardData.halaqahs.filter(h => {
+                // Determine halaqah lembaga based on name prefix or other logic
+                // Assuming format "Halaqah [Lembaga] [Name]" or similar is not standard
+                // We need to look up the students in this halaqah to find the majority lembaga, 
+                // OR simpler: Check if ANY student in this halaqah belongs to the userLembaga?
+                // OR even simpler: The user probably implies if their child is in 'Halaqah A', they only see 'Halaqah A'?
+                // "hanya bisa lihat Halaqah lembaga masing masing" -> implies Lembaga-level filtering.
+
+                // Since Halaqah object doesn't have 'lembaga' field directly, we infer from members
+                // But wait, dashboardData.students has 'lembaga' and 'halaqah'.
+                // So we can check if the halaqah contains students of that lembaga.
+
+                // Optimized check:
+                const halaqahName = h.name.replace('Halaqah ', '');
+                const sampleStudent = dashboardData.students.find(s => s.halaqah === halaqahName && s.lembaga === userLembaga);
+                return !!sampleStudent;
+            });
+
+            // If strict mode (RESTRICTED_NO_CHILD), show empty
+            if (userLembaga === 'RESTRICTED_NO_CHILD') {
+                dashboardData.halaqahs = [];
+            }
+        }
+    }
+
     // For public view, only show top 3
     const halaqahsToShow = isLoggedIn ? dashboardData.halaqahs : dashboardData.halaqahs.slice(0, 3);
 
@@ -104,7 +194,7 @@ function renderHalaqahRankings() {
         const borderColor = isTop ? 'border-accent-gold' : 'border-slate-300';
         const bgColor = isTop ? 'bg-accent-gold/10' : 'bg-slate-100';
         const textColor = isTop ? 'text-accent-gold' : 'text-slate-500';
-        
+
         let statusClass = 'bg-slate-100 text-slate-500';
         if (halaqah.status === 'NAIK') statusClass = 'bg-green-100 text-green-700';
         if (halaqah.status === 'STABIL') statusClass = 'bg-green-100 text-green-700';
@@ -112,7 +202,7 @@ function renderHalaqahRankings() {
         const card = document.createElement('div');
         card.className = `rank-card glass rounded-2xl p-5 border-l-4 ${borderColor} relative overflow-hidden cursor-pointer`;
         card.onclick = () => showHalaqahDetail(halaqah);
-        
+
         card.innerHTML = `
             ${isTop ? `<div class="absolute top-0 right-0 p-2">
                 <span class="text-[60px] font-black text-slate-100/50 absolute -top-4 -right-2">${halaqah.rank}</span>
@@ -136,10 +226,10 @@ function renderHalaqahRankings() {
                 </div>
             </div>
         `;
-        
+
         container.appendChild(card);
     });
-    
+
     // Add "View All" button for public users
     if (!isLoggedIn && dashboardData.halaqahs.length > 3) {
         const viewAllCard = document.createElement('div');
@@ -164,16 +254,28 @@ function renderHalaqahRankings() {
 function renderSantri(searchTerm = "") {
     const container = document.getElementById('santriTableBody');
     if (!container) return;
-    
+
     container.innerHTML = "";
 
     let filtered = filterStudents(searchTerm, currentHalaqahFilter, currentLembagaFilter);
-    
+
+    // Filter by Lembaga (Parent Restrictions)
+    if (typeof getUserLembaga === 'function') {
+        const userLembaga = getUserLembaga();
+        if (userLembaga) {
+            if (userLembaga === 'RESTRICTED_NO_CHILD') {
+                filtered = [];
+            } else {
+                filtered = filtered.filter(s => s.lembaga === userLembaga);
+            }
+        }
+    }
+
     // Check if user is logged in
     const isLoggedIn = typeof currentProfile !== 'undefined' && currentProfile;
 
     // Filter based on user-santri relationships
-    if (isLoggedIn && (currentProfile.role === 'guru' || currentProfile.role === 'parent')) {
+    if (isLoggedIn && (currentProfile.role === 'guru' || currentProfile.role === 'ortu')) {
         // Get santri for current user from user-santri relationships
         if (typeof getStudentsForCurrentUser === 'function') {
             const userStudents = getStudentsForCurrentUser();
@@ -181,7 +283,7 @@ function renderSantri(searchTerm = "") {
             filtered = filtered.filter(s => userStudentIds.includes(s.id));
         }
     }
-    
+
     // For public view (not logged in), only show top 3
     if (!isLoggedIn) {
         filtered = filtered.slice(0, 3);
@@ -210,11 +312,11 @@ function renderSantri(searchTerm = "") {
         const row = document.createElement('tr');
         row.className = "hover:bg-slate-50/80 transition-colors group cursor-pointer";
         row.onclick = () => showStudentDetail(student);
-        
+
         let rankBadge = '';
-        if(student.overall_ranking === 1) rankBadge = '🥇';
-        else if(student.overall_ranking === 2) rankBadge = '🥈';
-        else if(student.overall_ranking === 3) rankBadge = '🥉';
+        if (student.overall_ranking === 1) rankBadge = '🥇';
+        else if (student.overall_ranking === 2) rankBadge = '🥈';
+        else if (student.overall_ranking === 3) rankBadge = '🥉';
 
         row.innerHTML = `
             <td class="px-6 py-4">
@@ -260,7 +362,7 @@ function renderSantri(searchTerm = "") {
         `;
         container.appendChild(row);
     });
-    
+
     // Add "View All" row for public users
     if (!isLoggedIn && dashboardData.students.length > 3) {
         const viewAllRow = document.createElement('tr');
@@ -287,15 +389,15 @@ function updateDateTime() {
     const now = new Date();
     const optionsDate = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
     const optionsTime = { hour: '2-digit', minute: '2-digit', second: '2-digit' };
-    
+
     const dateEl = document.getElementById('currentDate');
     const timeEl = document.getElementById('currentTime');
     const sidebarDateEl = document.getElementById('sidebarDate');
     const sidebarTimeEl = document.getElementById('sidebarTime');
-    
+
     const dateStr = now.toLocaleDateString('id-ID', optionsDate);
     const timeStr = now.toLocaleTimeString('id-ID', optionsTime) + " WIB";
-    
+
     if (dateEl) dateEl.textContent = dateStr;
     if (timeEl) timeEl.textContent = timeStr;
     if (sidebarDateEl) sidebarDateEl.textContent = dateStr;
@@ -315,32 +417,25 @@ function initAnimations() {
     });
 }
 
-function initSearchHandler() {
-    const searchInput = document.getElementById('santriSearch');
-    if (searchInput) {
-        searchInput.addEventListener('input', (e) => {
-            renderSantri(e.target.value);
-        });
-    }
-}
+
 
 
 function renderFilters() {
     const container = document.getElementById('filterContainer');
     if (!container) return;
-    
+
     const halaqahs = ['Semua Halaqah', ...dashboardData.halaqahs.map(h => h.name.replace('Halaqah ', ''))];
     const lembagas = ['Semua Lembaga', ...Object.keys(appSettings.lembaga).map(key => appSettings.lembaga[key].name)];
-    
+
     container.innerHTML = `
         <div class="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
             <div class="relative flex-shrink-0">
                 <select onchange="setFilter('halaqah', this.value)" 
                     class="appearance-none bg-white border border-slate-200 text-slate-700 py-2 pl-4 pr-10 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent font-medium shadow-sm hover:border-primary-300 transition-colors cursor-pointer text-sm">
                     ${halaqahs.map(h => {
-                        const value = h === 'Semua Halaqah' ? 'all' : h;
-                        return `<option value="${value}" ${currentHalaqahFilter === value ? 'selected' : ''}>${h}</option>`;
-                    }).join('')}
+        const value = h === 'Semua Halaqah' ? 'all' : h;
+        return `<option value="${value}" ${currentHalaqahFilter === value ? 'selected' : ''}>${h}</option>`;
+    }).join('')}
                 </select>
                 <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-500">
                     <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -353,14 +448,14 @@ function renderFilters() {
                 <select onchange="setFilter('lembaga', this.value)" 
                     class="appearance-none bg-white border border-slate-200 text-slate-700 py-2 pl-4 pr-10 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent font-medium shadow-sm hover:border-primary-300 transition-colors cursor-pointer text-sm">
                     ${lembagas.map(l => {
-                        // Find key for value
-                        let key = 'all';
-                        if (l !== 'Semua Lembaga') {
-                            const found = Object.entries(appSettings.lembaga).find(([k, v]) => v.name === l);
-                            if (found) key = found[0];
-                        }
-                        return `<option value="${key}" ${currentLembagaFilter === key ? 'selected' : ''}>${l}</option>`;
-                    }).join('')}
+        // Find key for value
+        let key = 'all';
+        if (l !== 'Semua Lembaga') {
+            const found = Object.entries(appSettings.lembaga).find(([k, v]) => v.name === l);
+            if (found) key = found[0];
+        }
+        return `<option value="${key}" ${currentLembagaFilter === key ? 'selected' : ''}>${l}</option>`;
+    }).join('')}
                 </select>
                 <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-500">
                     <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -375,24 +470,23 @@ function renderFilters() {
 function renderSortButtons() {
     const container = document.getElementById('sortContainer');
     if (!container) return;
-    
+
     const sorts = [
         { value: 'rank', label: 'Peringkat', icon: '🏆' },
         { value: 'points', label: 'Poin', icon: '⭐' },
         { value: 'streak', label: 'Hari Beruntun', icon: '🔥' },
         { value: 'name', label: 'Nama', icon: '📝' }
     ];
-    
+
     container.innerHTML = `
         <div class="flex gap-2">
             ${sorts.map(s => `
                 <button 
                     onclick="setSort('${s.value}')" 
-                    class="sort-btn px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
-                        currentSort === s.value 
-                            ? 'bg-accent-teal text-white' 
-                            : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200'
-                    }"
+                    class="sort-btn px-3 py-2 rounded-lg text-xs font-semibold transition-all ${currentSort === s.value
+            ? 'bg-accent-teal text-white'
+            : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200'
+        }"
                     title="Urutkan berdasarkan ${s.label}"
                 >
                     <span class="mr-1">${s.icon}</span>
@@ -409,7 +503,7 @@ function setFilter(type, value) {
     } else if (type === 'lembaga') {
         currentLembagaFilter = value;
     }
-    
+
     renderFilters();
     const searchTerm = document.getElementById('santriSearch')?.value || '';
     renderSantri(searchTerm);
@@ -431,11 +525,11 @@ window.generateStatsHTML = generateStatsHTML;
 function showNotification(message, type = 'success') {
     // Buat elemen notifikasi
     const notification = document.createElement('div');
-    
+
     // Tentukan warna berdasarkan tipe
     let bgColor = 'bg-slate-800';
     let icon = '✅';
-    
+
     if (type === 'success') {
         bgColor = 'bg-green-600';
         icon = '✅';
@@ -449,21 +543,21 @@ function showNotification(message, type = 'success') {
         bgColor = 'bg-blue-600';
         icon = 'ℹ️';
     }
-    
+
     notification.className = `fixed top-24 right-4 z-[100] flex items-center gap-3 px-6 py-4 rounded-xl text-white shadow-2xl transform transition-all duration-500 translate-x-full ${bgColor}`;
     notification.innerHTML = `
         <span class="text-xl">${icon}</span>
         <span class="font-bold">${message}</span>
     `;
-    
+
     // Tambahkan ke body
     document.body.appendChild(notification);
-    
+
     // Animasi masuk
     requestAnimationFrame(() => {
         notification.classList.remove('translate-x-full');
     });
-    
+
     // Hapus setelah 3 detik
     setTimeout(() => {
         notification.classList.add('translate-x-full');
