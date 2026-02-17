@@ -85,6 +85,12 @@ function renderMutabaahDashboard() {
     // Calculate progress
     const progress = Math.min((todayData.summary?.totalHalaman || 0) / 20 * 100, 100);
 
+    // Get student navigation info
+    const allStudents = dashboardData.students;
+    const currentIndex = allStudents.findIndex(s => s.id === student.id);
+    const prevStudent = currentIndex > 0 ? allStudents[currentIndex - 1] : null;
+    const nextStudent = currentIndex < allStudents.length - 1 ? allStudents[currentIndex + 1] : null;
+
     let content = `
         <div class="space-y-6 pb-20">
             <!-- Professional Header Card -->
@@ -110,6 +116,32 @@ function renderMutabaahDashboard() {
                                 <span>Ganti Santri</span>
                             </button>
                         ` : ''}
+                    </div>
+                    
+                    <!-- Student Navigation -->
+                    ${(role === 'guru' || role === 'admin') ? `
+                        <div class="flex items-center justify-between gap-3 mt-4 pt-4 border-t border-white/20">
+                            <button onclick="selectStudentForMutabaah(${prevStudent ? prevStudent.id : student.id})" 
+                                ${!prevStudent ? 'disabled' : ''}
+                                class="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-xl text-xs font-bold transition-all ${!prevStudent ? 'opacity-30 cursor-not-allowed' : 'hover:scale-105'}">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                                </svg>
+                                <span>${prevStudent ? prevStudent.name : 'Awal'}</span>
+                            </button>
+                            <div class="text-xs text-emerald-100 opacity-75">
+                                ${currentIndex + 1} / ${allStudents.length}
+                            </div>
+                            <button onclick="selectStudentForMutabaah(${nextStudent ? nextStudent.id : student.id})" 
+                                ${!nextStudent ? 'disabled' : ''}
+                                class="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-xl text-xs font-bold transition-all ${!nextStudent ? 'opacity-30 cursor-not-allowed' : 'hover:scale-105'}">
+                                <span>${nextStudent ? nextStudent.name : 'Akhir'}</span>
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                                </svg>
+                            </button>
+                        </div>
+                    ` : ''}
                     </div>
                     
                     <div class="grid grid-cols-2 gap-4 mt-4">

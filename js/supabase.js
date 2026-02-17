@@ -54,10 +54,10 @@ async function syncStudentsToSupabase() {
         return;
     }
 
-    // AUTH CHECK: Only admin can write to DB
+    // AUTH CHECK: Allow admin and guru to write to DB
     const profile = window.currentProfile;
-    if (!profile || profile.role !== 'admin') {
-        console.warn('⛔ Sync blocked: User is not admin');
+    if (!profile || (profile.role !== 'admin' && profile.role !== 'guru')) {
+        console.warn('⛔ Sync blocked: User is not admin or guru');
         return;
     }
 
@@ -182,9 +182,9 @@ async function syncStudentsToSupabase() {
 async function syncHalaqahsToSupabase() {
     if (!isOnline) return;
 
-    // AUTH CHECK: Only admin can write to DB
+    // AUTH CHECK: Allow admin and guru to write to DB
     const profile = window.currentProfile;
-    if (!profile || profile.role !== 'admin') {
+    if (!profile || (profile.role !== 'admin' && profile.role !== 'guru')) {
         return;
     }
     try {
@@ -517,11 +517,11 @@ if (isOnline && window.supabaseClient) {
 async function autoSync() {
     if (isSyncing || !isOnline) return;
 
-    // Only allow admin to sync data TO server
-    // Public users/Parents/Guru only READ data via realtime
+    // Allow admin and guru to sync data TO server
+    // Parents only READ data via realtime
     const profile = window.currentProfile;
-    if (!profile || profile.role !== 'admin') {
-        // console.log('⏭️ Skipping auto-sync (not admin)');
+    if (!profile || (profile.role !== 'admin' && profile.role !== 'guru')) {
+        // console.log('⏭️ Skipping auto-sync (not admin/guru)');
         return;
     }
 

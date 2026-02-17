@@ -992,7 +992,7 @@ function hasPermission(action) {
 
     const permissions = {
         'admin': ['view', 'create', 'edit', 'delete', 'manage_users', 'manage_settings'],
-        'guru': ['view', 'create'],
+        'guru': ['view', 'create', 'edit'],
         'ortu': ['view']
     };
 
