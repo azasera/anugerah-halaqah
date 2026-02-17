@@ -102,7 +102,13 @@ function renderMutabaahDashboard() {
                             </div>
                         </div>
                         ${(role === 'guru' || role === 'admin') ? `
-                            <button onclick="window.selectedMutabaahStudentId = null; renderMutabaahDashboard();" class="p-2 bg-white/20 rounded-lg text-xs font-bold">Ganti Santri</button>
+                            <button onclick="window.selectedMutabaahStudentId = null; renderMutabaahDashboard();" 
+                                class="flex items-center gap-2 px-4 py-2.5 bg-white/20 hover:bg-white/30 backdrop-blur-md rounded-xl text-sm font-bold transition-all duration-200 border border-white/30 hover:border-white/50 shadow-lg hover:shadow-xl hover:scale-105">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
+                                </svg>
+                                <span>Ganti Santri</span>
+                            </button>
                         ` : ''}
                     </div>
                     
