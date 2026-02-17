@@ -6,11 +6,31 @@ const usersData = {
 };
 
 // Load users from localStorage
-function loadUsers() {
+async function loadUsers() {
+    // First, try to load from Supabase if available
+    if (window.loadUsersFromSupabase && navigator.onLine) {
+        try {
+            await window.loadUsersFromSupabase();
+            // Data already loaded and saved to localStorage by loadUsersFromSupabase
+            // Now read from localStorage to populate usersData
+            const saved = localStorage.getItem('usersData');
+            if (saved) {
+                const data = JSON.parse(saved);
+                usersData.users = data.users || [];
+                console.log('[USERS] Loaded from Supabase:', usersData.users.length, 'users');
+                return;
+            }
+        } catch (error) {
+            console.error('[USERS] Error loading from Supabase, falling back to localStorage:', error);
+        }
+    }
+
+    // Fallback: Load from localStorage only
     const saved = localStorage.getItem('usersData');
     if (saved) {
         const data = JSON.parse(saved);
         usersData.users = data.users || [];
+        console.log('[USERS] Loaded from localStorage:', usersData.users.length, 'users');
     } else {
         // Only set default users if localStorage is empty (first time)
         usersData.users = [
@@ -27,6 +47,7 @@ function loadUsers() {
         ];
         // Save default users to localStorage
         saveUsers();
+        console.log('[USERS] Created default admin user');
     }
 }
 
@@ -54,6 +75,15 @@ function renderUserManagement() {
             inactive: 'bg-slate-100 text-slate-500'
         };
 
+        const sourceColors = {
+            profiles: 'bg-emerald-50 text-emerald-700 border border-emerald-100',
+            local_users: 'bg-sky-50 text-sky-700 border border-sky-100',
+            local: 'bg-slate-50 text-slate-600 border border-slate-100'
+        };
+
+        const sourceKey = user.source === 'profiles' ? 'profiles' : user.source === 'local_users' ? 'local_users' : 'local';
+        const sourceLabel = sourceKey === 'profiles' ? '☁️ Supabase Auth' : sourceKey === 'local_users' ? '☁️ Supabase local_users' : '💾 Lokal saja';
+
         const userJson = JSON.stringify(user).replace(/"/g, '&quot;');
 
         return `
@@ -79,11 +109,16 @@ function renderUserManagement() {
                             </span>
                         </div>
                         
-                        <div class="flex flex-wrap items-center gap-2 mb-3">
+                        <div class="flex flex-wrap items-center gap-2 mb-2">
                             <span class="px-2 py-1 rounded-lg text-xs font-bold ${roleColors[user.role]}">
                                 ${user.role === 'admin' ? '👑 Admin' : user.role === 'guru' ? '👨‍🏫 Guru' : user.role === 'ortu' ? '👨‍👩‍👧 Ortu' : '👤 Staff'}
                             </span>
                             <span class="text-xs text-slate-500">📱 ${user.phone}</span>
+                        </div>
+                        <div class="mb-3">
+                            <span class="inline-flex items-center px-2 py-1 rounded-lg text-[11px] font-semibold ${sourceColors[sourceKey]}">
+                                Sumber: ${sourceLabel}
+                            </span>
                         </div>
                         
                         <div class="text-xs text-slate-400 mb-3">
@@ -151,7 +186,7 @@ function renderUserManagement() {
             </div>
             
             <!-- Stats -->
-            <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+            <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
                 <div class="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-4">
                     <div class="text-2xl font-bold text-purple-700">${usersData.users.length}</div>
                     <div class="text-xs text-purple-600 font-semibold">Total User</div>
@@ -174,6 +209,29 @@ function renderUserManagement() {
                 </div>
             </div>
             
+            <div class="mb-6 border border-dashed border-slate-200 rounded-xl p-3 md:p-4 bg-slate-50/60">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-2 mb-2">
+                    <div class="text-xs md:text-sm text-slate-600">
+                        <span class="font-semibold">Debug Sync Supabase</span><span class="hidden md:inline"> · Gunakan saat import user tidak muncul di Supabase</span>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <button type="button" onclick="syncUsersToSupabase()"
+                            class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-primary-600 text-white hover:bg-primary-700 transition-colors">
+                            ⏫ Force Sync ke Supabase
+                        </button>
+                        <button type="button" onclick="showUserSyncDiagnostics()"
+                            class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-white hover:bg-slate-900 transition-colors">
+                            🐞 Lihat Detail Gagal Sync
+                        </button>
+                        <button type="button" onclick="createAuthAccountsForGuruOrtu()"
+                            class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-500 text-white hover:bg-amber-600 transition-colors">
+                            🔐 Buat Akun Login Guru & Ortu
+                        </button>
+                    </div>
+                </div>
+                <div id="userSyncDebugSummary" class="text-[11px] md:text-xs text-slate-500"></div>
+            </div>
+            
             <!-- Users List -->
             <div id="usersList" class="space-y-3">
                 ${usersList}
@@ -194,6 +252,117 @@ function renderUserManagement() {
     `;
 
     container.innerHTML = content;
+}
+
+function showUserSyncDiagnostics() {
+    if (!window.getUserSyncDiagnostics) {
+        alert('Diagnostics belum tersedia. Pastikan file supabase.js terbaru sudah dimuat.');
+        return;
+    }
+
+    const info = window.getUserSyncDiagnostics();
+    const target = document.getElementById('userSyncDebugSummary');
+
+    if (!info) {
+        if (target) {
+            target.textContent = 'Belum ada data sync. Jalankan "Force Sync ke Supabase" terlebih dahulu.';
+        } else {
+            alert('Belum ada data sync. Jalankan "Force Sync ke Supabase" terlebih dahulu.');
+        }
+        return;
+    }
+
+    const summary = `Sync terakhir: ${info.startedAt || '-'} · Total: ${info.totalUsers ?? '-'} · Berhasil: ${info.synced ?? 0} · Gagal: ${info.failed ? info.failed.length : 0}`;
+
+    if (target) {
+        target.textContent = summary;
+    } else {
+        alert(summary);
+    }
+
+    if (info.failed && info.failed.length > 0) {
+        console.group('[USER SYNC DEBUG] Failed users detail');
+        console.table(info.failed.map(item => ({
+            email: item.email,
+            reason: item.reason
+        })));
+        console.groupEnd();
+    }
+}
+
+async function createAuthAccountsForGuruOrtu() {
+    if (!window.batchCreateAuthAccounts) {
+        alert('Fitur pembuatan akun login belum siap. Pastikan auth-helper.js termuat.');
+        return;
+    }
+
+    const candidates = usersData.users.filter(u =>
+        u &&
+        (u.role === 'guru' || u.role === 'ortu') &&
+        u.email &&
+        u.status === 'active'
+    );
+
+    if (candidates.length === 0) {
+        alert('Tidak ada guru atau orang tua aktif yang bisa dibuatkan akun.');
+        return;
+    }
+
+    const confirmed = confirm(
+        `Akan dibuatkan akun login Supabase untuk ${candidates.length} user (guru & ortu).\n\n` +
+        `Email: sesuai data user\n` +
+        `Password default: anhaq2026\n\n` +
+        `Lanjutkan?`
+    );
+
+    if (!confirmed) return;
+
+    const progressDiv = document.createElement('div');
+    progressDiv.id = 'authBulkProgressNotification';
+    progressDiv.className = 'fixed top-20 right-4 z-50 bg-white rounded-xl shadow-2xl p-6 border border-primary-200 max-w-sm';
+    progressDiv.innerHTML = `
+        <div class="flex items-center gap-3 mb-3">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+            <div>
+                <h4 class="font-bold text-slate-800">Membuat Akun Login Guru & Ortu</h4>
+                <p class="text-sm text-slate-600">Mohon tunggu...</p>
+            </div>
+        </div>
+        <div class="bg-slate-100 rounded-full h-2 overflow-hidden">
+            <div id="authBulkProgressBar" class="bg-primary-600 h-full transition-all duration-300" style="width: 0%"></div>
+        </div>
+        <p id="authBulkProgressText" class="text-xs text-slate-500 mt-2">0 / ${candidates.length}</p>
+    `;
+    document.body.appendChild(progressDiv);
+
+    const progressCallback = (progress) => {
+        const progressBar = document.getElementById('authBulkProgressBar');
+        const progressText = document.getElementById('authBulkProgressText');
+        if (progressBar && progressText) {
+            const percentage = (progress.current / progress.total) * 100;
+            progressBar.style.width = `${percentage}%`;
+            progressText.textContent = `${progress.current} / ${progress.total} - ${progress.email}`;
+        }
+    };
+
+    const results = await window.batchCreateAuthAccounts(candidates, 'anhaq2026', progressCallback);
+
+    const notification = document.getElementById('authBulkProgressNotification');
+    if (notification) {
+        notification.remove();
+    }
+
+    const finalMessage = `Proses pembuatan akun selesai.\n\n` +
+        `✅ ${results.success.length} akun baru dibuat\n` +
+        `⚠️ ${results.skipped.length} email sudah punya akun\n` +
+        `❌ ${results.failed.length} akun gagal dibuat\n\n` +
+        `Password default: anhaq2026`;
+
+    alert(finalMessage);
+
+    if (results.failed.length > 0) {
+        console.error('[BULK AUTH] Gagal membuat akun untuk:', results.failed);
+    }
 }
 
 
@@ -584,7 +753,16 @@ function filterUsersByRole(role) {
 }
 
 // Initialize
-loadUsers();
+(async function () {
+    await loadUsers();
+
+    // Setup realtime subscription for profiles if available
+    if (window.setupProfilesRealtimeSubscription) {
+        setTimeout(() => {
+            window.setupProfilesRealtimeSubscription();
+        }, 2000); // Delay to ensure Supabase is initialized
+    }
+})();
 
 // Export functions
 window.renderUserManagement = renderUserManagement;
@@ -652,7 +830,7 @@ function previewImportUsers(event) {
 }
 
 // Handle import users
-function handleImportUsers() {
+async function handleImportUsers() {
     const fileInput = document.getElementById('importUserFile');
     if (!fileInput || !fileInput.files[0]) {
         alert('❌ Pilih file Excel terlebih dahulu');
@@ -662,7 +840,7 @@ function handleImportUsers() {
     const file = fileInput.files[0];
     const reader = new FileReader();
 
-    reader.onload = function (e) {
+    reader.onload = async function (e) {
         try {
             const data = new Uint8Array(e.target.result);
             const workbook = XLSX.read(data, { type: 'array' });
@@ -680,6 +858,7 @@ function handleImportUsers() {
             let imported = 0;
             let updated = 0;
             let skipped = 0;
+            const newUsers = []; // Track new users for auth account creation
 
             dataRows.forEach(row => {
                 const userName = row[0]?.toString().trim();
@@ -705,7 +884,6 @@ function handleImportUsers() {
                     }
                 }
 
-                // Check if user already exists
                 // Check if user already exists
                 const existingIndex = usersData.users.findIndex(u => u.email === accountName);
 
@@ -738,18 +916,92 @@ function handleImportUsers() {
                 };
 
                 usersData.users.push(newUser);
+                newUsers.push(newUser); // Track for auth creation
                 imported++;
             });
 
             // Save to localStorage
             saveUsers();
 
-            // Close modal and refresh
+            // Close modal
             closeModal();
-            renderUserManagement();
 
-            // Show result
-            alert(`✅ Import berhasil!\n\n📥 ${imported} user baru\n🔄 ${updated} user diupdate\n⚠️ ${skipped} baris dilewati (data tidak lengkap)`);
+            // Show initial result
+            const initialMessage = `✅ Import data berhasil!\n\n📥 ${imported} user baru\n🔄 ${updated} user diupdate\n⚠️ ${skipped} baris dilewati\n\n⏳ Membuat akun login...`;
+            alert(initialMessage);
+
+            // Create auth accounts for new users
+            if (newUsers.length > 0 && window.batchCreateAuthAccounts) {
+                console.log(`[IMPORT] Creating auth accounts for ${newUsers.length} new users...`);
+
+                // Show progress notification
+                const progressDiv = document.createElement('div');
+                progressDiv.id = 'authProgressNotification';
+                progressDiv.className = 'fixed top-20 right-4 z-50 bg-white rounded-xl shadow-2xl p-6 border border-primary-200 max-w-sm';
+                progressDiv.innerHTML = `
+                    <div class="flex items-center gap-3 mb-3">
+                        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+                        <div>
+                            <h4 class="font-bold text-slate-800">Membuat Akun Login</h4>
+                            <p class="text-sm text-slate-600">Mohon tunggu...</p>
+                        </div>
+                    </div>
+                    <div class="bg-slate-100 rounded-full h-2 overflow-hidden">
+                        <div id="authProgressBar" class="bg-primary-600 h-full transition-all duration-300" style="width: 0%"></div>
+                    </div>
+                    <p id="authProgressText" class="text-xs text-slate-500 mt-2">0 / ${newUsers.length}</p>
+                `;
+                document.body.appendChild(progressDiv);
+
+                // Progress callback
+                const progressCallback = (progress) => {
+                    const progressBar = document.getElementById('authProgressBar');
+                    const progressText = document.getElementById('authProgressText');
+                    if (progressBar && progressText) {
+                        const percentage = (progress.current / progress.total) * 100;
+                        progressBar.style.width = `${percentage}%`;
+                        progressText.textContent = `${progress.current} / ${progress.total} - ${progress.email}`;
+                    }
+                };
+
+                // Batch create accounts with default password: anhaq2026
+                const results = await window.batchCreateAuthAccounts(newUsers, 'anhaq2026', progressCallback);
+
+                // Remove progress notification
+                const notification = document.getElementById('authProgressNotification');
+                if (notification) {
+                    notification.remove();
+                }
+
+                // Show final result
+                const finalMessage = `🎉 Proses selesai!\n\n` +
+                    `✅ ${results.success.length} akun berhasil dibuat\n` +
+                    `⚠️ ${results.skipped.length} akun sudah ada\n` +
+                    `❌ ${results.failed.length} akun gagal dibuat\n\n` +
+                    `Password default: anhaq2026`;
+
+                alert(finalMessage);
+
+                // Log failed accounts for debugging
+                if (results.failed.length > 0) {
+                    console.error('[IMPORT] Failed to create accounts:', results.failed);
+                }
+
+                // Sync to Supabase if available
+                if (window.syncUsersToSupabase) {
+                    setTimeout(() => {
+                        syncUsersToSupabase();
+                    }, 2000);
+                }
+            } else {
+                // No new users or auth helper not available
+                if (window.syncUsersToSupabase) {
+                    syncUsersToSupabase();
+                }
+            }
+
+            // Refresh UI
+            renderUserManagement();
 
         } catch (error) {
             console.error('Error importing users:', error);

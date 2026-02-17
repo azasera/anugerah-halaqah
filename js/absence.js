@@ -21,10 +21,8 @@ function renderAbsenceWidget() {
     let notSubmittedCount = 0;
     let submittedCount = 0;
 
-    // Priority Filter: Filter by current user (Guru only sees members, Ortu sees children)
-    let studentsToProcess = (typeof getStudentsForCurrentUser === 'function')
-        ? getStudentsForCurrentUser()
-        : dashboardData.students;
+    // CHANGED: Parents can now see all students, not just their child
+    let studentsToProcess = dashboardData.students;
 
     // Secondary Filter: Filter by Lembaga (Parent/Admin Restrictions)
     if (typeof getUserLembaga === 'function') {
@@ -157,10 +155,8 @@ function renderAbsenceTracker(force = false) {
     const studentsNotSubmitted = [];
     const studentsSubmitted = [];
 
-    // Priority Filter: Filter by current user (Guru only sees members, Ortu sees children)
-    let studentsToRender = (typeof getStudentsForCurrentUser === 'function')
-        ? getStudentsForCurrentUser()
-        : dashboardData.students;
+    // CHANGED: Parents can now see all students, not just their child
+    let studentsToRender = dashboardData.students;
 
     // Secondary Filter: Filter by Lembaga (Parent/Admin Restrictions)
     let isCurrentLembagaHoliday = false;

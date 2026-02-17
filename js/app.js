@@ -239,7 +239,10 @@ function initApp() {
         // Initialize Supabase (optional, works without it)
         initSupabase().then(() => {
             // Refresh parent-child link with fresh data
-            if (typeof refreshUserChildLink === 'function') refreshUserChildLink();
+            if (typeof refreshUserChildLink === 'function') {
+                console.log('🔗 Refreshing parent-child link after Supabase init...');
+                refreshUserChildLink();
+            }
 
             // Render all components
             try {
@@ -284,6 +287,13 @@ function initApp() {
         }).catch(error => {
             console.error('Supabase init error:', error);
             // Even if Supabase fails, render app with local data
+            
+            // Refresh parent-child link with local data
+            if (typeof refreshUserChildLink === 'function') {
+                console.log('🔗 Refreshing parent-child link with local data...');
+                refreshUserChildLink();
+            }
+            
             try {
                 if (typeof initSlider === 'function') initSlider();
                 if (typeof renderStats === 'function') renderStats();

@@ -2,11 +2,11 @@
 // Mobile-first, professional UI for recording daily Quranic activities as a unified concept.
 
 const prayerConfigs = [
-    { id: 'subuh', name: 'Subuh', icon: '🌅' },
-    { id: 'zhuhur', name: 'Zhuhur', icon: '☀️' },
-    { id: 'ashar', name: 'Ashar', icon: '🌤️' },
-    { id: 'maghrib', name: 'Maghrib', icon: '🌇' },
-    { id: 'isya', name: 'Isya', icon: '🌙' }
+    { id: 'subuh', name: 'Subuh', icon: '🌅', time: '04:00 - 06:00' },
+    { id: 'zhuhur', name: 'Zhuhur', icon: '☀️', time: '11:30 - 13:00' },
+    { id: 'ashar', name: 'Ashar', icon: '🌤️', time: '15:00 - 17:30' },
+    { id: 'maghrib', name: 'Maghrib', icon: '🌇', time: '17:45 - 19:00' },
+    { id: 'isya', name: 'Isya', icon: '🌙', time: '19:00 - 21:00' }
 ];
 
 function initMutabaahData() {
@@ -338,7 +338,10 @@ function approveMutabaah(role, studentId) {
 
 function renderStudentSelectionForMutabaah() {
     const container = document.getElementById('mutabaahContainer');
-    const students = dashboardData.students;
+    let students = dashboardData.students;
+
+    // REMOVED: Role-based filtering for parents - they can now see all students
+    // Parents can now access full mutaba'ah data for context
 
     const content = `
         <div class="space-y-6">
@@ -384,7 +387,9 @@ function filterMutabaahStudentList(term) {
     if (!container) return;
 
     const termLower = term.toLowerCase();
-    const students = dashboardData.students;
+    let students = dashboardData.students;
+
+    // REMOVED: Role-based filtering for parents - they can now see all students
 
     container.innerHTML = students
         .filter(s => s.name.toLowerCase().includes(termLower) || s.halaqah.toLowerCase().includes(termLower))

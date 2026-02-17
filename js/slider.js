@@ -253,9 +253,8 @@ function renderTopHalaqah(container) {
 }
 
 function renderStreakLeaders(container) {
-    const students = (typeof getStudentsForCurrentUser === 'function')
-        ? getStudentsForCurrentUser()
-        : dashboardData.students;
+    // CHANGED: Parents can now see all students in streak leaders, not just their child
+    const students = dashboardData.students;
 
     if (!students || students.length === 0) {
         container.innerHTML = `

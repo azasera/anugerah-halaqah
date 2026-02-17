@@ -159,20 +159,20 @@ async function login(rawInput, rawPassword) {
         const input = String(rawInput).trim();
         const password = String(rawPassword).trim();
 
+        const isIdLogin = !input.includes('@'); // NIK / NIS / NISN
         let email = input;
 
-        // Cek apakah input hanya berisi angka (asumsi NIK)
-        if (/^\d+$/.test(input)) {
-            // Untuk login NIK, kita gunakan email dummy
+        // ID-based login (NIK / NIS / NISN) tanpa '@'
+        if (isIdLogin) {
             email = `${input}@sekolah.id`;
-            console.log(`[DEBUG] Attempting NIK login for: ${input} -> ${email}`);
+            console.log(`[DEBUG] Attempting ID login for: ${input} -> ${email}`);
 
             // Verifikasi format password tanggal lahir (DDMMYYYY)
             if (!/^\d{8}$/.test(password)) {
                 throw new Error('Format password harus tanggal lahir (DDMMYYYY)');
             }
         } else {
-            // Jika bukan NIK, validasi format email
+            // Jika input sudah berupa email, minimal cek mengandung '@'
             if (!input.includes('@')) {
                 throw new Error('Format email tidak valid');
             }
@@ -181,7 +181,8 @@ async function login(rawInput, rawPassword) {
         // Try Supabase Login first
         let supabaseSuccess = false;
 
-        if (window.supabaseClient) {
+        // Supabase Auth hanya untuk login berbasis email (admin/guru/staff)
+        if (window.supabaseClient && !isIdLogin) {
             try {
                 console.log(`[DEBUG] Calling Supabase signInWithPassword for ${email}`);
                 console.log(`[DEBUG] Password length: ${password.length}`);
@@ -196,7 +197,22 @@ async function login(rawInput, rawPassword) {
                 if (!error && data?.user) {
                     console.log('[DEBUG] Supabase Login Success');
                     currentUser = data.user;
+                    window.currentUser = data.user;
                     await loadUserProfile();
+                    
+                    // If parent, refresh child link
+                    if (window.currentProfile?.role === 'ortu') {
+                        console.log('🔗 Parent Supabase login, refreshing child link...');
+                        await refreshUserChildLink();
+                        // Refresh UI after link
+                        setTimeout(() => {
+                            if (typeof renderSantri === 'function') {
+                                renderSantri();
+                                console.log('🎨 UI refreshed after parent Supabase login');
+                            }
+                        }, 500);
+                    }
+                    
                     showApp();
                     showNotification('✅ Login berhasil!', 'success');
                     supabaseSuccess = true;
@@ -207,10 +223,10 @@ async function login(rawInput, rawPassword) {
                     console.log('[DEBUG] Error message:', error.message);
                     console.log('[DEBUG] Error status:', error.status);
 
-                    // Check if this is a login attempt with NIK/Default Password
+                    // Check if this is a login attempt with NIK/NIS/NISN + Default Password
                     // If login fails but credentials match student data, assume first-time login -> Auto Register
-                    if (/^\d+$/.test(input)) {
-                        console.log('Login failed (400), attempting NIK recovery for:', input);
+                    if (isIdLogin) {
+                        console.log('Login failed (400), attempting ID recovery for:', input);
 
                         // Normalize input
                         const nikInput = String(input).trim();
@@ -380,9 +396,9 @@ async function login(rawInput, rawPassword) {
                 }
             }
 
-            // Fallback 2: Check Student Data (Login via NIK & Tanggal Lahir)
-            if (!localUserFound && /^\d+$/.test(input) && dashboardData && dashboardData.students) {
-                console.log('Checking student data for NIK login...');
+            // Fallback 2: Check Student Data (Login via NIK/NIS/NISN & Tanggal Lahir)
+            if (!localUserFound && isIdLogin && dashboardData && dashboardData.students) {
+                console.log('Checking student data for ID login...');
                 // Normalize input
                 const nikInput = String(input).trim();
                 const student = dashboardData.students.find(s =>
@@ -463,6 +479,7 @@ function loginAsUser(user) {
 
     // Set current user
     currentUser = user;
+    window.currentUser = user;
     localStorage.setItem('localCurrentUser', JSON.stringify(user));
 
     // Create mock profile
@@ -477,8 +494,20 @@ function loginAsUser(user) {
     if (user.childId) {
         // If directly linked to a child (Virtual Parent)
         currentUserChild = dashboardData.students.find(s => s.id == user.childId);
-    } else if (currentProfile.role === 'ortu') {
-        refreshUserChildLink();
+        window.currentUserChild = currentUserChild;
+    } else if (window.currentProfile.role === 'ortu') {
+        // For parent, refresh link with retry
+        console.log('🔗 Parent login detected, refreshing child link...');
+        refreshUserChildLink().then(() => {
+            console.log('✅ Child link refresh completed');
+            // Refresh UI after link is established
+            if (typeof renderSantri === 'function') {
+                setTimeout(() => {
+                    renderSantri();
+                    console.log('🎨 UI refreshed after parent login');
+                }, 500);
+            }
+        });
     }
 
     updateUIBasedOnRole();
@@ -723,27 +752,119 @@ function updateUIBasedOnRole() {
 }
 
 // Helper to link parent to student
-function refreshUserChildLink() {
+async function refreshUserChildLink(retryCount = 0, maxRetries = 10) {
+    console.log(`🔍 refreshUserChildLink called (attempt ${retryCount + 1}/${maxRetries + 1})`);
+    
     if (!currentUser || !currentProfile || currentProfile.role !== 'ortu') {
         currentUserChild = null;
         return;
     }
 
-    const nikOrNisn = currentUser.email.split('@')[0];
+    const nikOrNisn = currentUser.email.split('@')[0].trim();
+    console.log('Looking for student with NIK/NISN:', nikOrNisn);
+    console.log('Students available:', Array.isArray(dashboardData.students) ? dashboardData.students.length : 0);
 
-    // 1. Try to find student by NIK or NISN (Exact Match)
-    let student = dashboardData.students.find(s =>
-        (s.nik && s.nik === nikOrNisn) ||
-        (s.nisn && s.nisn === nikOrNisn)
-    );
+    // Check if data is loaded
+    const dataLoaded = Array.isArray(dashboardData.students) && dashboardData.students.length > 0;
+    
+    // If data not loaded yet and we have retries left, wait and retry
+    if (!dataLoaded && retryCount < maxRetries) {
+        console.log('⏳ Data belum dimuat, menunggu 300ms sebelum retry...');
+        await new Promise(resolve => setTimeout(resolve, 300));
+        return refreshUserChildLink(retryCount + 1, maxRetries);
+    }
 
-    // 2. If not found, try fuzzy match by name (using email prefix)
-    if (!student) {
+    if (currentProfile.student_id && dataLoaded) {
+        const targetId = String(currentProfile.student_id);
+        const byId = dashboardData.students.find(s => String(s.id) === targetId);
+        if (byId) {
+            currentUserChild = byId;
+            window.currentUserChild = byId;
+            console.log('✅ Parent linked via profile.student_id:', byId.name);
+            return byId;
+        }
+    }
+
+    let student = null;
+    if (dataLoaded) {
+        student = dashboardData.students.find(s =>
+            (s.nik && String(s.nik).trim() === nikOrNisn) ||
+            (s.nisn && String(s.nisn).trim() === nikOrNisn)
+        );
+    }
+
+    if (!student && window.supabaseClient) {
+        console.log('🔍 Student not found locally, querying Supabase...');
+        try {
+            const nikInput = nikOrNisn;
+            const { data, error } = await window.supabaseClient
+                .from('students')
+                .select('*')
+                .or(`nik.eq."${nikInput}",nisn.eq."${nikInput}",nik.eq.${nikInput},nisn.eq.${nikInput}`)
+                .maybeSingle();
+
+            if (!error && data) {
+                console.log('✅ Student found in Supabase:', data.name);
+                const existing = Array.isArray(dashboardData.students)
+                    ? dashboardData.students.find(s => String(s.id) === String(data.id))
+                    : null;
+
+                if (existing) {
+                    student = existing;
+                } else {
+                    const achievements = typeof data.achievements === 'string'
+                        ? JSON.parse(data.achievements || '[]')
+                        : (data.achievements || []);
+                    const setoran = typeof data.setoran === 'string'
+                        ? JSON.parse(data.setoran || '[]')
+                        : (data.setoran || []);
+
+                    student = {
+                        id: data.id,
+                        name: data.name,
+                        halaqah: data.halaqah,
+                        nisn: data.nisn,
+                        nik: data.nik,
+                        lembaga: data.lembaga,
+                        kelas: data.kelas,
+                        jenis_kelamin: data.jenis_kelamin || '',
+                        tempat_lahir: data.tempat_lahir || '',
+                        tanggal_lahir: data.tanggal_lahir || null,
+                        alamat: data.alamat || '',
+                        hp: data.hp || '',
+                        nama_ayah: data.nama_ayah || '',
+                        nama_ibu: data.nama_ibu || '',
+                        sekolah_asal: data.sekolah_asal || '',
+                        total_points: data.total_points,
+                        daily_ranking: data.daily_ranking,
+                        overall_ranking: data.overall_ranking,
+                        streak: data.streak,
+                        lastActivity: data.last_activity,
+                        achievements,
+                        setoran,
+                        lastSetoranDate: data.last_setoran_date,
+                        total_hafalan: data.total_hafalan || 0
+                    };
+
+                    if (!Array.isArray(dashboardData.students)) {
+                        dashboardData.students = [];
+                    }
+                    dashboardData.students.push(student);
+                    console.log('📦 Student added to local data');
+                }
+            } else {
+                console.log('❌ Student not found in Supabase');
+            }
+        } catch (e) {
+            console.error('Error linking parent via direct student lookup:', e);
+        }
+    }
+
+    if (!student && dataLoaded) {
+        console.log('🔍 Trying fallback: match by name...');
         const emailPrefix = nikOrNisn.toLowerCase();
-        // Exact name match first
         student = dashboardData.students.find(s => s.name.toLowerCase() === emailPrefix);
 
-        // Then contains match
         if (!student) {
             student = dashboardData.students.find(s => s.name.toLowerCase().includes(emailPrefix));
         }
@@ -751,15 +872,49 @@ function refreshUserChildLink() {
 
     if (student) {
         currentUserChild = student;
-        console.log('Parent logged in. Linked to student:', student.name);
+        window.currentUserChild = student;
+        console.log('✅ Parent logged in. Linked to student:', student.name);
+        
+        // Trigger UI update to show child data
+        if (typeof renderSantri === 'function') {
+            console.log('🔄 Refreshing UI to show child data...');
+            renderSantri();
+        }
+        
+        return student;
     } else {
-        console.warn('Parent logged in but no matching student found for ID:', nikOrNisn);
+        console.warn('❌ Parent logged in but no matching student found for ID:', nikOrNisn);
+        console.warn('Available students:', dashboardData.students.map(s => ({ name: s.name, nik: s.nik, nisn: s.nisn })));
         currentUserChild = null;
+        window.currentUserChild = null;
+        return null;
     }
 }
 
 // Export for external use
 window.refreshUserChildLink = refreshUserChildLink;
+
+// Getter for current user child (for other modules)
+function getCurrentUserChild() {
+    // Return from global variable first
+    if (typeof currentUserChild !== 'undefined' && currentUserChild) {
+        return currentUserChild;
+    }
+    // Fallback to window
+    if (typeof window.currentUserChild !== 'undefined' && window.currentUserChild) {
+        return window.currentUserChild;
+    }
+    return null;
+}
+window.getCurrentUserChild = getCurrentUserChild;
+
+// Setter for current user child
+function setCurrentUserChild(child) {
+    currentUserChild = child;
+    window.currentUserChild = child;
+    console.log('✅ setCurrentUserChild:', child?.name);
+}
+window.setCurrentUserChild = setCurrentUserChild;
 
 // Helper to get current user's lembaga (for filtering)
 function getUserLembaga() {

@@ -24,56 +24,128 @@ function saveUserSantriRelationships() {
 function getSantriIdsForCurrentUser() {
     const user = (typeof currentProfile !== 'undefined' && currentProfile) ? currentProfile : null;
 
+    console.log('🔍 [getSantriIdsForCurrentUser] User:', user?.full_name, 'Role:', user?.role);
+
     // Admin can see all santri
     if (!user || user.role === 'admin') {
-        return dashboardData.students.map(s => s.id);
+        const allIds = dashboardData.students.map(s => s.id);
+        console.log('👑 Admin - returning all students:', allIds.length);
+        return allIds;
     }
 
-    // Get santri IDs for this user
+    // Get santri IDs for this user (relasi manual)
     const relationships = userSantriData.relationships.filter(r => r.userId === user.id);
     const manualIds = relationships.map(r => r.santriId);
+    console.log('📋 Manual relationships:', manualIds.length);
 
     // Also include auto-linked child from auth (Parent Login via NIK)
     if (window.getCurrentUserChild && typeof window.getCurrentUserChild === 'function') {
         const autoChild = window.getCurrentUserChild();
+        console.log('👶 Auto-linked child:', autoChild?.name);
         if (autoChild && autoChild.id) {
             manualIds.push(autoChild.id);
+            console.log('✅ Added auto-linked child ID:', autoChild.id);
         }
     }
 
-    // Return unique IDs
+    // Check window.currentUserChild directly as fallback
+    if (typeof window.currentUserChild !== 'undefined' && window.currentUserChild && window.currentUserChild.id) {
+        if (!manualIds.includes(window.currentUserChild.id)) {
+            manualIds.push(window.currentUserChild.id);
+            console.log('✅ Added currentUserChild ID:', window.currentUserChild.id);
+        }
+    }
+
+    // CRITICAL: Also check global currentUserChild variable
+    if (typeof currentUserChild !== 'undefined' && currentUserChild && currentUserChild.id) {
+        if (!manualIds.includes(currentUserChild.id)) {
+            manualIds.push(currentUserChild.id);
+            console.log('✅ Added global currentUserChild ID:', currentUserChild.id);
+        }
+    }
+
     const uniqueIds = [...new Set(manualIds)];
+    console.log('🔗 Unique IDs after auto-link:', uniqueIds);
+
+    // Parent fallback: match by NIK/NISN using currentUser email prefix
+    if (user.role === 'ortu' && uniqueIds.length === 0 && window.currentUser && window.currentUser.email) {
+        console.log('🔍 Parent fallback: searching by NIK/NISN...');
+        const nikOrNisn = window.currentUser.email.split('@')[0].trim();
+        console.log('Looking for NIK/NISN:', nikOrNisn);
+        console.log('Total students available:', dashboardData.students.length);
+        
+        if (Array.isArray(dashboardData.students) && dashboardData.students.length > 0) {
+            const matched = dashboardData.students.find(s =>
+                (s.nik && String(s.nik).trim() === nikOrNisn) ||
+                (s.nisn && String(s.nisn).trim() === nikOrNisn)
+            );
+            
+            if (matched) {
+                console.log('✅ Found matching student:', matched.name, 'ID:', matched.id);
+                uniqueIds.push(matched.id);
+            } else {
+                console.warn('❌ No student found with NIK/NISN:', nikOrNisn);
+                console.log('Available NIKs:', dashboardData.students.map(s => s.nik).filter(Boolean));
+                console.log('Available NISNs:', dashboardData.students.map(s => s.nisn).filter(Boolean));
+            }
+        }
+    }
 
     // AUTO-LINK FOR GURU: Include students in Halaqahs where this user is the teacher
-    if (user.role === 'guru') {
-        // Find halaqahs taught by this guru (match by name)
-        // Normalize names for comparison (case insensitive)
-        const guruName = user.full_name.toLowerCase().replace(/^(ustadz|ust|u\.)\s*/i, '').trim();
+    if (user.role === 'guru' && Array.isArray(dashboardData.halaqahs) && dashboardData.halaqahs.length > 0) {
+        console.log('👨‍🏫 Guru detected, checking halaqahs...');
+        const rawName = user.full_name || user.name || '';
+        const guruName = String(rawName).toLowerCase().replace(/^(ustadz|ust|u\.)\s*/i, '').trim();
+        console.log('Guru name (processed):', guruName);
 
-        const taughtHalaqahs = dashboardData.halaqahs.filter(h => {
-            if (!h.guru) return false;
-            const hGuru = h.guru.toLowerCase().replace(/^(ustadz|ust|u\.)\s*/i, '').trim();
-            // Match if guru name contains the user name or vice versa (for partial matches)
-            return hGuru.includes(guruName) || guruName.includes(hGuru);
-        });
-
-        if (taughtHalaqahs.length > 0) {
-            const taughtHalaqahNames = taughtHalaqahs.map(h => h.name.replace('Halaqah ', ''));
-
-            // Find students in these halaqahs
-            const studentIdsInHalaqah = dashboardData.students
-                .filter(s => taughtHalaqahNames.includes(s.halaqah))
-                .map(s => s.id);
-
-            // Merge with existing IDs
-            studentIdsInHalaqah.forEach(id => {
-                if (!uniqueIds.includes(id)) {
-                    uniqueIds.push(id);
-                }
+        if (guruName && guruName.length >= 3) {
+            // Try exact match first
+            let taughtHalaqahs = dashboardData.halaqahs.filter(h => {
+                if (!h || !h.guru) return false;
+                const hGuru = String(h.guru).toLowerCase().replace(/^(ustadz|ust|u\.)\s*/i, '').trim();
+                const match = hGuru === guruName;
+                if (match) console.log('✅ Exact match:', h.name, 'Guru:', h.guru);
+                return match;
             });
+
+            // If no exact match, try partial match (contains)
+            if (taughtHalaqahs.length === 0) {
+                console.log('No exact match, trying partial match...');
+                taughtHalaqahs = dashboardData.halaqahs.filter(h => {
+                    if (!h || !h.guru) return false;
+                    const hGuru = String(h.guru).toLowerCase().replace(/^(ustadz|ust|u\.)\s*/i, '').trim();
+                    const match = hGuru.includes(guruName) || guruName.includes(hGuru);
+                    if (match) console.log('✅ Partial match:', h.name, 'Guru:', h.guru);
+                    return match;
+                });
+            }
+
+            console.log('Taught halaqahs:', taughtHalaqahs.length);
+
+            if (taughtHalaqahs.length > 0 && Array.isArray(dashboardData.students)) {
+                const taughtHalaqahNames = taughtHalaqahs.map(h => {
+                    const name = h && h.name ? String(h.name) : '';
+                    return name.replace(/^Halaqah\s+/i, '').trim();
+                });
+
+                console.log('Halaqah names:', taughtHalaqahNames);
+
+                const studentIdsInHalaqah = dashboardData.students
+                    .filter(s => taughtHalaqahNames.includes(String(s.halaqah)))
+                    .map(s => s.id);
+
+                console.log('Students in taught halaqahs:', studentIdsInHalaqah.length);
+
+                studentIdsInHalaqah.forEach(id => {
+                    if (!uniqueIds.includes(id)) {
+                        uniqueIds.push(id);
+                    }
+                });
+            }
         }
     }
-
+    
+    console.log('📊 Final unique IDs for user:', uniqueIds);
     return uniqueIds;
 }
 
@@ -81,16 +153,23 @@ function getSantriIdsForCurrentUser() {
 function getStudentsForCurrentUser() {
     const user = (typeof currentProfile !== 'undefined' && currentProfile) ? currentProfile : null;
 
+    console.log('🔍 [getStudentsForCurrentUser] User:', user?.full_name, 'Role:', user?.role);
+
     // Admin can see all students
     if (!user || user.role === 'admin') {
+        console.log('👑 Admin - returning all students:', dashboardData.students.length);
         return dashboardData.students;
     }
 
     // Get santri IDs for this user
     const santriIds = getSantriIdsForCurrentUser();
+    console.log('📋 Santri IDs:', santriIds);
 
     // Filter students
-    return dashboardData.students.filter(s => santriIds.includes(s.id));
+    const filtered = dashboardData.students.filter(s => santriIds.includes(s.id));
+    console.log('✅ Filtered students:', filtered.length);
+    
+    return filtered;
 }
 
 // Assign santri to user

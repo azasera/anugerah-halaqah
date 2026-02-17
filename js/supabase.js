@@ -15,6 +15,16 @@ if (!window.supabaseClient) {
 // Database sync status
 let isSyncing = false;
 let isOnline = navigator.onLine;
+let lastUserSyncDiagnostics = null;
+
+function isTransientSupabaseError(error) {
+    if (!error || !error.message) return false;
+    const msg = error.message.toLowerCase();
+    if (msg.includes('timeout')) return true;
+    if (msg.includes('rate limit') || msg.includes('429')) return true;
+    if (msg.includes('network')) return true;
+    return false;
+}
 
 // Show sync status
 function showSyncStatus(message, type = 'info') {
@@ -288,6 +298,12 @@ async function loadStudentsFromSupabase() {
             console.log('[LOAD] Sample student:', dashboardData.students[0]);
 
             showSyncStatus('✅ Data santri dimuat', 'success');
+            
+            // Refresh parent-child link after data is loaded
+            if (typeof refreshUserChildLink === 'function') {
+                console.log('🔗 Refreshing parent-child link after data load...');
+                refreshUserChildLink();
+            }
         } else {
             // If no data in Supabase, keep local data but don't show "Demo Mode"
             console.log('No data in Supabase, using local defaults');
@@ -864,14 +880,324 @@ async function deleteAllHalaqahsFromSupabase() {
     }
 }
 
+// ============================================
+// USER/PROFILES SYNCHRONIZATION
+// ============================================
+
+// Sync users to Supabase local_users table
+async function syncUsersToSupabase() {
+    if (!isOnline) {
+        console.log('Offline - users will sync when online');
+        showSyncStatus('📴 Mode offline - user akan disync saat online', 'warning');
+        return;
+    }
+    // AUTH CHECK: Only admin can write to DB
+    const profile = window.currentProfile;
+    if (!profile || profile.role !== 'admin') {
+        console.warn('⛔ Sync blocked: User is not admin');
+        showSyncStatus('⛔ Sync user hanya bisa dilakukan oleh admin', 'error');
+        return;
+    }
+
+    // Prevent concurrent syncs
+    if (window.userSyncInProgress) {
+        console.log('⏭️ User sync already in progress, skipping...');
+        showSyncStatus('⏳ Sync user sedang berjalan, tunggu sebentar...', 'info');
+        return;
+    }
+
+    try {
+        window.userSyncInProgress = true;
+        console.log('[USER SYNC] Starting user sync to Supabase...');
+
+        const usersData = JSON.parse(localStorage.getItem('usersData') || '{"users":[]}');
+
+        if (!usersData.users || usersData.users.length === 0) {
+            console.log('[USER SYNC] No users to sync');
+            showSyncStatus('ℹ️ Tidak ada user yang perlu disinkronkan', 'info');
+            window.userSyncInProgress = false;
+            return;
+        }
+
+        let synced = 0;
+        let skipped = 0;
+        const failed = [];
+
+        for (const user of usersData.users) {
+            if (!user.email || !user.name) {
+                skipped++;
+                failed.push({
+                    email: user.email || null,
+                    reason: 'Missing email or name',
+                    details: null
+                });
+                continue;
+            }
+
+            const userData = {
+                id: typeof user.id === 'number' ? user.id : Date.now(),
+                name: user.name,
+                email: user.email,
+                phone: user.phone || null,
+                role: user.role || 'ortu',
+                status: user.status || 'active',
+                password: user.password || null,
+                lembaga: user.lembaga || null,
+                last_login: user.lastLogin && user.lastLogin !== '-' ? user.lastLogin : null
+            };
+
+            let attempt = 0;
+            const maxAttempts = 3;
+            let lastError = null;
+            let success = false;
+
+            while (attempt < maxAttempts && !success) {
+                try {
+                    const { error } = await supabaseClient
+                        .from('local_users')
+                        .upsert(userData, { onConflict: 'email' });
+
+                    if (error) {
+                        lastError = error;
+
+                        if (error.code === '42501' || (error.message && error.message.toLowerCase().includes('permission denied'))) {
+                            console.error(`[USER SYNC] Permission error for ${user.email}:`, error);
+                            break;
+                        }
+
+                        if (!isTransientSupabaseError(error)) {
+                            console.error(`[USER SYNC] Non-retryable error for ${user.email}:`, error);
+                            break;
+                        }
+
+                        attempt++;
+                        const waitMs = 500 * attempt;
+                        console.warn(`[USER SYNC] Transient error for ${user.email}, retry ${attempt}/${maxAttempts} in ${waitMs}ms`);
+                        await new Promise(resolve => setTimeout(resolve, waitMs));
+                    } else {
+                        success = true;
+                        synced++;
+                        console.log(`[USER SYNC] ✓ Synced: ${user.email}`);
+                    }
+                } catch (error) {
+                    lastError = error;
+                    if (!isTransientSupabaseError(error)) {
+                        console.error(`[USER SYNC] Exception syncing user ${user.email}:`, error);
+                        break;
+                    }
+                    attempt++;
+                    const waitMs = 500 * attempt;
+                    console.warn(`[USER SYNC] Exception (transient) for ${user.email}, retry ${attempt}/${maxAttempts} in ${waitMs}ms`);
+                    await new Promise(resolve => setTimeout(resolve, waitMs));
+                }
+            }
+
+            if (!success) {
+                skipped++;
+                failed.push({
+                    email: user.email,
+                    reason: lastError && lastError.message ? lastError.message : 'Unknown error',
+                    details: lastError || null
+                });
+            }
+
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+
+        lastUserSyncDiagnostics = {
+            startedAt: new Date().toISOString(),
+            totalUsers: usersData.users.length,
+            synced,
+            skipped,
+            failed
+        };
+
+        if (failed.length > 0) {
+            console.group('[USER SYNC] Failed inserts');
+            console.table(failed.map(item => ({
+                email: item.email,
+                reason: item.reason
+            })));
+            console.groupEnd();
+        }
+
+        console.log(`[USER SYNC] Complete - ${synced} synced, ${skipped} skipped, ${failed.length} failed`);
+
+        if (failed.length === 0) {
+            showSyncStatus(`✅ Sync user berhasil: ${synced} tersimpan`, 'success');
+        } else {
+            showSyncStatus(`⚠️ Sync user: ${synced} berhasil, ${failed.length} gagal. Lihat console untuk detail.`, 'warning');
+        }
+
+        window.userSyncInProgress = false;
+
+    } catch (error) {
+        console.error('[USER SYNC] Error syncing users:', error);
+        lastUserSyncDiagnostics = {
+            startedAt: new Date().toISOString(),
+            totalUsers: null,
+            synced: 0,
+            skipped: 0,
+            failed: [{
+                email: null,
+                reason: error.message || 'Unexpected error',
+                details: error
+            }]
+        };
+        showSyncStatus('❌ Terjadi error saat sync user. Lihat console untuk detail.', 'error');
+        window.userSyncInProgress = false;
+    }
+}
+
+
+// Load users from Supabase (both profiles and local_users tables)
+async function loadUsersFromSupabase() {
+    if (!isOnline) {
+        console.log('[USER LOAD] Offline - using local data');
+        return;
+    }
+
+    try {
+        console.log('[USER LOAD] Loading users from Supabase...');
+
+        // Load from both profiles and local_users tables
+        const [profilesResult, localUsersResult] = await Promise.all([
+            supabaseClient.from('profiles').select('*').order('created_at', { ascending: false }),
+            supabaseClient.from('local_users').select('*').order('created_at', { ascending: false })
+        ]);
+
+        const allUsers = [];
+
+        // Map profiles to usersData format
+        if (profilesResult.data && profilesResult.data.length > 0) {
+            const profileUsers = profilesResult.data.map(profile => ({
+                id: profile.id, // UUID from Supabase
+                name: profile.full_name,
+                email: profile.email,
+                phone: profile.phone || '-',
+                role: profile.role,
+                status: profile.is_active ? 'active' : 'inactive',
+                createdAt: profile.created_at ? new Date(profile.created_at).toISOString().split('T')[0] : '-',
+                lastLogin: '-',
+                // Additional fields from profiles
+                halaqah_id: profile.halaqah_id,
+                student_id: profile.student_id,
+                avatar_url: profile.avatar_url,
+                source: 'profiles' // Mark source
+            }));
+            allUsers.push(...profileUsers);
+            console.log(`[USER LOAD] Loaded ${profileUsers.length} users from profiles table`);
+        }
+
+        // Map local_users to usersData format
+        if (localUsersResult.data && localUsersResult.data.length > 0) {
+            const localUsers = localUsersResult.data.map(user => ({
+                id: user.id,
+                name: user.name,
+                email: user.email,
+                phone: user.phone || '-',
+                role: user.role,
+                status: user.status || 'active',
+                createdAt: user.created_at ? new Date(user.created_at).toISOString().split('T')[0] : '-',
+                lastLogin: user.last_login || '-',
+                password: user.password, // Keep password for local auth
+                lembaga: user.lembaga,
+                source: 'local_users' // Mark source
+            }));
+            allUsers.push(...localUsers);
+            console.log(`[USER LOAD] Loaded ${localUsers.length} users from local_users table`);
+        }
+
+        if (allUsers.length > 0) {
+            // Remove duplicates by email (prefer profiles over local_users)
+            const uniqueUsers = [];
+            const seenEmails = new Set();
+
+            for (const user of allUsers) {
+                if (!seenEmails.has(user.email)) {
+                    seenEmails.add(user.email);
+                    uniqueUsers.push(user);
+                }
+            }
+
+            const usersData = { users: uniqueUsers };
+
+            // Save to localStorage
+            localStorage.setItem('usersData', JSON.stringify(usersData));
+
+            console.log(`[USER LOAD] Total ${uniqueUsers.length} unique users loaded`);
+
+            // Refresh UI if function exists
+            if (typeof window.renderUserManagement === 'function') {
+                window.renderUserManagement();
+            }
+        } else {
+            console.log('[USER LOAD] No users found in Supabase');
+        }
+
+    } catch (error) {
+        console.error('[USER LOAD] Error loading users:', error);
+    }
+}
+
+// Setup realtime subscription for profiles and local_users tables
+function setupProfilesRealtimeSubscription() {
+    if (!supabaseClient) return;
+
+    // Check if subscription already exists
+    if (window.profilesRealtimeSubscription) {
+        console.log('[PROFILES RT] Subscription already exists');
+        return;
+    }
+
+    console.log('[PROFILES RT] Setting up realtime subscription...');
+
+    window.profilesRealtimeSubscription = supabaseClient
+        .channel('profiles-and-users-changes')
+        .on('postgres_changes',
+            { event: '*', schema: 'public', table: 'profiles' },
+            (payload) => {
+                console.log('[PROFILES RT] Profiles change detected:', payload.eventType);
+
+                // Debounce updates
+                if (window.profilesUpdateTimeout) clearTimeout(window.profilesUpdateTimeout);
+                window.profilesUpdateTimeout = setTimeout(() => {
+                    loadUsersFromSupabase();
+                }, 1000);
+            }
+        )
+        .on('postgres_changes',
+            { event: '*', schema: 'public', table: 'local_users' },
+            (payload) => {
+                console.log('[PROFILES RT] Local users change detected:', payload.eventType);
+
+                // Debounce updates
+                if (window.profilesUpdateTimeout) clearTimeout(window.profilesUpdateTimeout);
+                window.profilesUpdateTimeout = setTimeout(() => {
+                    loadUsersFromSupabase();
+                }, 1000);
+            }
+        )
+        .subscribe((status) => {
+            console.log('[PROFILES RT] Subscription status:', status);
+        });
+}
+
 // Export functions
 window.syncStudentsToSupabase = syncStudentsToSupabase;
 window.syncHalaqahsToSupabase = syncHalaqahsToSupabase;
+window.syncUsersToSupabase = syncUsersToSupabase;
 window.loadStudentsFromSupabase = loadStudentsFromSupabase;
 window.loadHalaqahsFromSupabase = loadHalaqahsFromSupabase;
+window.loadUsersFromSupabase = loadUsersFromSupabase;
 window.deleteStudentFromSupabase = deleteStudentFromSupabase;
 window.deleteHalaqahFromSupabase = deleteHalaqahFromSupabase;
 window.deleteAllStudentsFromSupabase = deleteAllStudentsFromSupabase;
 window.deleteAllHalaqahsFromSupabase = deleteAllHalaqahsFromSupabase;
+window.setupProfilesRealtimeSubscription = setupProfilesRealtimeSubscription;
 window.initSupabase = initSupabase;
 window.autoSync = autoSync;
+window.getUserSyncDiagnostics = function () {
+    return lastUserSyncDiagnostics;
+};
+

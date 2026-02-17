@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Parent Login - Debug</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5; }
+        .test-section { background: white; padding: 20px; margin: 10px 0; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .success { color: green; font-weight: bold; }
+        .error { color: red; font-weight: bold; }
+        .info { color: blue; }
+        pre { background: #f0f0f0; padding: 10px; border-radius: 4px; overflow-x: auto; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; background: #4CAF50; color: white; border: none; border-radius: 4px; }
+        button:hover { background: #45a049; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Test Parent Login - Debugging</h1>
+    
+    <div class="test-section">
+        <h2>Masalah yang Ditemukan:</h2>
+        <ol>
+            <li><strong>refreshUserChildLink() dipanggil terlalu cepat</strong> - Fungsi ini dipanggil sebelum data santri dimuat dari Supabase/localStorage</li>
+            <li><strong>Timing Issue</strong> - currentUserChild di-set ke null karena dashboardData.students masih kosong saat fungsi dijalankan</li>
+            <li><strong>Tidak ada re-check setelah data dimuat</strong> - Setelah data santri berhasil dimuat, tidak ada mekanisme untuk menghubungkan ulang parent ke child</li>
+        </ol>
+    </div>
+
+    <div class="test-section">
+        <h2>Solusi:</h2>
+        <ol>
+            <li><strong>Tambahkan delay/retry mechanism</strong> di refreshUserChildLink()</li>
+            <li><strong>Panggil refreshUserChildLink() setelah data dimuat</strong> dari Supabase/localStorage</li>
+            <li><strong>Tambahkan logging</strong> untuk debugging</li>
+        </ol>
+    </div>
+
+    <div class="test-section">
+        <h2>Simulasi Masalah:</h2>
+        <button onclick="testScenario1()">Test: Login Ortu (Data Belum Dimuat)</button>
+        <button onclick="testScenario2()">Test: Login Ortu (Data Sudah Dimuat)</button>
+        <button onclick="testScenario3()">Test: Login Ortu dengan Retry</button>
+        <div id="testResults"></div>
+    </div>
+
+    <script>
+        // Simulasi data
+        let dashboardData = { students: [] };
+        let currentUser = null;
+        let currentProfile = null;
+        let currentUserChild = null;
+
+        // Simulasi fungsi refreshUserChildLink LAMA (bermasalah)
+        function refreshUserChildLink_OLD() {
+            console.log('🔍 [OLD] refreshUserChildLink called');
+            console.log('Students available:', dashboardData.students.length);
+            
+            if (!currentUser || !currentProfile || currentProfile.role !== 'ortu') {
+                currentUserChild = null;
+                return;
+            }
+
+            const nikOrNisn = currentUser.email.split('@')[0].trim();
+            console.log('Looking for student with NIK/NISN:', nikOrNisn);
+
+            let student = dashboardData.students.find(s =>
+                (s.nik && String(s.nik).trim() === nikOrNisn) ||
+                (s.nisn && String(s.nisn).trim() === nikOrNisn)
+            );
+
+            if (student) {
+                currentUserChild = student;
+                console.log('✅ Parent linked to student:', student.name);
+            } else {
+                console.warn('❌ No matching student found for ID:', nikOrNisn);
+                currentUserChild = null;
+            }
+        }
+
+        // Simulasi fungsi refreshUserChildLink BARU (dengan retry)
+        async function refreshUserChildLink_NEW(retryCount = 0, maxRetries = 5) {
+            console.log(`🔍 [NEW] refreshUserChildLink called (attempt ${retryCount + 1}/${maxRetries + 1})`);
+            console.log('Students available:', dashboardData.students.length);
+            
+            if (!currentUser || !currentProfile || currentProfile.role !== 'ortu') {
+                currentUserChild = null;
+                return;
+            }
+
+            const nikOrNisn = currentUser.email.split('@')[0].trim();
+            console.log('Looking for student with NIK/NISN:', nikOrNisn);
+
+            // Jika data belum dimuat dan masih ada retry, tunggu dan coba lagi
+            if (dashboardData.students.length === 0 && retryCount < maxRetries) {
+                console.log('⏳ Data belum dimuat, menunggu 500ms...');
+                await new Promise(resolve => setTimeout(resolve, 500));
+                return refreshUserChildLink_NEW(retryCount + 1, maxRetries);
+            }
+
+            let student = dashboardData.students.find(s =>
+                (s.nik && String(s.nik).trim() === nikOrNisn) ||
+                (s.nisn && String(s.nisn).trim() === nikOrNisn)
+            );
+
+            if (student) {
+                currentUserChild = student;
+                console.log('✅ Parent linked to student:', student.name);
+                return student;
+            } else {
+                console.warn('❌ No matching student found for ID:', nikOrNisn);
+                currentUserChild = null;
+                return null;
+            }
+        }
+
+        // Test Scenarios
+        async function testScenario1() {
+            const results = document.getElementById('testResults');
+            results.innerHTML = '<h3>Test 1: Login Ortu (Data Belum Dimuat) - MASALAH</h3>';
+            
+            // Reset
+            dashboardData.students = [];
+            currentUser = { email: '12345@sekolah.id' };
+            currentProfile = { role: 'ortu' };
+            currentUserChild = null;
+
+            results.innerHTML += '<p class="info">Login sebagai ortu dengan NIK: 12345</p>';
+            results.innerHTML += '<p class="info">Data santri: KOSONG (belum dimuat)</p>';
+            
+            // Panggil fungsi lama
+            refreshUserChildLink_OLD();
+            
+            results.innerHTML += `<p class="error">❌ Hasil: currentUserChild = ${currentUserChild}</p>`;
+            results.innerHTML += '<p class="error">Data anak TIDAK TAMPIL karena fungsi dipanggil sebelum data dimuat!</p>';
+            
+            // Simulasi data dimuat 2 detik kemudian
+            setTimeout(() => {
+                dashboardData.students = [
+                    { id: 1, name: 'Ahmad', nik: '12345', nisn: '67890', halaqah: 'A' }
+                ];
+                results.innerHTML += '<p class="info">⏰ 2 detik kemudian: Data santri dimuat...</p>';
+                results.innerHTML += '<p class="error">❌ Tapi currentUserChild masih null karena tidak ada re-check!</p>';
+            }, 2000);
+        }
+
+        async function testScenario2() {
+            const results = document.getElementById('testResults');
+            results.innerHTML = '<h3>Test 2: Login Ortu (Data Sudah Dimuat) - BERHASIL</h3>';
+            
+            // Reset dengan data sudah ada
+            dashboardData.students = [
+                { id: 1, name: 'Ahmad', nik: '12345', nisn: '67890', halaqah: 'A' }
+            ];
+            currentUser = { email: '12345@sekolah.id' };
+            currentProfile = { role: 'ortu' };
+            currentUserChild = null;
+
+            results.innerHTML += '<p class="info">Login sebagai ortu dengan NIK: 12345</p>';
+            results.innerHTML += '<p class="info">Data santri: SUDAH DIMUAT (1 santri)</p>';
+            
+            // Panggil fungsi lama
+            refreshUserChildLink_OLD();
+            
+            if (currentUserChild) {
+                results.innerHTML += `<p class="success">✅ Hasil: currentUserChild = ${currentUserChild.name}</p>`;
+                results.innerHTML += '<p class="success">Data anak TAMPIL karena data sudah dimuat sebelum fungsi dipanggil!</p>';
+            } else {
+                results.innerHTML += '<p class="error">❌ Gagal menemukan anak</p>';
+            }
+        }
+
+        async function testScenario3() {
+            const results = document.getElementById('testResults');
+            results.innerHTML = '<h3>Test 3: Login Ortu dengan Retry Mechanism - SOLUSI</h3>';
+            
+            // Reset
+            dashboardData.students = [];
+            currentUser = { email: '12345@sekolah.id' };
+            currentProfile = { role: 'ortu' };
+            currentUserChild = null;
+
+            results.innerHTML += '<p class="info">Login sebagai ortu dengan NIK: 12345</p>';
+            results.innerHTML += '<p class="info">Data santri: KOSONG (belum dimuat)</p>';
+            results.innerHTML += '<p class="info">Memanggil refreshUserChildLink_NEW dengan retry...</p>';
+            
+            // Simulasi data dimuat 1 detik kemudian
+            setTimeout(() => {
+                dashboardData.students = [
+                    { id: 1, name: 'Ahmad', nik: '12345', nisn: '67890', halaqah: 'A' }
+                ];
+                console.log('📦 Data santri dimuat!');
+            }, 1000);
+            
+            // Panggil fungsi baru dengan retry
+            const student = await refreshUserChildLink_NEW();
+            
+            if (currentUserChild) {
+                results.innerHTML += `<p class="success">✅ Hasil: currentUserChild = ${currentUserChild.name}</p>`;
+                results.innerHTML += '<p class="success">Data anak TAMPIL karena fungsi menunggu hingga data dimuat!</p>';
+            } else {
+                results.innerHTML += '<p class="error">❌ Gagal menemukan anak setelah retry</p>';
+            }
+        }
+    </script>
+</body>
+</html>

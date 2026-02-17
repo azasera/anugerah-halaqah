@@ -7,39 +7,9 @@ let currentLembagaFilter = 'all';
 function generateStatsHTML() {
     let stats = calculateStats();
 
-    // Filter by Lembaga (Parent Restrictions)
-    if (typeof getUserLembaga === 'function') {
-        const userLembaga = getUserLembaga();
-        if (userLembaga) {
-            if (userLembaga === 'RESTRICTED_NO_CHILD') {
-                stats = {
-                    totalStudents: 0,
-                    totalHalaqahs: 0,
-                    totalPoints: 0,
-                    avgPointsPerStudent: 0
-                };
-            } else {
-                // Calculate filtered stats on the fly
-                const filteredStudents = dashboardData.students.filter(s => s.lembaga === userLembaga);
-                const filteredHalaqahs = dashboardData.halaqahs.filter(h => {
-                    // Same logic as renderHalaqahRankings
-                    const halaqahName = h.name.replace('Halaqah ', '');
-                    const sampleStudent = dashboardData.students.find(s => s.halaqah === halaqahName && s.lembaga === userLembaga);
-                    return !!sampleStudent;
-                });
-
-                const totalPoints = filteredStudents.reduce((sum, s) => sum + (Number(s.total_points) || 0), 0);
-                const avg = filteredStudents.length > 0 ? (totalPoints / filteredStudents.length).toFixed(1) : 0;
-
-                stats = {
-                    totalStudents: filteredStudents.length,
-                    totalHalaqahs: filteredHalaqahs.length,
-                    totalPoints: totalPoints,
-                    avgPointsPerStudent: avg
-                };
-            }
-        }
-    }
+    // REMOVED: Filter by Lembaga for Parents - Now parents can see full statistics
+    // Parents can now see complete overview of all students and halaqahs
+    
     return `
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div class="glass rounded-2xl p-4 border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
@@ -74,34 +44,9 @@ function renderBestHalaqah() {
     if (!container) return;
 
     // Get best halaqah (rank 1)
-    // Get best halaqah (rank 1)
     let bestHalaqah = dashboardData.halaqahs.find(h => h.rank === 1);
 
-    // Filter by Lembaga (Parent Restrictions)
-    if (typeof getUserLembaga === 'function') {
-        const userLembaga = getUserLembaga();
-        if (userLembaga) {
-            if (userLembaga === 'RESTRICTED_NO_CHILD') {
-                bestHalaqah = null;
-            } else {
-                // Find best halaqah among those valid for this lembaga
-                // We can reuse the filter logic from renderHalaqahRankings, or just sort the filtered list
-                const filteredHalaqahs = dashboardData.halaqahs.filter(h => {
-                    const halaqahName = h.name.replace('Halaqah ', '');
-                    const sampleStudent = dashboardData.students.find(s => s.halaqah === halaqahName && s.lembaga === userLembaga);
-                    return !!sampleStudent;
-                });
-
-                // Sort by points (desc) to find the best among filtered
-                if (filteredHalaqahs.length > 0) {
-                    filteredHalaqahs.sort((a, b) => b.points - a.points);
-                    bestHalaqah = filteredHalaqahs[0];
-                } else {
-                    bestHalaqah = null;
-                }
-            }
-        }
-    }
+    // REMOVED: Filter by Lembaga for Parents - Now parents can see best halaqah overall
 
     if (!bestHalaqah) {
         // No halaqah data, hide banner
@@ -157,34 +102,8 @@ function renderHalaqahRankings() {
     // Check if user is logged in
     const isLoggedIn = typeof currentProfile !== 'undefined' && currentProfile;
 
-    // Filter by Lembaga (Parent Restrictions)
-    if (typeof getUserLembaga === 'function') {
-        const userLembaga = getUserLembaga();
-        if (userLembaga) {
-            dashboardData.halaqahs = dashboardData.halaqahs.filter(h => {
-                // Determine halaqah lembaga based on name prefix or other logic
-                // Assuming format "Halaqah [Lembaga] [Name]" or similar is not standard
-                // We need to look up the students in this halaqah to find the majority lembaga, 
-                // OR simpler: Check if ANY student in this halaqah belongs to the userLembaga?
-                // OR even simpler: The user probably implies if their child is in 'Halaqah A', they only see 'Halaqah A'?
-                // "hanya bisa lihat Halaqah lembaga masing masing" -> implies Lembaga-level filtering.
-
-                // Since Halaqah object doesn't have 'lembaga' field directly, we infer from members
-                // But wait, dashboardData.students has 'lembaga' and 'halaqah'.
-                // So we can check if the halaqah contains students of that lembaga.
-
-                // Optimized check:
-                const halaqahName = h.name.replace('Halaqah ', '');
-                const sampleStudent = dashboardData.students.find(s => s.halaqah === halaqahName && s.lembaga === userLembaga);
-                return !!sampleStudent;
-            });
-
-            // If strict mode (RESTRICTED_NO_CHILD), show empty
-            if (userLembaga === 'RESTRICTED_NO_CHILD') {
-                dashboardData.halaqahs = [];
-            }
-        }
-    }
+    // REMOVED: Filter by Lembaga for Parents - Now parents can see all halaqahs
+    // Parents can now see full ranking to understand their child's position in context
 
     // For public view, only show top 3
     const halaqahsToShow = isLoggedIn ? dashboardData.halaqahs : dashboardData.halaqahs.slice(0, 3);
@@ -257,32 +176,31 @@ function renderSantri(searchTerm = "") {
 
     container.innerHTML = "";
 
+    console.log('🎨 [renderSantri] Starting render...');
+    console.log('Search term:', searchTerm);
+    console.log('Current halaqah filter:', currentHalaqahFilter);
+    console.log('Current lembaga filter:', currentLembagaFilter);
+
     let filtered = filterStudents(searchTerm, currentHalaqahFilter, currentLembagaFilter);
+    console.log('After filterStudents:', filtered.length);
 
-    // Filter by Lembaga (Parent Restrictions)
-    if (typeof getUserLembaga === 'function') {
-        const userLembaga = getUserLembaga();
-        if (userLembaga) {
-            if (userLembaga === 'RESTRICTED_NO_CHILD') {
-                filtered = [];
-            } else {
-                filtered = filtered.filter(s => s.lembaga === userLembaga);
-            }
-        }
-    }
-
+    // REMOVED: Lembaga filter for parents - they can now see all students
+    // REMOVED: User-santri relationship filter for parents - they can now see full rankings
+    
     // Check if user is logged in
     const isLoggedIn = typeof currentProfile !== 'undefined' && currentProfile;
+    console.log('Is logged in:', isLoggedIn, 'Role:', currentProfile?.role);
 
-    // Filter based on user-santri relationships
-    if (isLoggedIn && (currentProfile.role === 'guru' || currentProfile.role === 'ortu')) {
-        // Get santri for current user from user-santri relationships
+    // Filter based on user-santri relationships (ONLY for guru, not for ortu)
+    if (isLoggedIn && currentProfile.role === 'guru') {
+        console.log('🔍 Filtering by user-santri relationships (guru only)...');
         if (typeof getStudentsForCurrentUser === 'function') {
             const userStudents = getStudentsForCurrentUser();
-            // Map to Strings to ensure reliable comparison
+            console.log('User students:', userStudents.length);
             const userStudentIds = userStudents.map(s => String(s.id));
-
+            console.log('User student IDs:', userStudentIds);
             filtered = filtered.filter(s => userStudentIds.includes(String(s.id)));
+            console.log('After user-santri filter:', filtered.length);
         }
     }
 
@@ -294,6 +212,10 @@ function renderSantri(searchTerm = "") {
     filtered = sortStudents(filtered, currentSort);
 
     if (filtered.length === 0) {
+        let message = 'Tidak ada data ditemukan';
+
+        // Removed special message for parents - they see all data now
+
         container.innerHTML = `
             <tr>
                 <td colspan="6" class="px-6 py-12 text-center">
@@ -301,7 +223,7 @@ function renderSantri(searchTerm = "") {
                         <svg class="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                         </svg>
-                        <p class="text-lg font-semibold">Tidak ada data ditemukan</p>
+                        <p class="text-lg font-semibold">${message}</p>
                     </div>
                 </td>
             </tr>
@@ -387,7 +309,44 @@ function renderSantri(searchTerm = "") {
     }
 }
 
-function updateDateTime() {
+// Fungsi konversi tanggal Masehi ke Hijriah menggunakan API Aladhan
+async function toHijri(date) {
+    try {
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = date.getFullYear();
+        const dateStr = `${day}-${month}-${year}`;
+        
+        const response = await fetch(`https://api.aladhan.com/v1/gToH/${dateStr}`);
+        const result = await response.json();
+        
+        if (result && result.code === 200 && result.data && result.data.hijri) {
+            const hijri = result.data.hijri;
+            return `${hijri.day} ${hijri.month.en} ${hijri.year}`;
+        }
+        
+        // Fallback ke Intl API jika API gagal
+        return new Intl.DateTimeFormat('id-ID-u-ca-islamic', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric'
+        }).format(date);
+    } catch (error) {
+        // Fallback ke Intl API jika terjadi error
+        try {
+            return new Intl.DateTimeFormat('id-ID-u-ca-islamic', {
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric'
+            }).format(date);
+        } catch (e) {
+            console.error('Hijri conversion error:', e);
+            return '';
+        }
+    }
+}
+
+async function updateDateTime() {
     const now = new Date();
     const optionsDate = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
     const optionsTime = { hour: '2-digit', minute: '2-digit', second: '2-digit' };
@@ -399,10 +358,18 @@ function updateDateTime() {
 
     const dateStr = now.toLocaleDateString('id-ID', optionsDate);
     const timeStr = now.toLocaleTimeString('id-ID', optionsTime) + " WIB";
+    
+    // Tambahkan tanggal Hijriah menggunakan API Aladhan
+    const hijriStr = await toHijri(now) + ' H';
 
     if (dateEl) dateEl.textContent = dateStr;
     if (timeEl) timeEl.textContent = timeStr;
-    if (sidebarDateEl) sidebarDateEl.textContent = dateStr;
+    if (sidebarDateEl) {
+        sidebarDateEl.innerHTML = `
+            <div>${dateStr}</div>
+            <div class="text-xs text-primary-600 mt-1">${hijriStr}</div>
+        `;
+    }
     if (sidebarTimeEl) sidebarTimeEl.textContent = timeStr;
 }
 
