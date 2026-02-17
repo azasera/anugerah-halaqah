@@ -174,12 +174,12 @@ function updateSetoranPreview() {
     const halaman = barisToHalaman(baris, lembagaKey);
     const lembaga = appSettings.lembaga[lembagaKey];
 
-    // Calculate poin based on new rules
     const currentSession = getCurrentSession(lembagaKey);
     const isOnTime = currentSession !== null;
     const targetsMet = baris >= lembaga.targetBaris;
     const isLancar = kelancaran === 'lancar' && kesalahan === 0;
     const isTidakLancar = kelancaran === 'tidak_lancar' && kesalahan <= 3;
+    const meetsIstiqomahCriteria = isOnTime && targetsMet && isLancar;
 
     let poin = 0;
     let poinExplanation = '';
@@ -252,23 +252,30 @@ function handleSetoran(event, studentId) {
     let poin = 0;
     let status = '';
 
-    if (isOnTime) {
-        if (isLancar && targetsMet) {
-            poin = poinRules.tepatWaktuLancarTarget;
-            status = 'Tepat Waktu, Lancar, Capai Target';
+    if (meetsIstiqomahCriteria) {
+        poin = poinRules.tepatWaktuLancarTarget;
+        status = 'Istiqomah: Tepat Waktu, Lancar, Capai Target';
+    } else {
+        poin = 0;
+        if (!isOnTime && !targetsMet && !isLancar) {
+            status = 'Tidak Tepat Waktu, Tidak Capai Target, Tidak Lancar';
+        } else if (!isOnTime && !targetsMet) {
+            status = 'Tidak Tepat Waktu dan Tidak Capai Target';
+        } else if (!isOnTime && !isLancar) {
+            status = 'Tidak Tepat Waktu dan Tidak Lancar';
+        } else if (!isOnTime) {
+            status = 'Tidak Tepat Waktu';
+        } else if (!targetsMet && !isLancar) {
+            status = 'Tidak Capai Target dan Tidak Lancar';
+        } else if (!targetsMet) {
+            status = 'Tidak Capai Target';
+        } else if (!isLancar) {
+            status = 'Tidak Lancar';
         } else if (isTidakLancar && targetsMet) {
-            poin = poinRules.tepatWaktuTidakLancarTarget;
-            status = 'Tepat Waktu, Tidak Lancar, Capai Target';
-        } else if (isLancar && !targetsMet) {
-            poin = poinRules.tepatWaktuLancarTidakTarget;
-            status = 'Tepat Waktu, Lancar, Tidak Capai Target';
+            status = 'Tidak Lancar meskipun Capai Target';
         } else {
-            poin = 0;
             status = 'Tidak Memenuhi Kriteria';
         }
-    } else {
-        poin = poinRules.tidakTepatWaktu;
-        status = 'Tidak Tepat Waktu';
     }
 
     // Create setoran record
@@ -285,8 +292,10 @@ function handleSetoran(event, studentId) {
         kesalahan: kesalahan,
         tepatWaktu: isOnTime,
         capaiTarget: targetsMet,
+        istiqomah: meetsIstiqomahCriteria,
         poin: poin,
         status: status,
+        noPoinReason: meetsIstiqomahCriteria ? '' : status,
         note: note || '',
         timestamp: new Date().toLocaleString('id-ID')
     };
@@ -295,23 +304,24 @@ function handleSetoran(event, studentId) {
     student.total_points += poin;
     student.lastActivity = 'Baru saja';
 
-    // Update streak
-    const today = new Date().toDateString();
-    const lastSetoranDate = student.lastSetoranDate || '';
+    if (meetsIstiqomahCriteria) {
+        const today = new Date().toDateString();
+        const lastSetoranDate = student.lastSetoranDate || '';
 
-    if (lastSetoranDate !== today) {
-        const yesterday = new Date();
-        yesterday.setDate(yesterday.getDate() - 1);
+        if (lastSetoranDate !== today) {
+            const yesterday = new Date();
+            yesterday.setDate(yesterday.getDate() - 1);
 
-        if (lastSetoranDate === yesterday.toDateString()) {
-            student.streak += 1;
-        } else if (lastSetoranDate === '') {
-            student.streak = 1;
-        } else {
-            student.streak = 1;
+            if (lastSetoranDate === yesterday.toDateString()) {
+                student.streak += 1;
+            } else if (lastSetoranDate === '') {
+                student.streak = 1;
+            } else {
+                student.streak = 1;
+            }
+
+            student.lastSetoranDate = today;
         }
-
-        student.lastSetoranDate = today;
     }
 
     // Update Total Hafalan
@@ -330,7 +340,11 @@ function handleSetoran(event, studentId) {
 
     closeModal();
     refreshAllData();
-    showNotification(`✅ Setoran ${baris} baris (+${poin} poin) berhasil disimpan!`);
+    if (meetsIstiqomahCriteria) {
+        showNotification(`✅ Setoran ${baris} baris memenuhi kriteria istiqomah dan mendapat poin (+${poin})`);
+    } else {
+        showNotification(`ℹ️ Setoran ${baris} baris tersimpan, hafalan bertambah, namun tidak memenuhi kriteria poin/istiqomah`, 'warning');
+    }
 }
 
 function showSetoranHistory(student) {
