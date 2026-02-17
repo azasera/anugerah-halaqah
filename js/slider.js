@@ -120,7 +120,7 @@ function renderTopSantri(container) {
                 <div class="bg-white/10 backdrop-blur-sm rounded-xl p-2 border border-white/20 text-center">
                     <div class="text-xl mb-1">🥉</div>
                     <div class="text-sm font-bold text-white mb-1">${third.name}</div>
-                    <div class="text-white/80 text-xs mb-1">${third.members || 'Halaqah ' + third.halaqah}</div>
+                    <div class="text-white/80 text-xs mb-1">Halaqah ${third.halaqah}</div>
                     <div class="text-lg font-bold text-white">${third.total_points}</div>
                     <div class="text-white/70 text-xs">poin</div>
                 </div>
@@ -163,6 +163,9 @@ function renderBestHalaqahToday(container) {
 
     if (!topHalaqah) return;
 
+    const isLoggedIn = typeof currentProfile !== 'undefined' && currentProfile;
+    const membersTodayText = isLoggedIn ? `${topHalaqah.members} Anggota • ` : '';
+
     container.innerHTML = `
         <div class="flex flex-col items-center justify-center h-full px-2">
             <!-- Champion -->
@@ -172,7 +175,7 @@ function renderBestHalaqahToday(container) {
                 </div>
                 <div class="text-yellow-100 text-xs mb-1 font-bold">HALAQAH TERBAIK HARI INI</div>
                 <div class="text-2xl md:text-3xl font-bold text-white mb-1">${topHalaqah.name}</div>
-                <div class="text-sm text-white/90 mb-2">${topHalaqah.members} Anggota • ${topHalaqah.todaySubmissions} Setoran</div>
+                <div class="text-sm text-white/90 mb-2">${membersTodayText}${topHalaqah.todaySubmissions} Setoran</div>
                 <div class="inline-block px-4 py-2 bg-white/20 backdrop-blur-sm rounded-xl border border-white/30">
                     <div class="text-3xl font-bold text-white">${topHalaqah.todayPoints}</div>
                     <div class="text-white/80 text-xs">Poin Hari Ini</div>
@@ -211,6 +214,8 @@ function renderTopHalaqah(container) {
 
     if (!topHalaqah) return;
 
+    const isLoggedIn = typeof currentProfile !== 'undefined' && currentProfile;
+
     container.innerHTML = `
         <div class="flex flex-col items-center justify-center h-full px-2">
             <!-- Champion -->
@@ -220,7 +225,7 @@ function renderTopHalaqah(container) {
                 </div>
                 <div class="text-white/80 text-xs mb-1">HALAQAH TERBAIK</div>
                 <div class="text-2xl md:text-3xl font-bold text-white mb-1">${topHalaqah.name}</div>
-                <div class="text-sm text-white/90 mb-2">${topHalaqah.members} Anggota • ${topHalaqah.status || ''}</div>
+                <div class="text-sm text-white/90 mb-2">${isLoggedIn ? `${topHalaqah.members} Anggota • ` : ''}${topHalaqah.status || ''}</div>
                 <div class="inline-block px-4 py-2 bg-white/20 backdrop-blur-sm rounded-xl border border-white/30">
                     <div class="text-3xl font-bold text-white">${topHalaqah.points}</div>
                     <div class="text-white/80 text-xs">Total Poin</div>
@@ -233,7 +238,7 @@ function renderTopHalaqah(container) {
                 <div class="bg-white/10 backdrop-blur-sm rounded-xl p-2 border border-white/20 text-center">
                     <div class="text-xl mb-1">🥈</div>
                     <div class="text-sm font-bold text-white mb-1">${second.name}</div>
-                    <div class="text-white/80 text-xs mb-1">${second.members} anggota</div>
+                    <div class="text-white/80 text-xs mb-1">${isLoggedIn ? `${second.members} anggota` : ''}</div>
                     <div class="text-lg font-bold text-white">${second.points}</div>
                     <div class="text-white/70 text-xs">poin</div>
                 </div>
@@ -242,7 +247,7 @@ function renderTopHalaqah(container) {
                 <div class="bg-white/10 backdrop-blur-sm rounded-xl p-2 border border-white/20 text-center">
                     <div class="text-xl mb-1">🥉</div>
                     <div class="text-sm font-bold text-white mb-1">${third.name}</div>
-                    <div class="text-white/80 text-xs mb-1">${third.members} anggota</div>
+                    <div class="text-white/80 text-xs mb-1">${isLoggedIn ? `${third.members} anggota` : ''}</div>
                     <div class="text-lg font-bold text-white">${third.points}</div>
                     <div class="text-white/70 text-xs">poin</div>
                 </div>

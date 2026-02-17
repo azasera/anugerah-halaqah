@@ -54,6 +54,13 @@ function renderBestHalaqah() {
         return;
     }
 
+    const isLoggedIn = typeof currentProfile !== 'undefined' && currentProfile;
+    const membersChip = isLoggedIn
+        ? `<span class="bg-emerald-800/30 border border-emerald-700/30 px-3 py-1 rounded-full">
+                        ${bestHalaqah.members} Anggota
+                    </span>`
+        : '';
+
     container.style.display = 'block';
     container.innerHTML = `
         <div class="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
@@ -73,9 +80,7 @@ function renderBestHalaqah() {
                     <span class="bg-emerald-800/30 border border-emerald-700/30 px-3 py-1 rounded-full">
                         ${bestHalaqah.points} Poin
                     </span>
-                    <span class="bg-emerald-800/30 border border-emerald-700/30 px-3 py-1 rounded-full">
-                        ${bestHalaqah.members} Anggota
-                    </span>
+                    ${membersChip}
                     <span class="bg-emerald-800/30 border border-emerald-700/30 px-3 py-1 rounded-full">
                         Rata-rata: ${bestHalaqah.avgPoints} poin
                     </span>
@@ -132,7 +137,7 @@ function renderHalaqahRankings() {
                 </div>
                 <div class="flex-1 relative z-10">
                     <h4 class="font-bold text-slate-800">${halaqah.name}</h4>
-                    <p class="text-sm text-slate-500">${halaqah.points} Poin • ${halaqah.members} Anggota</p>
+                    <p class="text-sm text-slate-500">${halaqah.points} Poin${isLoggedIn ? ` • ${halaqah.members} Anggota` : ''}</p>
                 </div>
                 <div class="text-right relative z-10">
                     <span class="inline-block px-2 py-1 rounded-md ${statusClass} text-[10px] font-bold">${halaqah.status}</span>
