@@ -292,6 +292,11 @@ async function loadStudentsFromSupabase() {
                     lastSetoranDate: s.last_setoran_date,
                     total_hafalan: parseFloat(s.total_hafalan) || 0
                 };
+                
+                // Debug log for students with hafalan
+                if (parseFloat(s.total_hafalan) > 0) {
+                    console.log('[LOAD] Student with hafalan:', s.name, 'hafalan:', s.total_hafalan);
+                }
             });
 
             console.log('[LOAD] Loaded', data.length, 'students from Supabase');

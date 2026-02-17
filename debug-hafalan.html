@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Total Hafalan</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 { color: #333; }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
+        button:hover { background: #45a049; }
+        .error { background: #f44336; }
+        .error:hover { background: #da190b; }
+        pre {
+            background: #f4f4f4;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        .section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .success { color: green; font-weight: bold; }
+        .warning { color: orange; font-weight: bold; }
+        .error-text { color: red; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Debug Total Hafalan</h1>
+        <p>Tool untuk memeriksa data total_hafalan di localStorage dan Supabase</p>
+
+        <div class="section">
+            <h3>1. Cek Data di LocalStorage</h3>
+            <button onclick="checkLocalStorage()">Cek LocalStorage</button>
+            <pre id="localStorageResult">Klik tombol untuk melihat data...</pre>
+        </div>
+
+        <div class="section">
+            <h3>2. Cek Data di Supabase</h3>
+            <button onclick="checkSupabase()">Cek Supabase</button>
+            <pre id="supabaseResult">Klik tombol untuk melihat data...</pre>
+        </div>
+
+        <div class="section">
+            <h3>3. Bandingkan Data</h3>
+            <button onclick="compareData()">Bandingkan</button>
+            <pre id="compareResult">Klik tombol untuk membandingkan...</pre>
+        </div>
+
+        <div class="section">
+            <h3>4. Force Sync ke Supabase</h3>
+            <button onclick="forceSyncToSupabase()">Force Sync</button>
+            <pre id="syncResult">Klik tombol untuk sync...</pre>
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://klhegwunosmryqozuahc.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtsaGVnd3Vub3Ntcnlxb3p1YWhjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3Mjg3NDcsImV4cCI6MjA4NjMwNDc0N30.0X54jxpMZI9eilDxfJ7FYUGImuN-TEH9qGQkdRTtRXw';
+        const supabaseDebug = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        let localData = null;
+        let supabaseData = null;
+
+        function checkLocalStorage() {
+            const result = document.getElementById('localStorageResult');
+            try {
+                const saved = localStorage.getItem('halaqahData');
+                if (!saved) {
+                    result.innerHTML = '<span class="error-text">❌ Tidak ada data di localStorage</span>';
+                    return;
+                }
+
+                const data = JSON.parse(saved);
+                localData = data.students;
+
+                const studentsWithHafalan = localData.filter(s => s.total_hafalan > 0);
+                
+                result.innerHTML = `<span class="success">✅ Data ditemukan!</span>\n\n`;
+                result.innerHTML += `Total Santri: ${localData.length}\n`;
+                result.innerHTML += `Santri dengan hafalan > 0: ${studentsWithHafalan.length}\n\n`;
+                result.innerHTML += `Sample data (5 santri pertama):\n`;
+                result.innerHTML += JSON.stringify(
+                    localData.slice(0, 5).map(s => ({
+                        id: s.id,
+                        name: s.name,
+                        total_hafalan: s.total_hafalan || 0
+                    })),
+                    null,
+                    2
+                );
+            } catch (error) {
+                result.innerHTML = `<span class="error-text">❌ Error: ${error.message}</span>`;
+            }
+        }
+
+        async function checkSupabase() {
+            const result = document.getElementById('supabaseResult');
+            result.innerHTML = 'Loading...';
+            
+            try {
+                const { data, error } = await supabaseDebug
+                    .from('students')
+                    .select('id, name, total_hafalan')
+                    .order('id');
+
+                if (error) throw error;
+
+                supabaseData = data;
+                const studentsWithHafalan = data.filter(s => s.total_hafalan > 0);
+
+                result.innerHTML = `<span class="success">✅ Data ditemukan!</span>\n\n`;
+                result.innerHTML += `Total Santri: ${data.length}\n`;
+                result.innerHTML += `Santri dengan hafalan > 0: ${studentsWithHafalan.length}\n\n`;
+                result.innerHTML += `Sample data (5 santri pertama):\n`;
+                result.innerHTML += JSON.stringify(data.slice(0, 5), null, 2);
+            } catch (error) {
+                result.innerHTML = `<span class="error-text">❌ Error: ${error.message}</span>`;
+            }
+        }
+
+        function compareData() {
+            const result = document.getElementById('compareResult');
+            
+            if (!localData || !supabaseData) {
+                result.innerHTML = '<span class="warning">⚠️ Jalankan cek LocalStorage dan Supabase terlebih dahulu</span>';
+                return;
+            }
+
+            let differences = [];
+            
+            localData.forEach(local => {
+                const remote = supabaseData.find(s => s.id === local.id);
+                if (remote) {
+                    const localHafalan = parseFloat(local.total_hafalan) || 0;
+                    const remoteHafalan = parseFloat(remote.total_hafalan) || 0;
+                    
+                    if (localHafalan !== remoteHafalan) {
+                        differences.push({
+                            id: local.id,
+                            name: local.name,
+                            localStorage: localHafalan,
+                            supabase: remoteHafalan,
+                            diff: localHafalan - remoteHafalan
+                        });
+                    }
+                }
+            });
+
+            if (differences.length === 0) {
+                result.innerHTML = '<span class="success">✅ Semua data sudah sinkron!</span>';
+            } else {
+                result.innerHTML = `<span class="error-text">❌ Ditemukan ${differences.length} perbedaan:</span>\n\n`;
+                result.innerHTML += JSON.stringify(differences, null, 2);
+            }
+        }
+
+        async function forceSyncToSupabase() {
+            const result = document.getElementById('syncResult');
+            result.innerHTML = 'Syncing...';
+
+            try {
+                const saved = localStorage.getItem('halaqahData');
+                if (!saved) {
+                    result.innerHTML = '<span class="error-text">❌ Tidak ada data di localStorage</span>';
+                    return;
+                }
+
+                const data = JSON.parse(saved);
+                const students = data.students;
+
+                // Prepare data for upsert
+                const studentsToSync = students.map(s => ({
+                    id: parseInt(s.id),
+                    name: s.name,
+                    halaqah: s.halaqah,
+                    lembaga: s.lembaga,
+                    total_hafalan: parseFloat(s.total_hafalan) || 0,
+                    total_points: parseInt(s.total_points) || 0,
+                    daily_ranking: parseInt(s.daily_ranking) || 0,
+                    overall_ranking: parseInt(s.overall_ranking) || 0,
+                    streak: parseInt(s.streak) || 0,
+                    last_activity: s.lastActivity || '',
+                    achievements: JSON.stringify(s.achievements || []),
+                    setoran: JSON.stringify(s.setoran || []),
+                    last_setoran_date: s.lastSetoranDate || '',
+                    updated_at: new Date().toISOString()
+                }));
+
+                result.innerHTML = `Uploading ${studentsToSync.length} students...\n\n`;
+
+                // Upload in chunks
+                const chunkSize = 20;
+                for (let i = 0; i < studentsToSync.length; i += chunkSize) {
+                    const chunk = studentsToSync.slice(i, i + chunkSize);
+                    
+                    const { data, error } = await supabaseDebug
+                        .from('students')
+                        .upsert(chunk, { onConflict: 'id' });
+
+                    if (error) throw error;
+
+                    result.innerHTML += `Chunk ${Math.floor(i / chunkSize) + 1}/${Math.ceil(studentsToSync.length / chunkSize)} uploaded\n`;
+                    
+                    // Delay between chunks
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                }
+
+                result.innerHTML += '\n<span class="success">✅ Sync berhasil!</span>';
+            } catch (error) {
+                result.innerHTML = `<span class="error-text">❌ Error: ${error.message}</span>`;
+            }
+        }
+    </script>
+</body>
+</html>

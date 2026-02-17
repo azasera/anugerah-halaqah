@@ -771,18 +771,28 @@ function showEditHafalanForm(student) {
 }
 
 function handleEditHafalan(event, studentId) {
+    console.log('[EDIT HAFALAN] Function called! studentId:', studentId);
     event.preventDefault();
     const formData = new FormData(event.target);
     const totalHafalan = parseFloat(formData.get('total_hafalan'));
+    console.log('[EDIT HAFALAN] Input value:', totalHafalan);
 
     const student = dashboardData.students.find(s => s.id === studentId);
     if (student) {
+        console.log('[EDIT HAFALAN] Student found:', student.name);
+        console.log('[EDIT HAFALAN] Before:', student.total_hafalan);
         student.total_hafalan = totalHafalan;
+        console.log('[EDIT HAFALAN] After:', student.total_hafalan);
+        
         StorageManager.save();
+        console.log('[EDIT HAFALAN] Saved to localStorage');
         
         // Sync to Supabase
         if (window.autoSync) {
+            console.log('[EDIT HAFALAN] Syncing to Supabase...');
             autoSync();
+        } else {
+            console.warn('[EDIT HAFALAN] autoSync not available!');
         }
         
         refreshAllData();
@@ -791,6 +801,8 @@ function handleEditHafalan(event, studentId) {
 
         // Re-open detail to show changes
         setTimeout(() => showStudentDetail(student), 300);
+    } else {
+        console.error('[EDIT HAFALAN] Student not found! ID:', studentId);
     }
 }
 
