@@ -613,7 +613,13 @@ function showLoginPage() {
                     
                     <div class="mt-6 pt-6 border-t border-slate-200">
                         <p class="text-xs text-slate-500 text-center">
-                            Butuh bantuan? Hubungi Admin
+                            Butuh bantuan?
+                            <a href="https://wa.me/6285268680049"
+                               target="_blank"
+                               rel="noopener"
+                               class="font-semibold text-primary-600 hover:text-primary-700 hover:underline">
+                                Hubungi Admin via WhatsApp
+                            </a>
                         </p>
                     </div>
                 </div>

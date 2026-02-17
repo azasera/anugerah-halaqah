@@ -241,12 +241,22 @@ async function loadStudentsFromSupabase() {
             dashboardData.students = data.map(s => {
                 const existing = existingMap.get(s.id);
 
-                // Helper to check if property exists in Supabase response
-                // Logic: Prefer remote value if it exists and is not empty.
-                // If remote is empty/null, preserve local value if it exists.
+                // Helper to merge fields from Supabase and local data
+                // Default: prefer remote value when available, but for some
+                // critical identity fields we prefer local corrections.
                 const getField = (field, fallback = '') => {
                     const remoteVal = s[field];
                     const localVal = existing ? existing[field] : undefined;
+
+                    // Special rule for NIK: if local has a non-empty value that
+                    // differs from remote, treat local as the latest correction
+                    if (field === 'nik' &&
+                        localVal !== undefined && localVal !== null && localVal !== '' &&
+                        remoteVal !== undefined && remoteVal !== null && remoteVal !== '' &&
+                        String(localVal) !== String(remoteVal)) {
+                        console.log(`[SYNC PRESERVE] Preferring local NIK for ${s.name}:`, localVal, 'over remote:', remoteVal);
+                        return localVal;
+                    }
 
                     // If remote has value (non-empty string/valid number), use it
                     if (remoteVal !== undefined && remoteVal !== null && remoteVal !== '') {

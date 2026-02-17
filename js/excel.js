@@ -609,16 +609,19 @@ function confirmImport() {
                 normalizeNameString(existing.name) === sNameNorm
             );
 
-            // If multiple students with same name, skip to avoid wrong update
-            if (nameMatches.length > 1) {
-                results.failed.push({
-                    row: s.rowNum,
-                    name: s.name,
-                    message: "Ditemukan >1 santri dengan nama sama di database. Mohon lengkapi NISN untuk membedakan."
-                });
-                return; // Skip this student
-            } else if (nameMatches.length === 1) {
+            // NEW: Selalu update berdasarkan nama pertama yang cocok.
+            // Jika ada lebih dari satu nama sama, tetap update salah satu
+            // dan beri peringatan, agar proses naik kelas/NIK lebih mudah.
+            if (nameMatches.length >= 1) {
                 existing = nameMatches[0];
+
+                if (nameMatches.length > 1) {
+                    results.warnings.push({
+                        row: s.rowNum,
+                        name: s.name,
+                        message: `Ditemukan ${nameMatches.length} santri dengan nama sama di database. Data baris ini di-update ke salah satu santri dengan nama tersebut.`
+                    });
+                }
             }
         }
 
@@ -674,7 +677,12 @@ function confirmImport() {
             }
             // Update NIK if provided
             if (s.nik && s.nik.toString().trim() !== '') {
-                existing.nik = s.nik.toString().trim();
+                const oldNik = existing.nik ? existing.nik.toString().trim() : '';
+                const newNik = s.nik.toString().trim();
+                if (oldNik !== newNik) {
+                    console.log('[IMPORT] Updating NIK for', s.name, 'from', oldNik || '(kosong)', 'to', newNik);
+                }
+                existing.nik = newNik;
             }
             if (s.lembaga !== 'MTA' || (s.lembaga === 'MTA' && importedData.metadata && importedData.metadata.hasLembagaColumn)) {
                 existing.lembaga = s.lembaga;
