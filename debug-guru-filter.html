@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Guru Filter</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        h1 { color: #333; }
+        h2 { color: #666; margin-top: 20px; }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
+        button:hover { background: #45a049; }
+        pre {
+            background: #f4f4f4;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            max-height: 500px;
+            overflow-y: auto;
+            font-size: 12px;
+        }
+        .success { color: green; font-weight: bold; }
+        .warning { color: orange; font-weight: bold; }
+        .error { color: red; font-weight: bold; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background: #4CAF50;
+            color: white;
+        }
+        tr:nth-child(even) {
+            background: #f9f9f9;
+        }
+        .match { background: #d4edda !important; }
+        .no-match { background: #f8d7da !important; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Debug Guru Filter</h1>
+        <p>Tool untuk debug kenapa guru melihat semua santri</p>
+        
+        <div class="warning" style="padding: 10px; background: #fff3cd; border-radius: 5px; margin: 10px 0;">
+            ⚠️ <strong>Penting:</strong> Buka tool ini dari dashboard.html setelah login sebagai Guru
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>1. Info User Login</h2>
+        <button onclick="checkCurrentUser()">Cek User Login</button>
+        <pre id="userResult">Klik tombol untuk cek...</pre>
+    </div>
+
+    <div class="container">
+        <h2>2. Daftar Halaqah & Guru</h2>
+        <button onclick="checkHalaqahs()">Cek Halaqah</button>
+        <div id="halaqahResult"></div>
+    </div>
+
+    <div class="container">
+        <h2>3. Matching Guru dengan Halaqah</h2>
+        <button onclick="checkMatching()">Cek Matching</button>
+        <div id="matchingResult"></div>
+    </div>
+
+    <div class="container">
+        <h2>4. Santri yang Seharusnya Terlihat</h2>
+        <button onclick="checkFilteredStudents()">Cek Santri</button>
+        <div id="studentsResult"></div>
+    </div>
+
+    <div class="container">
+        <h2>5. Test Filter Function</h2>
+        <button onclick="testFilterFunction()">Test Filter</button>
+        <pre id="filterResult">Klik tombol untuk test...</pre>
+    </div>
+
+    <script>
+        function checkCurrentUser() {
+            const result = document.getElementById('userResult');
+            
+            if (typeof currentProfile === 'undefined' || !currentProfile) {
+                result.innerHTML = '<span class="error">❌ Tidak ada user login</span>\n';
+                result.innerHTML += '⚠️ Buka tool ini dari dashboard.html setelah login';
+                return;
+            }
+
+            let output = '=== Current User ===\n\n';
+            output += `Name: ${currentProfile.full_name || currentProfile.name || 'N/A'}\n`;
+            output += `Email: ${currentProfile.email || 'N/A'}\n`;
+            output += `Role: ${currentProfile.role || 'N/A'}\n`;
+            output += `User ID: ${currentProfile.id || 'N/A'}\n\n`;
+            
+            // Process name
+            const rawName = currentProfile.full_name || currentProfile.name || '';
+            const processedName = String(rawName).toLowerCase().replace(/^(ustadz|ust|u\.)\s*/i, '').trim();
+            
+            output += '=== Processed Name ===\n';
+            output += `Raw: "${rawName}"\n`;
+            output += `Processed: "${processedName}"\n`;
+            
+            result.textContent = output;
+        }
+
+        function checkHalaqahs() {
+            const result = document.getElementById('halaqahResult');
+            
+            if (typeof dashboardData === 'undefined' || !dashboardData.halaqahs) {
+                result.innerHTML = '<span class="error">❌ Data halaqah tidak ditemukan</span>';
+                return;
+            }
+
+            let html = '<table>';
+            html += '<tr><th>No</th><th>Nama Halaqah</th><th>Guru</th><th>Guru (Processed)</th><th>Jumlah Santri</th></tr>';
+            
+            dashboardData.halaqahs.forEach((h, index) => {
+                const guruRaw = h.guru || 'N/A';
+                const guruProcessed = String(guruRaw).toLowerCase().replace(/^(ustadz|ust|u\.)\s*/i, '').trim();
+                const studentCount = dashboardData.students.filter(s => 
+                    String(s.halaqah) === String(h.name).replace(/^Halaqah\s+/i, '').trim()
+                ).length;
+                
+                html += `<tr>`;
+                html += `<td>${index + 1}</td>`;
+                html += `<td>${h.name}</td>`;
+                html += `<td>${guruRaw}</td>`;
+                html += `<td><code>${guruProcessed}</code></td>`;
+                html += `<td>${studentCount}</td>`;
+                html += `</tr>`;
+            });
+            
+            html += '</table>';
+            result.innerHTML = html;
+        }
+
+        function checkMatching() {
+            const result = document.getElementById('matchingResult');
+            
+            if (typeof currentProfile === 'undefined' || !currentProfile) {
+                result.innerHTML = '<span class="error">❌ User tidak login</span>';
+                return;
+            }
+
+            if (typeof dashboardData === 'undefined' || !dashboardData.halaqahs) {
+                result.innerHTML = '<span class="error">❌ Data halaqah tidak ditemukan</span>';
+                return;
+            }
+
+            const rawName = currentProfile.full_name || currentProfile.name || '';
+            const guruName = String(rawName).toLowerCase().replace(/^(ustadz|ust|u\.)\s*/i, '').trim();
+
+            let html = '<p><strong>Guru Login:</strong> <code>' + guruName + '</code></p>';
+            html += '<table>';
+            html += '<tr><th>Halaqah</th><th>Guru di Halaqah</th><th>Match?</th><th>Type</th></tr>';
+            
+            dashboardData.halaqahs.forEach(h => {
+                const hGuru = String(h.guru || '').toLowerCase().replace(/^(ustadz|ust|u\.)\s*/i, '').trim();
+                
+                // Check exact match
+                const exactMatch = hGuru === guruName;
+                
+                // Check partial match
+                const partialMatch = hGuru.includes(guruName) || guruName.includes(hGuru);
+                
+                const match = exactMatch || partialMatch;
+                const matchType = exactMatch ? 'Exact' : partialMatch ? 'Partial' : 'No Match';
+                
+                const rowClass = match ? 'match' : 'no-match';
+                
+                html += `<tr class="${rowClass}">`;
+                html += `<td>${h.name}</td>`;
+                html += `<td><code>${hGuru}</code></td>`;
+                html += `<td>${match ? '✅ YES' : '❌ NO'}</td>`;
+                html += `<td>${matchType}</td>`;
+                html += `</tr>`;
+            });
+            
+            html += '</table>';
+            result.innerHTML = html;
+        }
+
+        function checkFilteredStudents() {
+            const result = document.getElementById('studentsResult');
+            
+            if (typeof getStudentsForCurrentUser !== 'function') {
+                result.innerHTML = '<span class="error">❌ Function getStudentsForCurrentUser tidak ditemukan</span>';
+                return;
+            }
+
+            const filtered = getStudentsForCurrentUser();
+            
+            let html = '<p><strong>Total Santri yang Seharusnya Terlihat:</strong> ' + filtered.length + '</p>';
+            
+            if (filtered.length === 0) {
+                html += '<p class="error">❌ Tidak ada santri yang cocok!</p>';
+                html += '<p>Kemungkinan penyebab:</p>';
+                html += '<ul>';
+                html += '<li>Nama guru di profile tidak cocok dengan nama guru di halaqah</li>';
+                html += '<li>Tidak ada halaqah yang diajar oleh guru ini</li>';
+                html += '<li>Tidak ada santri di halaqah tersebut</li>';
+                html += '</ul>';
+            } else {
+                html += '<table>';
+                html += '<tr><th>No</th><th>Nama</th><th>Halaqah</th><th>NISN</th></tr>';
+                
+                filtered.slice(0, 20).forEach((s, index) => {
+                    html += `<tr>`;
+                    html += `<td>${index + 1}</td>`;
+                    html += `<td>${s.name}</td>`;
+                    html += `<td>${s.halaqah}</td>`;
+                    html += `<td>${s.nisn || 'N/A'}</td>`;
+                    html += `</tr>`;
+                });
+                
+                if (filtered.length > 20) {
+                    html += `<tr><td colspan="4" style="text-align: center;">... dan ${filtered.length - 20} santri lainnya</td></tr>`;
+                }
+                
+                html += '</table>';
+            }
+            
+            result.innerHTML = html;
+        }
+
+        function testFilterFunction() {
+            const result = document.getElementById('filterResult');
+            let output = '=== Testing Filter Function ===\n\n';
+            
+            if (typeof currentProfile === 'undefined' || !currentProfile) {
+                output += '❌ User tidak login\n';
+                result.textContent = output;
+                return;
+            }
+
+            if (currentProfile.role !== 'guru') {
+                output += `⚠️ User role: ${currentProfile.role} (bukan guru)\n`;
+                output += 'Filter hanya berlaku untuk role "guru"\n';
+                result.textContent = output;
+                return;
+            }
+
+            output += 'Step 1: Get santri IDs for current user\n';
+            if (typeof getSantriIdsForCurrentUser === 'function') {
+                const santriIds = getSantriIdsForCurrentUser();
+                output += `✅ Found ${santriIds.length} santri IDs\n`;
+                output += `IDs: ${santriIds.slice(0, 10).join(', ')}${santriIds.length > 10 ? '...' : ''}\n\n`;
+            } else {
+                output += '❌ Function getSantriIdsForCurrentUser not found\n\n';
+            }
+
+            output += 'Step 2: Get filtered students\n';
+            if (typeof getStudentsForCurrentUser === 'function') {
+                const filtered = getStudentsForCurrentUser();
+                output += `✅ Found ${filtered.length} students\n`;
+                output += `Names: ${filtered.slice(0, 5).map(s => s.name).join(', ')}${filtered.length > 5 ? '...' : ''}\n\n`;
+            } else {
+                output += '❌ Function getStudentsForCurrentUser not found\n\n';
+            }
+
+            output += 'Step 3: Check if filter is applied in UI\n';
+            output += 'Open Console (F12) and look for:\n';
+            output += '  🔍 Filtering by user-santri relationships (guru only)...\n';
+            output += '  User students: X\n';
+            output += '  After user-santri filter: X\n\n';
+
+            output += 'If you see "After user-santri filter: 0", the problem is:\n';
+            output += '  - Nama guru tidak cocok dengan nama guru di halaqah\n';
+            output += '  - Atau tidak ada santri di halaqah yang diajar\n';
+
+            result.textContent = output;
+        }
+
+        // Auto-run on load
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                checkCurrentUser();
+            }, 500);
+        });
+    </script>
+</body>
+</html>
