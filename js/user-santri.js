@@ -125,13 +125,13 @@ function getSantriIdsForCurrentUser() {
             if (taughtHalaqahs.length > 0 && Array.isArray(dashboardData.students)) {
                 const taughtHalaqahNames = taughtHalaqahs.map(h => {
                     const name = h && h.name ? String(h.name) : '';
-                    return name.replace(/^Halaqah\s+/i, '').trim();
+                    return name.replace(/^Halaqah\s+/i, '').trim().toLowerCase();
                 });
 
                 console.log('Halaqah names:', taughtHalaqahNames);
 
                 const studentIdsInHalaqah = dashboardData.students
-                    .filter(s => taughtHalaqahNames.includes(String(s.halaqah)))
+                    .filter(s => taughtHalaqahNames.includes(String(s.halaqah).trim().toLowerCase()))
                     .map(s => s.id);
 
                 console.log('Students in taught halaqahs:', studentIdsInHalaqah.length);
@@ -161,7 +161,43 @@ function getStudentsForCurrentUser() {
         return dashboardData.students;
     }
 
-    // Get santri IDs for this user
+    // SPECIAL HANDLING FOR GURU: Filter by halaqah directly
+    if (user.role === 'guru') {
+        console.log('👨‍🏫 Guru - filtering by halaqah...');
+        
+        const guruName = (user.full_name || user.name || '')
+            .toLowerCase()
+            .replace(/^(ustadz|ust|u\.)\s*/i, '')
+            .trim();
+        
+        console.log('   Guru name (processed):', guruName);
+        
+        // Find halaqahs taught by this guru
+        const taughtHalaqahs = dashboardData.halaqahs.filter(h => {
+            if (!h || !h.guru) return false;
+            const hGuru = (h.guru || '').toLowerCase().replace(/^(ustadz|ust|u\.)\s*/i, '').trim();
+            const match = hGuru === guruName || hGuru.includes(guruName) || guruName.includes(hGuru);
+            if (match) console.log('   ✅ Match:', h.name, '| Guru:', h.guru);
+            return match;
+        });
+        
+        console.log('   Taught halaqahs:', taughtHalaqahs.length);
+        
+        if (taughtHalaqahs.length === 0) {
+            console.log('   ⚠️ No halaqahs found for this guru');
+            return [];
+        }
+        
+        const halaqahNames = taughtHalaqahs.map(h => h.name.replace(/^Halaqah\s+/i, '').trim().toLowerCase());
+        console.log('   Halaqah names:', halaqahNames);
+        
+        const filtered = dashboardData.students.filter(s => halaqahNames.includes(String(s.halaqah).trim().toLowerCase()));
+        console.log('   ✅ Filtered students:', filtered.length);
+        
+        return filtered;
+    }
+
+    // For other roles (ortu, staff): Use santri IDs from relationships
     const santriIds = getSantriIdsForCurrentUser();
     console.log('📋 Santri IDs:', santriIds);
 

@@ -220,9 +220,35 @@ function handleEditHalaqah(event, halaqahId) {
     
     const halaqah = dashboardData.halaqahs.find(h => h.id === halaqahId);
     if (halaqah) {
-        halaqah.name = `Halaqah ${formData.get('name')}`;
+        // Get old and new names (without "Halaqah" prefix)
+        const oldName = halaqah.name.replace('Halaqah ', '');
+        const newName = formData.get('name');
+        
+        console.log('🔄 Updating halaqah:', oldName, '→', newName);
+        
+        // Update halaqah data
+        halaqah.name = `Halaqah ${newName}`;
         halaqah.guru = formData.get('guru');
         halaqah.kelas = formData.get('kelas');
+        
+        // IMPORTANT: Update halaqah name in all students
+        if (oldName !== newName) {
+            console.log('📝 Updating student halaqah references...');
+            let updatedCount = 0;
+            
+            dashboardData.students.forEach(student => {
+                if (student.halaqah === oldName) {
+                    student.halaqah = newName;
+                    updatedCount++;
+                    console.log(`  ✅ Updated: ${student.name} → ${newName}`);
+                }
+            });
+            
+            console.log(`✅ Updated ${updatedCount} students`);
+        }
+        
+        // Recalculate rankings to update halaqah stats
+        recalculateRankings();
         
         StorageManager.save();
         if (window.autoSync) autoSync();

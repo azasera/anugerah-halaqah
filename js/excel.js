@@ -328,7 +328,7 @@ function processExcelData(data) {
             return; // Skip empty/invalid name rows
         }
 
-        const halaqahName = row[colMap.halaqah] || 'Unknown';
+        const halaqahName = row[colMap.halaqah] ? String(row[colMap.halaqah]).trim() : 'Unknown';
         const guruName = row[colMap.guru] || 'Unknown';
         const kelas = row[colMap.kelas] || '';
         const nisn = (colMap.nisn !== -1 && row[colMap.nisn]) ? String(row[colMap.nisn]).trim() : '';

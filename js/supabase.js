@@ -267,12 +267,11 @@ async function loadStudentsFromSupabase() {
                     id: s.id,
                     name: s.name,
                     halaqah: s.halaqah,
-                    nisn: s.nisn,
-                    nik: s.nik || '',
+                    nisn: getField('nisn'),
+                    nik: getField('nik', ''),
                     lembaga: s.lembaga,
                     kelas: s.kelas,
 
-                    // New Profile Fields - Preserve local if missing in remote
                     jenis_kelamin: getField('jenis_kelamin'),
                     tempat_lahir: getField('tempat_lahir'),
                     tanggal_lahir: getField('tanggal_lahir'),
@@ -427,24 +426,35 @@ function handleRealtimeUpdate(payload) {
     const existing = dashboardData.students.find(s => s.id === (newRecord ? newRecord.id : 0));
 
     const mapStudentData = (record) => {
+        const getField = (field, fallback = '') => {
+            const remoteVal = record[field];
+            const localVal = existing ? existing[field] : undefined;
+            if (remoteVal !== undefined && remoteVal !== null && remoteVal !== '') {
+                return remoteVal;
+            }
+            if (localVal !== undefined && localVal !== null && localVal !== '') {
+                return localVal;
+            }
+            return fallback;
+        };
+
         return {
             id: record.id,
             name: record.name,
             halaqah: record.halaqah,
-            nisn: record.nisn,
-            nik: record.nik,
+            nisn: getField('nisn'),
+            nik: getField('nik', ''),
             lembaga: record.lembaga,
             kelas: record.kelas,
 
-            // New Profile Fields - Preserve local if remote is empty
-            jenis_kelamin: record.jenis_kelamin || (existing?.jenis_kelamin || ''),
-            tempat_lahir: record.tempat_lahir || (existing?.tempat_lahir || ''),
-            tanggal_lahir: record.tanggal_lahir || (existing?.tanggal_lahir || null),
-            alamat: record.alamat || (existing?.alamat || ''),
-            hp: record.hp || (existing?.hp || ''),
-            nama_ayah: record.nama_ayah || (existing?.nama_ayah || ''),
-            nama_ibu: record.nama_ibu || (existing?.nama_ibu || ''),
-            sekolah_asal: record.sekolah_asal || (existing?.sekolah_asal || ''),
+            jenis_kelamin: getField('jenis_kelamin'),
+            tempat_lahir: getField('tempat_lahir'),
+            tanggal_lahir: getField('tanggal_lahir', null),
+            alamat: getField('alamat'),
+            hp: getField('hp'),
+            nama_ayah: getField('nama_ayah'),
+            nama_ibu: getField('nama_ibu'),
+            sekolah_asal: getField('sekolah_asal'),
 
             total_points: record.total_points,
             daily_ranking: record.daily_ranking,

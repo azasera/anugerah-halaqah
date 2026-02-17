@@ -33,17 +33,19 @@ function renderMutabaahDashboard() {
     const container = document.getElementById('mutabaahContainer');
     if (!container) return;
 
-    // Determine current student context (Parent/Guru/Admin)
     const profile = window.currentProfile;
     const role = profile ? profile.role : null;
     let student = null;
+    let availableStudents = Array.isArray(dashboardData.students) ? dashboardData.students : [];
 
-    // 1. Check if we have a chosen student in "Guru/Admin Select Mode"
-    if (window.selectedMutabaahStudentId) {
-        student = dashboardData.students.find(s => s.id === window.selectedMutabaahStudentId);
+    if (role === 'guru' && typeof getStudentsForCurrentUser === 'function') {
+        availableStudents = getStudentsForCurrentUser();
     }
 
-    // 2. If not, and user is Ortu, auto-select their child
+    if (window.selectedMutabaahStudentId) {
+        student = availableStudents.find(s => s.id === window.selectedMutabaahStudentId);
+    }
+
     if (!student) {
         const child = window.currentUserChild;
         if (role === 'ortu' && child) {
@@ -82,11 +84,9 @@ function renderMutabaahDashboard() {
     const todayZiyadah = (student.setoran || []).filter(s => new Date(s.date).toDateString() === todayStr);
     const todayZiyadahCount = todayZiyadah.reduce((sum, s) => sum + s.baris, 0);
 
-    // Calculate progress
     const progress = Math.min((todayData.summary?.totalHalaman || 0) / 20 * 100, 100);
 
-    // Get student navigation info
-    const allStudents = dashboardData.students;
+    const allStudents = availableStudents;
     const currentIndex = allStudents.findIndex(s => s.id === student.id);
     const prevStudent = currentIndex > 0 ? allStudents[currentIndex - 1] : null;
     const nextStudent = currentIndex < allStudents.length - 1 ? allStudents[currentIndex + 1] : null;
@@ -376,10 +376,13 @@ function approveMutabaah(role, studentId) {
 
 function renderStudentSelectionForMutabaah() {
     const container = document.getElementById('mutabaahContainer');
-    let students = dashboardData.students;
+    const profile = window.currentProfile;
+    const role = profile ? profile.role : null;
+    let students = Array.isArray(dashboardData.students) ? dashboardData.students : [];
 
-    // REMOVED: Role-based filtering for parents - they can now see all students
-    // Parents can now access full mutaba'ah data for context
+    if (role === 'guru' && typeof getStudentsForCurrentUser === 'function') {
+        students = getStudentsForCurrentUser();
+    }
 
     const content = `
         <div class="space-y-6">
@@ -425,9 +428,13 @@ function filterMutabaahStudentList(term) {
     if (!container) return;
 
     const termLower = term.toLowerCase();
-    let students = dashboardData.students;
+    const profile = window.currentProfile;
+    const role = profile ? profile.role : null;
+    let students = Array.isArray(dashboardData.students) ? dashboardData.students : [];
 
-    // REMOVED: Role-based filtering for parents - they can now see all students
+    if (role === 'guru' && typeof getStudentsForCurrentUser === 'function') {
+        students = getStudentsForCurrentUser();
+    }
 
     container.innerHTML = students
         .filter(s => s.name.toLowerCase().includes(termLower) || s.halaqah.toLowerCase().includes(termLower))
