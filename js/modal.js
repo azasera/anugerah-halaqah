@@ -779,6 +779,12 @@ function handleEditHafalan(event, studentId) {
     if (student) {
         student.total_hafalan = totalHafalan;
         StorageManager.save();
+        
+        // Sync to Supabase
+        if (window.autoSync) {
+            autoSync();
+        }
+        
         refreshAllData();
         closeModal();
         showNotification('✅ Total hafalan berhasil diperbarui!');

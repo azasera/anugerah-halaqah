@@ -290,7 +290,7 @@ async function loadStudentsFromSupabase() {
                     achievements: JSON.parse(s.achievements || '[]'),
                     setoran: JSON.parse(s.setoran || '[]'),
                     lastSetoranDate: s.last_setoran_date,
-                    total_hafalan: s.total_points > 0 ? (s.total_points / 20) : 0
+                    total_hafalan: parseFloat(s.total_hafalan) || 0
                 };
             });
 
