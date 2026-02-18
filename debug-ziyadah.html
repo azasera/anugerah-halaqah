@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Ziyadah Counter</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 p-8">
+    <div class="max-w-4xl mx-auto">
+        <div class="bg-white rounded-2xl shadow-lg p-8">
+            <h1 class="text-3xl font-bold text-slate-800 mb-6">🔍 Debug Ziyadah Counter</h1>
+            
+            <div class="space-y-4">
+                <button onclick="checkData()" class="w-full bg-blue-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-blue-700">
+                    1️⃣ Cek Data Santri Jingga
+                </button>
+                
+                <button onclick="checkSetoranStructure()" class="w-full bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-emerald-700">
+                    2️⃣ Cek Struktur Data Setoran
+                </button>
+                
+                <button onclick="simulateZiyadahCalc()" class="w-full bg-purple-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-purple-700">
+                    3️⃣ Simulasi Perhitungan Ziyadah
+                </button>
+                
+                <button onclick="checkFormData()" class="w-full bg-amber-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-amber-700">
+                    4️⃣ Cek Form Input Ziyadah
+                </button>
+            </div>
+            
+            <div id="output" class="mt-6 bg-slate-800 text-green-400 p-6 rounded-xl font-mono text-sm overflow-auto max-h-96"></div>
+        </div>
+    </div>
+
+    <script>
+        function log(message, data = null) {
+            const output = document.getElementById('output');
+            let text = `\n${message}`;
+            if (data !== null) {
+                text += `\n${JSON.stringify(data, null, 2)}`;
+            }
+            output.textContent += text;
+            console.log(message, data);
+        }
+
+        function clearLog() {
+            document.getElementById('output').textContent = '';
+        }
+
+        function checkData() {
+            clearLog();
+            log('=== CEK DATA SANTRI JINGGA ===');
+            
+            if (typeof dashboardData === 'undefined') {
+                log('❌ ERROR: dashboardData tidak ditemukan!');
+                log('💡 Pastikan Anda membuka file ini dari dashboard.html yang sudah login');
+                return;
+            }
+            
+            const jingga = dashboardData.students.find(s => s.name && s.name.toLowerCase().includes('jingga'));
+            
+            if (!jingga) {
+                log('❌ ERROR: Santri Jingga tidak ditemukan!');
+                log('📋 Daftar santri:', dashboardData.students.map(s => s.name));
+                return;
+            }
+            
+            log('✅ Santri ditemukan:', {
+                id: jingga.id,
+                name: jingga.name,
+                halaqah: jingga.halaqah
+            });
+            
+            log('\n📊 Data Setoran:');
+            if (!jingga.setoran) {
+                log('❌ Field setoran tidak ada! (undefined)');
+            } else if (jingga.setoran.length === 0) {
+                log('⚠️ Array setoran kosong []');
+            } else {
+                log(`✅ Ada ${jingga.setoran.length} data setoran:`, jingga.setoran);
+            }
+        }
+
+        function checkSetoranStructure() {
+            clearLog();
+            log('=== CEK STRUKTUR DATA SETORAN ===');
+            
+            if (typeof dashboardData === 'undefined') {
+                log('❌ ERROR: dashboardData tidak ditemukan!');
+                return;
+            }
+            
+            const jingga = dashboardData.students.find(s => s.name && s.name.toLowerCase().includes('jingga'));
+            if (!jingga) {
+                log('❌ Santri Jingga tidak ditemukan!');
+                return;
+            }
+            
+            if (!jingga.setoran || jingga.setoran.length === 0) {
+                log('⚠️ Belum ada data setoran. Silakan input setoran dulu.');
+                return;
+            }
+            
+            log('📋 Struktur data setoran terakhir:');
+            const lastSetoran = jingga.setoran[jingga.setoran.length - 1];
+            log('Data:', lastSetoran);
+            
+            log('\n🔍 Field yang ada:');
+            Object.keys(lastSetoran).forEach(key => {
+                log(`  - ${key}: ${lastSetoran[key]} (${typeof lastSetoran[key]})`);
+            });
+            
+            if (!lastSetoran.baris) {
+                log('\n❌ MASALAH: Field "baris" tidak ada!');
+            } else {
+                log(`\n✅ Field "baris" ada: ${lastSetoran.baris}`);
+            }
+        }
+
+        function simulateZiyadahCalc() {
+            clearLog();
+            log('=== SIMULASI PERHITUNGAN ZIYADAH ===');
+            
+            if (typeof dashboardData === 'undefined') {
+                log('❌ ERROR: dashboardData tidak ditemukan!');
+                return;
+            }
+            
+            const jingga = dashboardData.students.find(s => s.name && s.name.toLowerCase().includes('jingga'));
+            if (!jingga) {
+                log('❌ Santri Jingga tidak ditemukan!');
+                return;
+            }
+            
+            log('📅 Tanggal hari ini:', new Date().toDateString());
+            
+            if (!jingga.setoran || jingga.setoran.length === 0) {
+                log('⚠️ Belum ada data setoran.');
+                log('📊 Hasil: 0 baris');
+                return;
+            }
+            
+            log(`\n📋 Total setoran: ${jingga.setoran.length}`);
+            
+            const todayStr = new Date().toDateString();
+            const todayZiyadah = jingga.setoran.filter(s => {
+                const setoranDate = new Date(s.date).toDateString();
+                log(`  Cek: ${s.date} -> ${setoranDate} === ${todayStr}? ${setoranDate === todayStr}`);
+                return setoranDate === todayStr;
+            });
+            
+            log(`\n✅ Setoran hari ini: ${todayZiyadah.length}`);
+            log('Data:', todayZiyadah);
+            
+            const todayZiyadahCount = todayZiyadah.reduce((sum, s) => {
+                const baris = s.baris || 0;
+                log(`  + ${baris} baris`);
+                return sum + baris;
+            }, 0);
+            
+            log(`\n📊 TOTAL ZIYADAH HARI INI: ${todayZiyadahCount} baris`);
+        }
+
+        function checkFormData() {
+            clearLog();
+            log('=== CEK FORM INPUT ZIYADAH ===');
+            log('💡 Buka form input setoran, lalu klik tombol ini lagi');
+            
+            const barisInput = document.getElementById('quick-baris');
+            if (!barisInput) {
+                log('❌ Form belum dibuka atau field "quick-baris" tidak ditemukan');
+                return;
+            }
+            
+            log('✅ Form ditemukan!');
+            log(`📝 Nilai baris: ${barisInput.value}`);
+            
+            const form = barisInput.closest('form');
+            if (form) {
+                log('\n📋 Form data yang akan dikirim:');
+                const formData = new FormData(form);
+                for (let [key, value] of formData.entries()) {
+                    log(`  - ${key}: ${value}`);
+                }
+            }
+        }
+
+        // Auto-check on load if opened from dashboard
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                if (typeof dashboardData !== 'undefined') {
+                    log('✅ Dashboard data terdeteksi. Klik tombol untuk debug.');
+                } else {
+                    log('⚠️ Buka file ini dari dashboard.html yang sudah login');
+                }
+            }, 500);
+        });
+    </script>
+</body>
+</html>

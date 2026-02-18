@@ -83,6 +83,12 @@ function renderMutabaahDashboard() {
     const todayStr = new Date().toDateString();
     const todayZiyadah = (student.setoran || []).filter(s => new Date(s.date).toDateString() === todayStr);
     const todayZiyadahCount = todayZiyadah.reduce((sum, s) => sum + s.baris, 0);
+    
+    console.log('[DEBUG Ziyadah] Student:', student.name);
+    console.log('[DEBUG Ziyadah] Today:', todayStr);
+    console.log('[DEBUG Ziyadah] Total setoran:', student.setoran ? student.setoran.length : 0);
+    console.log('[DEBUG Ziyadah] Today setoran:', todayZiyadah.length);
+    console.log('[DEBUG Ziyadah] Today baris count:', todayZiyadahCount);
 
     const progress = Math.min((todayData.summary?.totalHalaman || 0) / 20 * 100, 100);
 

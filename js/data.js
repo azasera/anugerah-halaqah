@@ -166,6 +166,14 @@ function refreshAllData() {
         renderSantri();
     }
 
+    // Refresh Mutaba'ah Dashboard if visible
+    if (typeof renderMutabaahDashboard === 'function') {
+        const mutabaahSection = document.getElementById('mutabaah');
+        if (mutabaahSection && !mutabaahSection.classList.contains('hidden')) {
+            renderMutabaahDashboard();
+        }
+    }
+
     // Refresh admin settings if visible (to update inline tabs)
     const settingsContainer = document.getElementById('settingsContainer');
     if (settingsContainer && settingsContainer.innerHTML.trim() !== '') {

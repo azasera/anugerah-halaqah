@@ -476,9 +476,50 @@ async function handleQuickSetoranDetail(event, studentId) {
             student.total_hafalan = Math.round(student.total_hafalan * 100) / 100;
         }
 
-        // 3. Save & Refresh
+        // 3. Save Setoran Data for Ziyadah Count
+        const baris = parseInt(formData.get('baris')) || 0;
+        console.log('[DEBUG ZIYADAH] === SAVING SETORAN ===');
+        console.log('[DEBUG ZIYADAH] FormData baris:', formData.get('baris'));
+        console.log('[DEBUG ZIYADAH] Parsed baris:', baris);
+        console.log('[DEBUG ZIYADAH] Halaman:', halaman);
+        console.log('[DEBUG ZIYADAH] Student:', student.name);
+        console.log('[DEBUG ZIYADAH] Student.setoran before:', student.setoran);
+        
+        // Always initialize setoran array if not exists
+        if (!student.setoran) {
+            student.setoran = [];
+            console.log('[DEBUG ZIYADAH] Initialized setoran array');
+        }
+        
+        // Save setoran data (even if baris is 0, for tracking)
+        const today = new Date().toISOString().split('T')[0];
+        const sesi = formData.get('sesi') || '';
+        
+        const setoranData = {
+            id: `set_${Date.now()}`,
+            date: today,
+            baris: baris,
+            halaman: halaman,
+            poin: poin,
+            sesi: sesi,
+            kelancaran: kelancaran,
+            kesalahan: parseInt(kesalahan) || 0,
+            keterangan: keterangan,
+            timestamp: new Date().toISOString()
+        };
+        
+        student.setoran.push(setoranData);
+        console.log('[DEBUG ZIYADAH] Setoran saved:', setoranData);
+        console.log('[DEBUG ZIYADAH] Total setoran for student:', student.setoran.length);
+        console.log('[DEBUG ZIYADAH] Student.setoran after:', student.setoran);
+
+        // 4. Save & Refresh
         recalculateRankings();
         StorageManager.save();
+        
+        console.log('[DEBUG ZIYADAH] === AFTER SAVE ===');
+        console.log('[DEBUG ZIYADAH] Student.setoran final:', student.setoran);
+        console.log('[DEBUG ZIYADAH] Calling refreshAllData...');
 
         // Sync to Supabase if available
         if (typeof syncStudentsToSupabase === 'function') {
@@ -486,6 +527,20 @@ async function handleQuickSetoranDetail(event, studentId) {
         }
 
         refreshAllData();
+
+        // Explicitly refresh Mutaba'ah Dashboard if it's open
+        console.log('[DEBUG ZIYADAH] Checking if Mutabaah section is open...');
+        if (typeof renderMutabaahDashboard === 'function') {
+            const mutabaahSection = document.getElementById('mutabaah');
+            if (mutabaahSection && !mutabaahSection.classList.contains('hidden')) {
+                console.log('[DEBUG ZIYADAH] Calling renderMutabaahDashboard...');
+                renderMutabaahDashboard();
+            } else {
+                console.log('[DEBUG ZIYADAH] Mutabaah section not open or not found');
+            }
+        } else {
+            console.log('[DEBUG ZIYADAH] renderMutabaahDashboard function not found');
+        }
 
         showNotification(`✅ Setoran berhasil! (+${poin} poin, +${halaman} hal)`);
         closeModal();

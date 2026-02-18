@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Ziyadah - Simple</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-900 text-white p-8">
+    <div class="max-w-2xl mx-auto">
+        <h1 class="text-3xl font-bold mb-6">🧪 Test Ziyadah Counter - Simple</h1>
+        
+        <div class="bg-slate-800 rounded-xl p-6 mb-6">
+            <h2 class="text-xl font-bold mb-4">Instruksi:</h2>
+            <ol class="list-decimal list-inside space-y-2">
+                <li>Buka file ini dari dashboard.html yang sudah login</li>
+                <li>Atau buka di tab baru setelah login di dashboard</li>
+                <li>Klik tombol di bawah untuk test</li>
+            </ol>
+        </div>
+
+        <div class="space-y-4">
+            <button onclick="testClearCache()" class="w-full bg-red-600 hover:bg-red-700 px-6 py-4 rounded-xl font-bold">
+                1️⃣ Clear Cache & Reload
+            </button>
+            
+            <button onclick="testCheckData()" class="w-full bg-blue-600 hover:bg-blue-700 px-6 py-4 rounded-xl font-bold">
+                2️⃣ Cek Data Jingga
+            </button>
+            
+            <button onclick="testAddSetoran()" class="w-full bg-green-600 hover:bg-green-700 px-6 py-4 rounded-xl font-bold">
+                3️⃣ Simulasi Tambah Setoran
+            </button>
+            
+            <button onclick="testCalculateZiyadah()" class="w-full bg-purple-600 hover:bg-purple-700 px-6 py-4 rounded-xl font-bold">
+                4️⃣ Hitung Ziyadah
+            </button>
+        </div>
+
+        <div class="mt-6 bg-slate-800 rounded-xl p-6">
+            <h3 class="font-bold mb-2">Output:</h3>
+            <pre id="output" class="text-green-400 text-sm overflow-auto max-h-96"></pre>
+        </div>
+    </div>
+
+    <script>
+        function log(msg) {
+            const output = document.getElementById('output');
+            output.textContent += msg + '\n';
+            console.log(msg);
+        }
+
+        function clearLog() {
+            document.getElementById('output').textContent = '';
+        }
+
+        function testClearCache() {
+            if (confirm('Ini akan reload halaman. Lanjutkan?')) {
+                location.reload(true);
+            }
+        }
+
+        function testCheckData() {
+            clearLog();
+            log('=== CEK DATA JINGGA ===\n');
+            
+            if (typeof dashboardData === 'undefined') {
+                log('❌ ERROR: dashboardData tidak ditemukan!');
+                log('💡 Buka file ini dari dashboard.html yang sudah login');
+                return;
+            }
+            
+            const jingga = dashboardData.students.find(s => s.name && s.name.toLowerCase().includes('jingga'));
+            
+            if (!jingga) {
+                log('❌ Santri Jingga tidak ditemukan!');
+                return;
+            }
+            
+            log('✅ Santri: ' + jingga.name);
+            log('ID: ' + jingga.id);
+            log('Halaqah: ' + jingga.halaqah);
+            log('\n📊 Data Setoran:');
+            log('Type: ' + typeof jingga.setoran);
+            log('Value: ' + JSON.stringify(jingga.setoran, null, 2));
+            
+            if (!jingga.setoran) {
+                log('\n⚠️ Field setoran = undefined');
+                log('💡 Belum pernah ada setoran yang tersimpan');
+            } else if (jingga.setoran.length === 0) {
+                log('\n⚠️ Array setoran kosong []');
+            } else {
+                log('\n✅ Ada ' + jingga.setoran.length + ' data setoran');
+            }
+        }
+
+        function testAddSetoran() {
+            clearLog();
+            log('=== SIMULASI TAMBAH SETORAN ===\n');
+            
+            if (typeof dashboardData === 'undefined') {
+                log('❌ dashboardData tidak ditemukan!');
+                return;
+            }
+            
+            const jingga = dashboardData.students.find(s => s.name && s.name.toLowerCase().includes('jingga'));
+            
+            if (!jingga) {
+                log('❌ Santri Jingga tidak ditemukan!');
+                return;
+            }
+            
+            // Initialize setoran if not exists
+            if (!jingga.setoran) {
+                jingga.setoran = [];
+                log('✅ Initialized setoran array');
+            }
+            
+            // Add test setoran
+            const today = new Date().toISOString().split('T')[0];
+            const testSetoran = {
+                id: 'set_test_' + Date.now(),
+                date: today,
+                baris: 15,
+                halaman: 1,
+                poin: 2,
+                sesi: 'pagi',
+                kelancaran: 'lancar',
+                kesalahan: 0,
+                keterangan: 'Test setoran',
+                timestamp: new Date().toISOString()
+            };
+            
+            jingga.setoran.push(testSetoran);
+            log('✅ Setoran ditambahkan:');
+            log(JSON.stringify(testSetoran, null, 2));
+            log('\n📊 Total setoran: ' + jingga.setoran.length);
+            
+            // Save to localStorage
+            if (typeof StorageManager !== 'undefined' && StorageManager.save) {
+                StorageManager.save();
+                log('\n✅ Data disimpan ke localStorage');
+            } else {
+                log('\n⚠️ StorageManager tidak ditemukan, data tidak tersimpan');
+            }
+        }
+
+        function testCalculateZiyadah() {
+            clearLog();
+            log('=== HITUNG ZIYADAH ===\n');
+            
+            if (typeof dashboardData === 'undefined') {
+                log('❌ dashboardData tidak ditemukan!');
+                return;
+            }
+            
+            const jingga = dashboardData.students.find(s => s.name && s.name.toLowerCase().includes('jingga'));
+            
+            if (!jingga) {
+                log('❌ Santri Jingga tidak ditemukan!');
+                return;
+            }
+            
+            log('📅 Tanggal hari ini: ' + new Date().toDateString());
+            
+            if (!jingga.setoran || jingga.setoran.length === 0) {
+                log('\n⚠️ Belum ada data setoran');
+                log('📊 Hasil: 0 baris');
+                return;
+            }
+            
+            log('\n📋 Total setoran: ' + jingga.setoran.length);
+            log('\nData setoran:');
+            jingga.setoran.forEach((s, i) => {
+                log(`  ${i+1}. Date: ${s.date}, Baris: ${s.baris}`);
+            });
+            
+            const todayStr = new Date().toDateString();
+            const todayZiyadah = jingga.setoran.filter(s => {
+                const setoranDate = new Date(s.date).toDateString();
+                return setoranDate === todayStr;
+            });
+            
+            log('\n✅ Setoran hari ini: ' + todayZiyadah.length);
+            
+            const todayZiyadahCount = todayZiyadah.reduce((sum, s) => sum + (s.baris || 0), 0);
+            
+            log('\n📊 TOTAL ZIYADAH HARI INI: ' + todayZiyadahCount + ' baris');
+            
+            if (todayZiyadahCount > 0) {
+                log('\n✅ Status: Sudah Setoran');
+            } else {
+                log('\n⌛ Status: Belum Setoran');
+            }
+        }
+    </script>
+</body>
+</html>

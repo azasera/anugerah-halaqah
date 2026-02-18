@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Ziyadah Counter Fix</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 p-8">
+    <div class="max-w-4xl mx-auto">
+        <div class="bg-white rounded-2xl shadow-lg p-8 mb-6">
+            <h1 class="text-3xl font-bold text-slate-800 mb-4">🧪 Test Ziyadah Counter Fix</h1>
+            <p class="text-slate-600 mb-6">Test untuk memastikan jumlah baris Ziyadah bertambah otomatis setelah input setoran.</p>
+            
+            <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6">
+                <h3 class="font-bold text-blue-800 mb-2">✅ Perbaikan yang Dilakukan:</h3>
+                <ol class="list-decimal list-inside space-y-2 text-blue-700">
+                    <li><strong>js/modal.js</strong> - Menambahkan logika untuk menyimpan data <code>baris</code> ke <code>student.setoran[]</code></li>
+                    <li><strong>js/data.js</strong> - Menambahkan <code>renderMutabaahDashboard()</code> ke fungsi <code>refreshAllData()</code></li>
+                </ol>
+            </div>
+
+            <div class="bg-emerald-50 border-l-4 border-emerald-500 p-4 mb-6">
+                <h3 class="font-bold text-emerald-800 mb-2">📋 Cara Test:</h3>
+                <ol class="list-decimal list-inside space-y-2 text-emerald-700">
+                    <li>Buka dashboard.html dan login sebagai Guru/Admin</li>
+                    <li>Klik menu "Mutaba'ah Quran"</li>
+                    <li>Pilih santri (contoh: Jingga)</li>
+                    <li>Perhatikan angka "Ziyadah" di header (seharusnya 0 baris)</li>
+                    <li>Klik tombol "➕ Ziyadah"</li>
+                    <li>Isi form setoran:
+                        <ul class="list-disc list-inside ml-6 mt-2">
+                            <li>Jumlah Baris: 15</li>
+                            <li>Kelancaran: Lancar</li>
+                            <li>Kesalahan: 0</li>
+                        </ul>
+                    </li>
+                    <li>Klik "💾 Simpan"</li>
+                    <li><strong>Cek hasil:</strong> Angka "Ziyadah" seharusnya berubah menjadi "15 baris"</li>
+                    <li>Ulangi input setoran dengan 10 baris lagi</li>
+                    <li><strong>Cek hasil:</strong> Angka "Ziyadah" seharusnya berubah menjadi "25 baris"</li>
+                </ol>
+            </div>
+
+            <div class="bg-amber-50 border-l-4 border-amber-500 p-4 mb-6">
+                <h3 class="font-bold text-amber-800 mb-2">🔍 Verifikasi Data:</h3>
+                <p class="text-amber-700 mb-3">Buka Console Browser (F12) dan jalankan:</p>
+                <pre class="bg-slate-800 text-green-400 p-4 rounded-lg overflow-x-auto"><code>// Cari santri Jingga
+const jingga = dashboardData.students.find(s => s.name.includes('Jingga'));
+
+// Lihat data setoran hari ini
+console.log('Data Setoran:', jingga.setoran);
+
+// Hitung total baris hari ini
+const today = new Date().toDateString();
+const todaySetoran = jingga.setoran.filter(s => new Date(s.date).toDateString() === today);
+const totalBaris = todaySetoran.reduce((sum, s) => sum + s.baris, 0);
+console.log('Total Baris Hari Ini:', totalBaris);</code></pre>
+            </div>
+
+            <div class="bg-purple-50 border-l-4 border-purple-500 p-4">
+                <h3 class="font-bold text-purple-800 mb-2">📊 Expected Result:</h3>
+                <ul class="list-disc list-inside space-y-2 text-purple-700">
+                    <li>Setiap kali input setoran, data tersimpan ke <code>student.setoran[]</code></li>
+                    <li>Field <code>baris</code> tersimpan dengan benar</li>
+                    <li>Tampilan "Ziyadah" di header otomatis update</li>
+                    <li>Total baris bertambah sesuai input</li>
+                    <li>Data reset ke 0 di hari berikutnya</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-emerald-500 to-teal-600 rounded-2xl shadow-lg p-8 text-white">
+            <h2 class="text-2xl font-bold mb-4">🎯 Status Perbaikan</h2>
+            <div class="space-y-3">
+                <div class="flex items-center gap-3">
+                    <span class="text-2xl">✅</span>
+                    <span>Menambahkan penyimpanan data <code>baris</code> ke <code>student.setoran[]</code></span>
+                </div>
+                <div class="flex items-center gap-3">
+                    <span class="text-2xl">✅</span>
+                    <span>Menambahkan auto-refresh Mutaba'ah Dashboard</span>
+                </div>
+                <div class="flex items-center gap-3">
+                    <span class="text-2xl">✅</span>
+                    <span>Menyimpan metadata lengkap (sesi, kelancaran, kesalahan)</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
