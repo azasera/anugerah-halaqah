@@ -81,8 +81,27 @@ function renderMutabaahDashboard() {
 
     // Calculate today's Ziyadah from student.setoran
     const todayStr = new Date().toDateString();
-    const todayZiyadah = (student.setoran || []).filter(s => new Date(s.date).toDateString() === todayStr);
-    const todayZiyadahCount = todayZiyadah.reduce((sum, s) => sum + s.baris, 0);
+    let setoranArray = [];
+    if (Array.isArray(student.setoran)) {
+        setoranArray = student.setoran;
+    } else if (typeof student.setoran === 'string' && student.setoran.trim() !== '') {
+        try {
+            const parsed = JSON.parse(student.setoran);
+            if (Array.isArray(parsed)) {
+                setoranArray = parsed;
+            }
+        } catch (e) {
+            console.error('[DEBUG Ziyadah] Failed to parse setoran JSON for', student.name, e);
+        }
+    }
+    const todayZiyadah = setoranArray.filter(s => {
+        if (!s || !s.date) return false;
+        return new Date(s.date).toDateString() === todayStr;
+    });
+    const todayZiyadahCount = todayZiyadah.reduce((sum, s) => {
+        const baris = typeof s.baris === 'number' ? s.baris : parseInt(s.baris) || 0;
+        return sum + baris;
+    }, 0);
     
     console.log('[DEBUG Ziyadah] Student:', student.name);
     console.log('[DEBUG Ziyadah] Today:', todayStr);
