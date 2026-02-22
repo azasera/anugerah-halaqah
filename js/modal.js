@@ -1,4 +1,65 @@
 // Modal Management Module
+//
+function formatHafalan(value) {
+    const n = Number(value);
+    if (Number.isNaN(n) || n <= 0) return '0';
+    const fixed = n.toFixed(2);
+    return fixed.replace(/\.?0+$/, '');
+}
+
+function getHafalanProgressPercent(value, targetJuz = 30) {
+    const n = Number(value);
+    const target = Number(targetJuz) || 30;
+    if (Number.isNaN(n) || n <= 0) return 0;
+    const percent = (n / target) * 100;
+    if (percent < 0) return 0;
+    if (percent > 100) return 100;
+    return Math.round(percent);
+}
+
+function getTargetHafalanJuz(student) {
+    if (!student) return 30;
+
+    const lembaga = (student.lembaga || 'MTA').toUpperCase();
+    const kelasRaw = (student.kelas || '').toString().toLowerCase();
+    const match = kelasRaw.match(/\d+/);
+    const kelasNum = match ? parseInt(match[0], 10) : null;
+
+    if (lembaga === 'SDITA') {
+        if (kelasNum === 1) return 0.55;
+        if (kelasNum === 2) return 1.3;
+        if (kelasNum === 3) return 2.15;
+        if (kelasNum === 4) return 3.3;
+        if (kelasNum === 5) return 4.45;
+        if (kelasNum === 6) return 5;
+        return 5;
+    }
+
+    if (lembaga === 'SMPITA') {
+        if (kelasNum === 7) return 1.5;
+        if (kelasNum === 8) return 3.5;
+        if (kelasNum === 9) return 5;
+        return 5;
+    }
+
+    if (lembaga === 'SMAITA') {
+        const kategoriStr = String(student.kategori || '').toLowerCase();
+        const statusStr = String(student.status || '').toLowerCase();
+        const kategoriHasAlumni = kategoriStr.includes('alumni');
+        const kategoriHasNon = kategoriStr.includes('non') || kategoriStr.includes('bukan');
+        const statusHasAlumni = statusStr.includes('alumni');
+        const statusHasNon = statusStr.includes('non') || statusStr.includes('bukan');
+        const isAlumni = student.is_alumni === true ||
+            ((kategoriHasAlumni || statusHasAlumni) && !(kategoriHasNon || statusHasNon));
+
+        if (kelasNum === 10) return isAlumni ? 6.5 : 1.5;
+        if (kelasNum === 11) return isAlumni ? 8.5 : 3.5;
+        if (kelasNum === 12) return isAlumni ? 10 : 5;
+        return isAlumni ? 10 : 5;
+    }
+
+    return 30;
+}
 
 function createModal(content, allowClickOutside = true) {
     const modal = document.createElement('div');
@@ -52,6 +113,8 @@ function showStudentDetail(studentOrId) {
     let isCurrentSessionActive = false;
 
     const lembagaKey = student.lembaga || 'MTA';
+    const hafalanTargetJuz = getTargetHafalanJuz(student);
+    const hafalanPercent = getHafalanProgressPercent(student.total_hafalan, hafalanTargetJuz);
 
     if (typeof getCurrentSession === 'function') {
         const activeSession = getCurrentSession(lembagaKey);
@@ -237,12 +300,24 @@ function showStudentDetail(studentOrId) {
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                         </svg>
                     </div>
-                    <div class="text-3xl font-bold text-purple-700">${student.total_hafalan || 0} Hal</div>
+                    <div class="text-3xl font-bold text-purple-700 mb-2">${formatHafalan(student.total_hafalan)} Juz</div>
+                    <div class="h-1.5 w-full bg-purple-100 rounded-full overflow-hidden">
+                        <div class="h-full bg-purple-500 rounded-full" style="width: ${hafalanPercent}%;"></div>
+                    </div>
+                    <div class="text-xs text-purple-700 mt-1">
+                        ${hafalanPercent}% dari ${hafalanTargetJuz} Juz
+                    </div>
                 </div>
                 ` : `
                 <div class="bg-purple-50 rounded-2xl p-4">
                     <div class="text-purple-600 text-sm font-bold mb-1">Total Hafalan</div>
-                    <div class="text-3xl font-bold text-purple-700">${student.total_hafalan || 0} Hal</div>
+                    <div class="text-3xl font-bold text-purple-700 mb-2">${formatHafalan(student.total_hafalan)} Juz</div>
+                    <div class="h-1.5 w-full bg-purple-100 rounded-full overflow-hidden">
+                        <div class="h-full bg-purple-500 rounded-full" style="width: ${hafalanPercent}%;"></div>
+                    </div>
+                    <div class="text-xs text-purple-700 mt-1">
+                        ${hafalanPercent}% dari ${hafalanTargetJuz} Juz
+                    </div>
                 </div>
                 `}
             </div>
@@ -472,7 +547,8 @@ async function handleQuickSetoranDetail(event, studentId) {
         // 2. Update Hafalan (Manual Update)
         if (halaman > 0) {
             if (!student.total_hafalan) student.total_hafalan = 0;
-            student.total_hafalan += halaman;
+            const juzIncrement = halaman / 20;
+            student.total_hafalan += juzIncrement;
             student.total_hafalan = Math.round(student.total_hafalan * 100) / 100;
         }
 

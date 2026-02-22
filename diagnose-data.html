@@ -11,11 +11,21 @@
         <div class="bg-white rounded-2xl shadow-lg p-8">
             <h1 class="text-3xl font-bold text-slate-800 mb-6">🔍 Diagnosa Data localStorage</h1>
             
-            <button onclick="diagnose()" 
-                class="w-full mb-6 p-4 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-colors">
-                🔍 Mulai Diagnosa
-            </button>
-            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <button onclick="diagnose()" 
+                    class="w-full p-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-colors text-sm">
+                    🔍 Diagnosa Struktur Data
+                </button>
+                <button onclick="renderHafalanOverview()" 
+                    class="w-full p-3 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 transition-colors text-sm">
+                    📖 Tampilkan Diagnosa Hafalan
+                </button>
+                <button onclick="clearOutput()" 
+                    class="w-full p-3 bg-slate-500 text-white rounded-xl font-bold hover:bg-slate-600 transition-colors text-sm">
+                    🧹 Bersihkan Tampilan
+                </button>
+            </div>
+
             <div id="output" class="space-y-4"></div>
         </div>
     </div>
@@ -51,16 +61,31 @@
             output.appendChild(div);
         }
         
+        function clearOutput() {
+            const output = document.getElementById('output');
+            if (output) {
+                output.innerHTML = '';
+            }
+        }
+
+        function getParsedData() {
+            const raw = localStorage.getItem('halaqahData');
+            if (!raw) return null;
+            try {
+                return JSON.parse(raw);
+            } catch (e) {
+                return null;
+            }
+        }
+
         function diagnose() {
-            document.getElementById('output').innerHTML = '';
+            clearOutput();
             
             try {
-                // Check localStorage
                 addOutput('📦 localStorage Keys', 
                     Object.keys(localStorage).join('\n') || 'Kosong', 
                     'info');
                 
-                // Check halaqahData
                 const data = localStorage.getItem('halaqahData');
                 if (!data) {
                     addOutput('❌ halaqahData', 'Tidak ditemukan di localStorage', 'error');
@@ -69,7 +94,6 @@
                 
                 addOutput('✅ halaqahData', 'Ditemukan', 'success');
                 
-                // Parse data
                 let parsed;
                 try {
                     parsed = JSON.parse(data);
@@ -79,12 +103,10 @@
                     return;
                 }
                 
-                // Check structure
                 addOutput('📊 Struktur Data', 
                     `Keys: ${Object.keys(parsed).join(', ')}`, 
                     'info');
                 
-                // Check students
                 if (parsed.students) {
                     addOutput('👥 Students', 
                         `Total: ${parsed.students.length}\nType: ${Array.isArray(parsed.students) ? 'Array' : typeof parsed.students}`, 
@@ -96,7 +118,6 @@
                             JSON.stringify(sample, null, 2), 
                             'info');
                         
-                        // Calculate total points
                         const totalPoints = parsed.students.reduce((sum, s) => sum + (s.total_points || 0), 0);
                         const negativePoints = parsed.students.filter(s => s.total_points < 0);
                         
@@ -108,7 +129,6 @@
                     addOutput('❌ Students', 'Tidak ditemukan atau null', 'error');
                 }
                 
-                // Check halaqahs
                 if (parsed.halaqahs) {
                     addOutput('🏛️ Halaqahs', 
                         `Total: ${parsed.halaqahs.length}\nType: ${Array.isArray(parsed.halaqahs) ? 'Array' : typeof parsed.halaqahs}`, 
@@ -117,7 +137,6 @@
                     addOutput('⚠️ Halaqahs', 'Tidak ditemukan', 'warning');
                 }
                 
-                // Check stats
                 if (parsed.stats) {
                     addOutput('📊 Stats', 
                         JSON.stringify(parsed.stats, null, 2), 
@@ -126,13 +145,11 @@
                     addOutput('⚠️ Stats', 'Tidak ditemukan', 'warning');
                 }
                 
-                // Size info
                 const sizeKB = (data.length / 1024).toFixed(2);
                 addOutput('💾 Ukuran Data', 
                     `${sizeKB} KB (${data.length} characters)`, 
                     'info');
                 
-                // Recommendations
                 let recommendations = [];
                 if (parsed.students && parsed.students.length === 0) {
                     recommendations.push('⚠️ Data students kosong - mungkin perlu reload dari Supabase');
@@ -158,8 +175,75 @@
                 addOutput('❌ Error', error.message + '\n\n' + error.stack, 'error');
             }
         }
+
+        function renderHafalanOverview() {
+            clearOutput();
+            
+            const parsed = getParsedData();
+            if (!parsed) {
+                addOutput('❌ halaqahData', 'Tidak ditemukan atau gagal parse JSON', 'error');
+                return;
+            }
+            
+            const students = Array.isArray(parsed.students) ? parsed.students.slice() : [];
+            if (students.length === 0) {
+                addOutput('👥 Hafalan', 'Tidak ada data students', 'warning');
+                return;
+            }
+
+            const lembagaGroups = {};
+            students.forEach(s => {
+                const lembaga = s.lembaga || 'MTA';
+                if (!lembagaGroups[lembaga]) lembagaGroups[lembaga] = [];
+                lembagaGroups[lembaga].push(s);
+            });
+
+            const lembagaNames = Object.keys(lembagaGroups).sort();
+            const lines = [];
+
+            lembagaNames.forEach(lembaga => {
+                const list = lembagaGroups[lembaga];
+                const totalStudents = list.length;
+                const withHafalan = list.filter(s => Number(s.total_hafalan) > 0);
+                const zeroHafalan = list.filter(s => !s.total_hafalan || Number(s.total_hafalan) <= 0);
+                const avgHafalan = list.reduce((sum, s) => sum + (Number(s.total_hafalan) || 0), 0) / (list.length || 1);
+
+                lines.push(`=== ${lembaga} ===`);
+                lines.push(`Total santri: ${totalStudents}`);
+                lines.push(`Santri dengan hafalan > 0: ${withHafalan.length}`);
+                lines.push(`Santri hafalan 0: ${zeroHafalan.length}`);
+                lines.push(`Rata-rata hafalan: ${avgHafalan.toFixed(2)} Juz`);
+                lines.push('');
+
+                const top5 = withHafalan
+                    .slice()
+                    .sort((a, b) => (Number(b.total_hafalan) || 0) - (Number(a.total_hafalan) || 0))
+                    .slice(0, 5);
+
+                if (top5.length > 0) {
+                    lines.push('Top 5 hafalan tertinggi:');
+                    top5.forEach((s, idx) => {
+                        lines.push(`${idx + 1}. ${s.name} (${s.halaqah || '-'}) - ${Number(s.total_hafalan).toFixed(2)} Juz`);
+                    });
+                    lines.push('');
+                }
+
+                const zeroSamples = zeroHafalan.slice(0, 5);
+                if (zeroSamples.length > 0) {
+                    lines.push('Contoh santri hafalan 0:');
+                    zeroSamples.forEach((s, idx) => {
+                        lines.push(`${idx + 1}. ${s.name} (${s.halaqah || '-'})`);
+                    });
+                    lines.push('');
+                }
+
+                lines.push('------------------------------');
+                lines.push('');
+            });
+
+            addOutput('📖 Diagnosa Hafalan per Lembaga', lines.join('\n'), 'info');
+        }
         
-        // Auto diagnose on load
         window.addEventListener('load', () => {
             setTimeout(diagnose, 500);
         });

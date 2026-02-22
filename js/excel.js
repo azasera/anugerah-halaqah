@@ -35,6 +35,130 @@ function showImportExcel() {
                     </button>
                 </div>
                 
+                <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-6">
+                    <h3 class="font-bold text-emerald-900 mb-3 flex items-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                        </svg>
+                        Import Langsung Santri SD 2025
+                    </h3>
+                    <p class="text-sm text-emerald-800 mb-4">
+                        Ambil data santri SD 2025 langsung dari server tanpa perlu file Excel. Sistem hanya akan menambahkan santri baru yang belum ada.
+                    </p>
+                    <button onclick="importFromSdApi()" 
+                        class="w-full bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7h18M3 12h18M3 17h18"></path>
+                        </svg>
+                        Import dari SD 2025
+                    </button>
+                </div>
+
+                <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-6">
+                    <h3 class="font-bold text-emerald-900 mb-3 flex items-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                        </svg>
+                        Import Langsung Santri SMP 2025
+                    </h3>
+                    <p class="text-sm text-emerald-800 mb-4">
+                        Ambil data santri SMP 2025 langsung dari server tanpa perlu file Excel. Sistem hanya akan menambahkan santri baru yang belum ada.
+                    </p>
+                    <button onclick="importFromSmpApi()" 
+                        class="w-full bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7h18M3 12h18M3 17h18"></path>
+                        </svg>
+                        Import dari SMP 2025
+                    </button>
+                </div>
+
+                <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-6">
+                    <h3 class="font-bold text-emerald-900 mb-3 flex items-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                        </svg>
+                        Import Langsung Santri SMA 2025
+                    </h3>
+                    <p class="text-sm text-emerald-800 mb-4">
+                        Ambil data santri SMA 2025 langsung dari server tanpa perlu file Excel. Sistem hanya akan menambahkan santri baru yang belum ada.
+                    </p>
+                    <button onclick="importFromSmaApi()" 
+                        class="w-full bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7h18M3 12h18M3 17h18"></path>
+                        </svg>
+                        Import dari SMA 2025
+                    </button>
+                </div>
+
+                <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-6">
+                    <h3 class="font-bold text-emerald-900 mb-3 flex items-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                        </svg>
+                        Import Langsung Santri MTA 2025
+                    </h3>
+                    <p class="text-sm text-emerald-800 mb-4">
+                        Ambil data santri MTA 2025 langsung dari server tanpa perlu file Excel. Sistem hanya akan menambahkan santri baru yang belum ada.
+                    </p>
+                    <button onclick="importFromMtaApi()" 
+                        class="w-full bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7h18M3 12h18M3 17h18"></path>
+                        </svg>
+                        Import dari MTA 2025
+                    </button>
+                </div>
+
+                <div class="bg-purple-50 border border-purple-200 rounded-2xl p-6">
+                    <h3 class="font-bold text-purple-900 mb-3 flex items-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7h18M3 12h10m-4 5h8"></path>
+                        </svg>
+                        Sinkron Total Hafalan 2025 (per Ustadz)
+                    </h3>
+                    <p class="text-sm text-purple-800 mb-4">
+                        Pilih jenjang lalu masukkan nama ustadz persis seperti di Mutaba&apos;ah
+                        (contoh: <span class="font-mono text-xs bg-white/60 px-1 py-0.5 rounded">USTADZ BASRIAL</span> untuk SD).
+                        Sistem akan mengupdate kolom <span class="font-semibold">Total Hafalan</span> untuk santri yang namanya cocok.
+                    </p>
+                <div class="grid grid-cols-1 md:grid-cols-[1.1fr_1.6fr_1fr] gap-3">
+                        <select id="hafalan-jenjang"
+                            class="w-full px-4 py-3 rounded-xl border border-purple-200 focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none text-sm">
+                            <option value="SDITA" selected>SD (SDITA)</option>
+                            <option value="SMPITA">SMP (SMPITA)</option>
+                            <option value="SMAITA">SMA (SMAITA)</option>
+                            <option value="MTA">MTA</option>
+                        </select>
+                        <input id="hafalan-ustadz-name" type="text" placeholder="Contoh: USTADZ BASRIAL"
+                            class="w-full px-4 py-3 rounded-xl border border-purple-200 focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none text-sm" />
+                        <button onclick="importTotalHafalanSdFromGuru()"
+                            class="w-full bg-purple-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-purple-700 transition-colors flex items-center justify-center gap-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8M3 7h4a2 2 0 012 2v8"></path>
+                            </svg>
+                            Ambil Total Hafalan
+                        </button>
+                    </div>
+                    <p class="mt-2 text-xs text-purple-700">
+                        Catatan: Hanya mengubah <span class="font-semibold">total_hafalan</span>, tidak mengubah poin atau riwayat setoran.
+                    </p>
+                    <p class="mt-1 text-[11px] text-purple-600">
+                        Saran nama ustadz otomatis saat ini hanya tersedia untuk SD 2025.
+                    </p>
+                    <div class="mt-3 border-t border-purple-100 pt-3">
+                        <p class="text-[11px] text-purple-700 mb-2">
+                            Khusus MTA 2025, gunakan tombol berikut untuk sinkron total hafalan seluruh santri MTA
+                            (ustadz: Alim, Naufal, Harziki).
+                        </p>
+                        <button onclick="importTotalHafalanMta()" 
+                            class="w-full bg-purple-50 text-purple-700 border border-purple-300 px-4 py-2 rounded-lg text-xs font-semibold hover:bg-purple-100 transition-colors">
+                            Sinkron Total Hafalan MTA 2025
+                        </button>
+                    </div>
+                </div>
+                
                 <!-- Upload Area -->
                 <div class="border-2 border-dashed border-slate-300 rounded-2xl p-8 text-center hover:border-primary-500 transition-colors">
                     <input type="file" id="excelFileInput" accept=".xlsx,.xls" class="hidden" onchange="handleExcelUpload(event)">
@@ -103,9 +227,79 @@ function showImportExcel() {
     `;
 
     createModal(content, false);
+    attachHafalanGuruSuggestions();
+    const jenjangSelect = document.getElementById('hafalan-jenjang');
+    if (jenjangSelect) {
+        jenjangSelect.addEventListener('change', attachHafalanGuruSuggestions);
+    }
 }
 
 let importedData = null;
+let sdApiImportData = null;
+let sdApiImportTitle = 'Import Santri SD 2025';
+let sdApiImportSuccessSuffix = 'SD 2025';
+let lastHafalanImportSummary = null;
+
+const hafalanGuruSuggestionsCache = {};
+
+async function ensureHafalanGuruSuggestions(lembagaKey) {
+    if (hafalanGuruSuggestionsCache[lembagaKey]) {
+        return hafalanGuruSuggestionsCache[lembagaKey];
+    }
+    let url = '';
+    if (lembagaKey === 'SDITA') {
+        url = 'https://asia-southeast1-mootabaah.cloudfunctions.net/api/listnamasd2025';
+    } else if (lembagaKey === 'SMPITA') {
+        url = 'https://asia-southeast1-mootabaah.cloudfunctions.net/api/listnamasmp2025';
+    } else if (lembagaKey === 'SMAITA') {
+        url = 'https://asia-southeast1-mootabaah.cloudfunctions.net/api/listnamasma2025';
+    } else {
+        return [];
+    }
+    const res = await fetch(url);
+    if (!res.ok) {
+        console.error('Failed to load hafalan guru suggestions for', lembagaKey);
+        return [];
+    }
+    const json = await res.json();
+    const rows = Array.isArray(json.data) ? json.data : [];
+    const guruSet = new Set();
+    rows.forEach(row => {
+        if (!row) return;
+        const raw = row.guruHalaqoh || row.namaHalaqoh || row.halaqah || '';
+        const name = String(raw).trim();
+        if (!name) return;
+        guruSet.add(name);
+    });
+    const list = Array.from(guruSet).sort();
+    hafalanGuruSuggestionsCache[lembagaKey] = list;
+    return list;
+}
+
+async function attachHafalanGuruSuggestions() {
+    try {
+        const input = document.getElementById('hafalan-ustadz-name');
+        if (!input) return;
+        const jenjangSelect = document.getElementById('hafalan-jenjang');
+        const lembagaKey = jenjangSelect ? jenjangSelect.value : 'SDITA';
+        let datalist = document.getElementById('hafalan-guru-suggestions');
+        if (!datalist) {
+            datalist = document.createElement('datalist');
+            datalist.id = 'hafalan-guru-suggestions';
+            document.body.appendChild(datalist);
+        }
+        input.setAttribute('list', 'hafalan-guru-suggestions');
+        const names = await ensureHafalanGuruSuggestions(lembagaKey);
+        datalist.innerHTML = '';
+        names.forEach(name => {
+            const option = document.createElement('option');
+            option.value = name;
+            datalist.appendChild(option);
+        });
+    } catch (e) {
+        console.error('Error loading hafalan guru suggestions', e);
+    }
+}
 
 function downloadExcelTemplate() {
     if (typeof XLSX === 'undefined') {
@@ -137,6 +331,501 @@ function downloadExcelTemplate() {
     XLSX.writeFile(wb, 'Template_Halaqah_Santri.xlsx');
 
     showNotification('📥 Template Excel berhasil didownload!');
+}
+
+async function importFromJenjangApi(config) {
+    try {
+        showNotification(config.loadingText, 'info');
+        const res = await fetch(config.url);
+        if (!res.ok) {
+            showNotification(config.errorText, 'error');
+            return;
+        }
+        const json = await res.json();
+        const rows = Array.isArray(json.data) ? json.data : [];
+        if (rows.length === 0) {
+            showNotification(config.emptyText, 'info');
+            return;
+        }
+
+        sdApiImportTitle = config.previewTitle;
+        sdApiImportSuccessSuffix = config.successSuffix;
+
+        sdApiImportData = rows.map((row, index) => {
+            if (!row) {
+                return { index, canImport: false, reason: 'Data kosong' };
+            }
+            const rawName = row.namaSiswa || row.nama || '';
+            const rawHalaqah = row.namaHalaqoh || row.halaqah || '';
+            const name = String(rawName).trim();
+            const halaqahNameRaw = String(rawHalaqah).trim();
+            const halaqahName = halaqahNameRaw.replace(/^Halaqah\s+/i, '').trim();
+            if (!name || !halaqahName) {
+                return { index, canImport: false, reason: 'Nama atau Halaqah kosong', name, halaqahName, row };
+            }
+            const exists = dashboardData.students.some(s => {
+                if (!s) return false;
+                const sName = String(s.name || '').trim().toLowerCase();
+                const sHalaqah = String(s.halaqah || '').trim().toLowerCase();
+                return sName === name.toLowerCase() && sHalaqah === halaqahName.toLowerCase();
+            });
+            const halaqahExists = dashboardData.halaqahs.some(h => {
+                if (!h || !h.name) return false;
+                const base = String(h.name).replace(/^Halaqah\s+/i, '').trim().toLowerCase();
+                return base === halaqahName.toLowerCase();
+            });
+            let reason = '';
+            let canImport = true;
+            if (exists) {
+                canImport = false;
+                reason = 'Sudah ada di sistem';
+            } else if (!halaqahExists) {
+                canImport = false;
+                reason = 'Halaqah belum ada di sistem';
+            }
+            return {
+                index,
+                row,
+                name,
+                halaqahName,
+                exists,
+                halaqahExists,
+                canImport,
+                reason
+            };
+        });
+
+        if (!sdApiImportData || sdApiImportData.length === 0) {
+            showNotification(config.noImportableText, 'info');
+            return;
+        }
+
+        showSdApiImportPreview();
+    } catch (error) {
+        console.error(config.logPrefix || 'Error importFromJenjangApi', error);
+        showNotification(config.catchErrorText, 'error');
+    }
+}
+
+async function importFromSdApi() {
+    return importFromJenjangApi({
+        url: 'https://asia-southeast1-mootabaah.cloudfunctions.net/api/listnamasd2025',
+        loadingText: '☁️ Mengambil data santri SD 2025...',
+        errorText: '❌ Gagal mengambil data SD 2025 dari server.',
+        emptyText: 'ℹ️ Tidak ada data santri SD 2025 yang diterima.',
+        noImportableText: 'ℹ️ Tidak ada data yang dapat diimport dari SD 2025.',
+        previewTitle: 'Import Santri SD 2025',
+        successSuffix: 'SD 2025',
+        catchErrorText: '❌ Terjadi kesalahan saat import dari SD 2025.',
+        logPrefix: 'Error importFromSdApi'
+    });
+}
+
+async function importFromSmpApi() {
+    return importFromJenjangApi({
+        url: 'https://asia-southeast1-mootabaah.cloudfunctions.net/api/listnamasmp2025',
+        loadingText: '☁️ Mengambil data santri SMP 2025...',
+        errorText: '❌ Gagal mengambil data SMP 2025 dari server.',
+        emptyText: 'ℹ️ Tidak ada data santri SMP 2025 yang diterima.',
+        noImportableText: 'ℹ️ Tidak ada data yang dapat diimport dari SMP 2025.',
+        previewTitle: 'Import Santri SMP 2025',
+        successSuffix: 'SMP 2025',
+        catchErrorText: '❌ Terjadi kesalahan saat import dari SMP 2025.',
+        logPrefix: 'Error importFromSmpApi'
+    });
+}
+
+async function importFromSmaApi() {
+    return importFromJenjangApi({
+        url: 'https://asia-southeast1-mootabaah.cloudfunctions.net/api/listnamasma2025',
+        loadingText: '☁️ Mengambil data santri SMA 2025...',
+        errorText: '❌ Gagal mengambil data SMA 2025 dari server.',
+        emptyText: 'ℹ️ Tidak ada data santri SMA 2025 yang diterima.',
+        noImportableText: 'ℹ️ Tidak ada data yang dapat diimport dari SMA 2025.',
+        previewTitle: 'Import Santri SMA 2025',
+        successSuffix: 'SMA 2025',
+        catchErrorText: '❌ Terjadi kesalahan saat import dari SMA 2025.',
+        logPrefix: 'Error importFromSmaApi'
+    });
+}
+
+async function importFromMtaApi() {
+    return importFromJenjangApi({
+        url: 'https://asia-southeast1-mootabaah.cloudfunctions.net/api/listnamamta2025',
+        loadingText: '☁️ Mengambil data santri MTA 2025...',
+        errorText: '❌ Gagal mengambil data MTA 2025 dari server.',
+        emptyText: 'ℹ️ Tidak ada data santri MTA 2025 yang diterima.',
+        noImportableText: 'ℹ️ Tidak ada data yang dapat diimport dari MTA 2025.',
+        previewTitle: 'Import Santri MTA 2025',
+        successSuffix: 'MTA 2025',
+        catchErrorText: '❌ Terjadi kesalahan saat import dari MTA 2025.',
+        logPrefix: 'Error importFromMtaApi'
+    });
+}
+
+async function importTotalHafalanSdFromGuru() {
+    try {
+        const jenjangSelect = document.getElementById('hafalan-jenjang');
+        const lembagaKey = jenjangSelect ? jenjangSelect.value : 'SDITA';
+
+        const input = document.getElementById('hafalan-ustadz-name');
+        if (!input) {
+            showNotification('❌ Input nama ustadz tidak ditemukan.', 'error');
+            return;
+        }
+        const rawGuru = input.value || '';
+        const guruName = String(rawGuru).trim();
+        if (!guruName) {
+            showNotification('❌ Masukkan nama ustadz terlebih dahulu.', 'error');
+            input.focus();
+            return;
+        }
+
+        if (lembagaKey === 'MTA') {
+            showNotification('ℹ️ Sinkron total hafalan 2025 per ustadz untuk MTA belum tersedia di server Mutaba\'ah.', 'info');
+            return;
+        }
+
+        let jenjangSlug = 'sd';
+        if (lembagaKey === 'SMPITA') {
+            jenjangSlug = 'smp';
+        } else if (lembagaKey === 'SMAITA') {
+            jenjangSlug = 'sma';
+        }
+
+        let normalizedGuru = guruName.toUpperCase().trim().replace(/\s+/g, ' ');
+
+        // Normalisasi prefix: USTADZAH / USTADZ / UST / UST.
+        const parts = normalizedGuru.split(' ');
+        const first = parts[0] || '';
+        const rest = parts.slice(1).join(' ').trim();
+
+        if (first === 'USTADZAH') {
+            normalizedGuru = 'USTADZAH ' + rest;
+        } else if (first === 'USTADZ') {
+            normalizedGuru = 'USTADZ ' + rest;
+        } else if (first === 'UST' || first === 'UST.') {
+            normalizedGuru = 'USTADZ ' + rest;
+        } else {
+            normalizedGuru = 'USTADZ ' + normalizedGuru;
+        }
+
+        const encodedGuru = encodeURIComponent(normalizedGuru);
+        const url = `https://asia-southeast1-mootabaah.cloudfunctions.net/api/totalHafalan2025/${jenjangSlug}/${encodedGuru}`;
+
+        showNotification(`☁️ Mengambil total hafalan 2025 untuk ${guruName} (${lembagaKey})...`, 'info');
+
+        const res = await fetch(url);
+        if (!res.ok) {
+            showNotification('❌ Gagal mengambil data total hafalan dari server.', 'error');
+            return;
+        }
+
+        const json = await res.json();
+        const payload = json && typeof json === 'object' ? json : {};
+        const data = payload.data && typeof payload.data === 'object' ? payload.data : null;
+
+        if (!data || Object.keys(data).length === 0) {
+            showNotification('ℹ️ Tidak ada data hafalan yang diterima untuk ustadz tersebut.', 'info');
+            return;
+        }
+
+        let updatedCount = 0;
+        let notFoundCount = 0;
+        let invalidCount = 0;
+
+        const normalizeName = (name) => {
+            if (!name) return '';
+            return String(name).toLowerCase().replace(/[\s\u00A0]+/g, ' ').trim();
+        };
+
+        const students = Array.isArray(dashboardData.students)
+            ? dashboardData.students.filter(s => s && s.lembaga === lembagaKey)
+            : [];
+
+        Object.entries(data).forEach(([key, value]) => {
+            if (!value || typeof value !== 'object') {
+                invalidCount++;
+                return;
+            }
+
+            const rawName = value.namaSiswa || value.nama || key;
+            const name = String(rawName).trim();
+            if (!name) {
+                invalidCount++;
+                return;
+            }
+
+            const rawTotal = value.totalHafalan;
+            if (rawTotal === undefined || rawTotal === null || rawTotal === '') {
+                invalidCount++;
+                return;
+            }
+
+            let total = 0;
+            if (typeof rawTotal === 'string') {
+                const normalized = rawTotal.replace(',', '.');
+                const parsed = parseFloat(normalized);
+                if (Number.isNaN(parsed)) {
+                    invalidCount++;
+                    return;
+                }
+                total = parsed;
+            } else {
+                const parsed = Number(rawTotal);
+                if (Number.isNaN(parsed)) {
+                    invalidCount++;
+                    return;
+                }
+                total = parsed;
+            }
+
+            const targetNorm = normalizeName(name);
+            const match = students.find(s => normalizeName(s.name) === targetNorm);
+
+            if (!match) {
+                notFoundCount++;
+                return;
+            }
+
+            match.total_hafalan = total;
+            updatedCount++;
+        });
+
+        if (updatedCount === 0) {
+            showNotification('ℹ️ Tidak ada santri yang cocok namanya untuk diupdate total hafalan.', 'info');
+            return;
+        }
+
+        StorageManager.save();
+        refreshAllData();
+
+        lastHafalanImportSummary = {
+            guru: guruName,
+            lembaga: lembagaKey,
+            updatedCount,
+            notFoundCount,
+            invalidCount,
+            timestamp: new Date().toISOString()
+        };
+
+        let message = `✅ Berhasil mengupdate total hafalan ${updatedCount} santri untuk ${guruName}.`;
+        if (notFoundCount > 0 || invalidCount > 0) {
+            message += ` (${notFoundCount} nama tidak ditemukan di sistem, ${invalidCount} data hafalan tidak valid/dikosongkan.)`;
+        }
+        showNotification(message, 'success');
+    } catch (error) {
+        console.error('Error importTotalHafalanSdFromGuru', error);
+        showNotification('❌ Terjadi kesalahan saat sinkron total hafalan SD.', 'error');
+    }
+}
+
+async function importTotalHafalanMta() {
+    try {
+        showNotification('ℹ️ Sinkron total hafalan 2025 untuk MTA (Alim, Naufal, Harziki) belum tersedia di server Mutaba\'ah.', 'info');
+    } catch (error) {
+        console.error('Error importTotalHafalanMta', error);
+        showNotification('❌ Terjadi kesalahan internal saat menjalankan sinkron total hafalan MTA.', 'error');
+    }
+}
+
+function showSdApiImportPreview() {
+    if (!Array.isArray(sdApiImportData) || sdApiImportData.length === 0) {
+        showNotification('ℹ️ Tidak ada data untuk di-preview.', 'info');
+        return;
+    }
+    const canImportCount = sdApiImportData.filter(r => r.canImport).length;
+    const existingCount = sdApiImportData.filter(r => r.exists).length;
+    const missingHalaqahCount = sdApiImportData.filter(r => !r.halaqahExists && r.name && r.halaqahName).length;
+
+    const rowsHtml = sdApiImportData.map((item, idx) => {
+        const selectable = item.canImport;
+        const disabledAttr = selectable ? '' : 'disabled';
+        const checkedAttr = selectable ? 'checked' : '';
+        const status = selectable ? 'Siap diimport' : (item.reason || 'Tidak dapat diimport');
+        const statusColor = selectable ? 'text-emerald-700' : 'text-slate-500';
+        const badge = item.exists ? 'bg-slate-100 text-slate-700' : (!item.halaqahExists ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700');
+        const badgeText = item.exists ? 'Sudah Ada' : (!item.halaqahExists ? 'Halaqah Belum Ada' : 'Baru');
+        return `
+            <tr class="border-b border-slate-100">
+                <td class="p-2 align-top">
+                    <input type="checkbox" class="sd-api-row-check" data-index="${idx}" ${checkedAttr} ${disabledAttr}>
+                </td>
+                <td class="p-2 align-top text-xs text-slate-500">${idx + 1}</td>
+                <td class="p-2 align-top">
+                    <div class="font-semibold text-slate-800 text-sm">${item.name || '-'}</div>
+                    <div class="text-xs text-slate-500">${item.halaqahName || '-'}</div>
+                </td>
+                <td class="p-2 align-top text-xs">
+                    <div class="${statusColor}">${status}</div>
+                    <div class="inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${badge}">
+                        ${badgeText}
+                    </div>
+                </td>
+            </tr>
+        `;
+    }).join('');
+
+    const content = `
+        <div class="p-6">
+            <div class="mb-4">
+                <h3 class="text-2xl font-bold text-slate-800 mb-1">${sdApiImportTitle || 'Import Santri'}</h3>
+                <p class="text-sm text-slate-500">Pilih santri yang akan ditambahkan ke sistem.</p>
+            </div>
+            <div class="grid grid-cols-3 gap-3 mb-4 text-sm">
+                <div class="bg-emerald-50 border border-emerald-100 rounded-xl p-3">
+                    <div class="text-xs text-emerald-700">Siap diimport</div>
+                    <div class="text-xl font-bold text-emerald-800">${canImportCount}</div>
+                </div>
+                <div class="bg-slate-50 border border-slate-200 rounded-xl p-3">
+                    <div class="text-xs text-slate-600">Sudah ada di sistem</div>
+                    <div class="text-xl font-bold text-slate-800">${existingCount}</div>
+                </div>
+                <div class="bg-red-50 border border-red-200 rounded-xl p-3">
+                    <div class="text-xs text-red-700">Halaqah belum ada</div>
+                    <div class="text-xl font-bold text-red-800">${missingHalaqahCount}</div>
+                </div>
+            </div>
+            <div class="flex items-center justify-between mb-2">
+                <div class="flex items-center gap-2 text-xs text-slate-600">
+                    <input type="checkbox" id="sdApiSelectAll" class="rounded border-slate-300">
+                    <label for="sdApiSelectAll" class="cursor-pointer">Pilih semua yang siap diimport</label>
+                </div>
+            </div>
+            <div class="border border-slate-200 rounded-xl max-h-80 overflow-y-auto">
+                <table class="w-full text-left text-sm">
+                    <thead class="bg-slate-50 text-xs text-slate-500 uppercase">
+                        <tr>
+                            <th class="p-2 w-8"></th>
+                            <th class="p-2 w-10">No</th>
+                            <th class="p-2">Santri</th>
+                            <th class="p-2 w-40">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sdApiImportTableBody">
+                        ${rowsHtml}
+                    </tbody>
+                </table>
+            </div>
+            <div class="flex gap-3 mt-5">
+                <button onclick="confirmSdApiImport()" class="flex-1 bg-emerald-600 text-white py-3 rounded-xl font-bold hover:bg-emerald-700 transition-colors">
+                    Import Terpilih
+                </button>
+                <button onclick="closeModal()" class="px-6 py-3 rounded-xl font-bold text-slate-600 hover:bg-slate-100 transition-colors">
+                    Batal
+                </button>
+            </div>
+        </div>
+    `;
+
+    createModal(content, false);
+
+    const selectAll = document.getElementById('sdApiSelectAll');
+    if (selectAll) {
+        selectAll.addEventListener('change', () => {
+            const checks = document.querySelectorAll('.sd-api-row-check');
+            checks.forEach(c => {
+                if (c.disabled) return;
+                c.checked = selectAll.checked;
+            });
+        });
+    }
+}
+
+function confirmSdApiImport() {
+    if (!Array.isArray(sdApiImportData) || sdApiImportData.length === 0) {
+        showNotification('ℹ️ Tidak ada data untuk diimport.', 'info');
+        return;
+    }
+    const checks = document.querySelectorAll('.sd-api-row-check');
+    const selectedIndices = [];
+    checks.forEach(c => {
+        if (c.checked && !c.disabled && c.dataset.index !== undefined) {
+            const idx = parseInt(c.dataset.index, 10);
+            if (!Number.isNaN(idx)) selectedIndices.push(idx);
+        }
+    });
+    if (selectedIndices.length === 0) {
+        showNotification('ℹ️ Tidak ada santri yang dipilih untuk diimport.', 'info');
+        return;
+    }
+
+    let created = 0;
+    
+    // Calculate next ID
+    let nextId = dashboardData.students.reduce((max, s) => {
+        const id = parseInt(s.id);
+        return !isNaN(id) && id < 1000000000 ? Math.max(max, id) : max; // Only consider valid int IDs
+    }, 0) + 1;
+
+    // Safety check: if nextId is too small (empty DB), start at 1
+    if (nextId < 1) nextId = 1;
+
+    selectedIndices.forEach(idx => {
+        const item = sdApiImportData[idx];
+        if (!item || !item.canImport || !item.row) return;
+        const row = item.row;
+        const name = item.name;
+        const halaqahName = item.halaqahName;
+        dashboardData.students.push({
+            id: nextId++,
+            name: name,
+            halaqah: halaqahName,
+            nisn: row.nisn ? String(row.nisn).trim() : '',
+            nik: row.nik ? String(row.nik).trim() : '',
+            lembaga: row.lembaga ? String(row.lembaga).trim() : undefined,
+            kelas: row.kelas ? String(row.kelas).trim() : '',
+            jenis_kelamin: row.jenis_kelamin ? String(row.jenis_kelamin).trim() : '',
+            tempat_lahir: row.tempat_lahir ? String(row.tempat_lahir).trim() : '',
+            tanggal_lahir: row.tanggal_lahir ? String(row.tanggal_lahir).trim() : '',
+            alamat: row.alamat ? String(row.alamat).trim() : '',
+            hp: row.hp ? String(row.hp).trim() : '',
+            nama_ayah: row.nama_ayah ? String(row.nama_ayah).trim() : '',
+            nama_ibu: row.nama_ibu ? String(row.nama_ibu).trim() : '',
+            sekolah_asal: row.sekolah_asal ? String(row.sekolah_asal).trim() : '',
+            total_points: 0,
+            daily_ranking: dashboardData.students.length + 1,
+            overall_ranking: dashboardData.students.length + 1,
+            streak: 0,
+            lastActivity: 'Baru ditambahkan',
+            achievements: [],
+            setoran: [],
+            lastSetoranDate: ''
+        });
+        created++;
+    });
+
+    if (created > 0) {
+        recalculateRankings();
+        StorageManager.save();
+        
+        // SYNC TO SUPABASE - Critical for persistence
+        if (typeof syncStudentsToSupabase === 'function' && navigator.onLine) {
+            showNotification('☁️ Menyimpan data ke database...', 'info');
+            syncStudentsToSupabase().then(result => {
+                if (result && result.status === 'success') {
+                    showNotification('✅ Data berhasil tersimpan permanen.', 'success');
+                } else if (result && result.status && result.status.startsWith('skipped_')) {
+                    showNotification('⚠️ Data tersimpan lokal, tetapi belum tersimpan di server.', 'warning');
+                } else {
+                    showNotification('✅ Proses sinkronisasi selesai.', 'success');
+                }
+            }).catch(err => {
+                console.error('Sync failed:', err);
+                showNotification('⚠️ Data tersimpan lokal, tapi gagal sync ke server.', 'warning');
+            });
+        }
+
+        if (window.autoSync) autoSync();
+        refreshAllData();
+        closeModal();
+        const suffix = sdApiImportSuccessSuffix || '';
+        showNotification(`✅ Import ${suffix} selesai. Ditambahkan ${created} santri baru.`, 'success');
+    } else {
+        showNotification('ℹ️ Tidak ada santri baru yang diimport.', 'info');
+    }
+
+    sdApiImportData = null;
 }
 
 function handleExcelUpload(event) {
@@ -235,6 +924,7 @@ function processExcelData(data) {
         nisn: findCol(['nisn']),
         nik: findCol(['nik', 'ktp']),
         lembaga: findCol(['lembaga', 'sekolah', 'jenjang']),
+        alumni: findCol(['alumni', 'alumni/non alumni', 'alumni / non alumni', 'status alumni']),
         // New fields
         jenis_kelamin: findCol(['jenis kelamin', 'jk', 'l/p', 'gender']),
         tempat_lahir: findCol(['tempat lahir']),
@@ -376,6 +1066,20 @@ function processExcelData(data) {
             console.log(`[DEBUG] Parsed TTL combined at row ${rowNum}:`, { raw: ttlCombined, tempat: derivedTempatLahir, tanggal: derivedTanggalLahir });
         }
 
+        // Alumni / Non Alumni parsing
+        let rawAlumni = (colMap.alumni !== -1 && row[colMap.alumni]) ? String(row[colMap.alumni]).trim() : '';
+        let isAlumni = false;
+        let kategori = '';
+        if (rawAlumni) {
+            const lower = rawAlumni.toLowerCase();
+            const hasAlumni = lower.includes('alumni');
+            const hasNon = lower.includes('non') || lower.includes('bukan');
+            if (hasAlumni && !hasNon) {
+                isAlumni = true;
+            }
+            kategori = rawAlumni;
+        }
+
         // Add student data to processing list
         students.push({
             rowNum: rowNum, // Store for error reporting later
@@ -400,7 +1104,9 @@ function processExcelData(data) {
             hp: (colMap.hp !== -1 && row[colMap.hp]) ? String(row[colMap.hp]).trim() : '',
             nama_ayah: (colMap.nama_ayah !== -1 && row[colMap.nama_ayah]) ? String(row[colMap.nama_ayah]).trim() : '',
             nama_ibu: (colMap.nama_ibu !== -1 && row[colMap.nama_ibu]) ? String(row[colMap.nama_ibu]).trim() : '',
-            sekolah_asal: (colMap.sekolah_asal !== -1 && row[colMap.sekolah_asal]) ? String(row[colMap.sekolah_asal]).trim() : ''
+            sekolah_asal: (colMap.sekolah_asal !== -1 && row[colMap.sekolah_asal]) ? String(row[colMap.sekolah_asal]).trim() : '',
+            is_alumni: isAlumni,
+            kategori: kategori
         });
 
         if (halaqahName !== 'Unknown' && halaqahs.has(halaqahName)) {
@@ -544,6 +1250,13 @@ function confirmImport() {
     let newStudents = 0;
     let updatedStudents = 0;
 
+    // Calculate next ID for safe integer generation
+    let nextId = dashboardData.students.reduce((max, s) => {
+        const id = parseInt(s.id);
+        return !isNaN(id) && id < 1000000000 ? Math.max(max, id) : max;
+    }, 0) + 1;
+    if (nextId < 1) nextId = 1;
+
     // Detailed Result Tracking
     const results = {
         success: [],
@@ -575,7 +1288,7 @@ function confirmImport() {
         } else {
             // ADD new halaqah
             dashboardData.halaqahs.push({
-                id: Date.now() + Math.floor(Math.random() * 1000),
+                id: Date.now() + Math.floor(Math.random() * 1000), // Halaqah ID can be random/timestamp, less critical than Student ID
                 name: h.name,
                 points: 0,
                 rank: dashboardData.halaqahs.length + 1,
@@ -707,6 +1420,8 @@ function confirmImport() {
             if (s.nama_ayah) existing.nama_ayah = s.nama_ayah;
             if (s.nama_ibu) existing.nama_ibu = s.nama_ibu;
             if (s.sekolah_asal) existing.sekolah_asal = s.sekolah_asal;
+            if (typeof s.is_alumni === 'boolean') existing.is_alumni = s.is_alumni;
+            if (s.kategori) existing.kategori = s.kategori;
 
             updatedStudents++;
             results.success.push({ name: s.name, action: 'Updated' });
@@ -724,7 +1439,7 @@ function confirmImport() {
 
             // ADD new student
             dashboardData.students.push({
-                id: Date.now() + Math.floor(Math.random() * 1000),
+                id: nextId++,
                 name: s.name.trim(),
                 halaqah: s.halaqah.trim(),
                 nisn: s.nisn ? s.nisn.trim() : '',
@@ -740,6 +1455,8 @@ function confirmImport() {
                 nama_ayah: s.nama_ayah || '',
                 nama_ibu: s.nama_ibu || '',
                 sekolah_asal: s.sekolah_asal || '',
+                is_alumni: typeof s.is_alumni === 'boolean' ? s.is_alumni : false,
+                kategori: s.kategori || '',
 
                 total_points: 0,
                 daily_ranking: dashboardData.students.length + 1,
@@ -757,14 +1474,48 @@ function confirmImport() {
 
     recalculateRankings();
     StorageManager.save();
-    if (window.autoSync) autoSync();
-
+    
+    // Close modal and show results first (Optimistic UI)
     closeModal();
     refreshAllData();
-
-    // Show detailed Result Report
     showImportResultModal(results, newHalaqahs, updatedHalaqahs, newStudents, updatedStudents);
     importedData = null;
+
+    // SYNC TO SUPABASE - Critical for persistence
+    if (navigator.onLine) {
+        showNotification('☁️ Menyimpan data ke database server...', 'info');
+        
+        const syncPromises = [];
+        if (typeof syncHalaqahsToSupabase === 'function') {
+            syncPromises.push(syncHalaqahsToSupabase());
+        }
+        if (typeof syncStudentsToSupabase === 'function') {
+            syncPromises.push(syncStudentsToSupabase());
+        }
+
+        Promise.all(syncPromises)
+            .then(results => {
+                const studentSync = results.find(r => r && r.status);
+                if (studentSync && studentSync.status === 'success') {
+                    showNotification('✅ Data berhasil tersimpan permanen di server.', 'success');
+                } else if (studentSync && studentSync.status && studentSync.status.startsWith('skipped_')) {
+                    showNotification('⚠️ Data tersimpan lokal, tetapi belum tersimpan di server.', 'warning');
+                } else {
+                    showNotification('✅ Proses sinkronisasi selesai.', 'success');
+                }
+            })
+            .catch(err => {
+                console.error('Import Sync Failed:', err);
+                showNotification('⚠️ Data tersimpan lokal, tapi GAGAL sync ke server. Cek koneksi & coba lagi.', 'warning');
+            });
+    }
+
+    if (window.autoSync) {
+        // Debounce autoSync to avoid double hit
+        setTimeout(() => {
+            if (!window.syncInProgress) autoSync();
+        }, 5000);
+    }
 }
 
 function showImportResultModal(results, newH, updH, newS, updS) {
@@ -932,3 +1683,8 @@ window.handleExcelUpload = handleExcelUpload;
 window.confirmImport = confirmImport;
 window.cancelImport = cancelImport;
 window.exportToExcel = exportToExcel;
+window.importFromSdApi = importFromSdApi;
+window.importFromSmpApi = importFromSmpApi;
+window.importFromSmaApi = importFromSmaApi;
+window.importFromMtaApi = importFromMtaApi;
+window.importTotalHafalanMta = importTotalHafalanMta;

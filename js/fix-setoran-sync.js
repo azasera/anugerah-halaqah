@@ -143,9 +143,11 @@ if (originalHandleSetoran) {
             }
         }
 
-        // Update Total Hafalan
+        // Update Total Hafalan (store as Juz)
         if (!student.total_hafalan) student.total_hafalan = 0;
-        student.total_hafalan += parseFloat(halaman);
+        const hal = parseFloat(halaman) || 0;
+        const juzIncrement = hal / 20;
+        student.total_hafalan += juzIncrement;
         student.total_hafalan = Math.round(student.total_hafalan * 100) / 100;
 
         console.log('📊 Updated student:', {

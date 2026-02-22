@@ -191,7 +191,19 @@ function getStudentsForCurrentUser() {
         const halaqahNames = taughtHalaqahs.map(h => h.name.replace(/^Halaqah\s+/i, '').trim().toLowerCase());
         console.log('   Halaqah names:', halaqahNames);
         
-        const filtered = dashboardData.students.filter(s => halaqahNames.includes(String(s.halaqah).trim().toLowerCase()));
+        const filtered = dashboardData.students.filter(s => {
+            const raw = String(s.halaqah || '').trim().toLowerCase();
+            const nameWithoutPrefix = raw.replace(/^halaqah\s+/i, '').trim();
+
+            if (halaqahNames.includes(raw) || halaqahNames.includes(nameWithoutPrefix)) {
+                return true;
+            }
+
+            const hName = nameWithoutPrefix;
+            const matchGuru = hName === guruName || hName.includes(guruName) || guruName.includes(hName);
+
+            return matchGuru;
+        });
         console.log('   ✅ Filtered students:', filtered.length);
         
         return filtered;

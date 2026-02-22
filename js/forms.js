@@ -1,5 +1,88 @@
 // Forms and CRUD Operations Module
 
+let sdNameSuggestionsLoaded = false;
+let sdNameSuggestionRows = [];
+let sdNameAutoFillAttached = false;
+
+async function attachSdNameSuggestions() {
+    try {
+        const input = document.querySelector('input[name="name"]');
+        if (!input) return;
+
+        let datalist = document.getElementById('sd-name-suggestions');
+        if (!datalist) {
+            datalist = document.createElement('datalist');
+            datalist.id = 'sd-name-suggestions';
+            document.body.appendChild(datalist);
+        }
+
+        input.setAttribute('list', 'sd-name-suggestions');
+        if (!sdNameAutoFillAttached) {
+            const handler = () => autoFillStudentFromSdName(input);
+            input.addEventListener('change', handler);
+            input.addEventListener('blur', handler);
+            sdNameAutoFillAttached = true;
+        }
+
+        if (sdNameSuggestionsLoaded) return;
+        sdNameSuggestionsLoaded = true;
+
+        const res = await fetch('https://asia-southeast1-mootabaah.cloudfunctions.net/api/listnamasd2025');
+        if (!res.ok) {
+            console.error('Failed to load SD name suggestions');
+            return;
+        }
+        const json = await res.json();
+        const rows = Array.isArray(json.data) ? json.data : [];
+        sdNameSuggestionRows = rows;
+
+        datalist.innerHTML = '';
+        rows.forEach(row => {
+            if (!row || !row.namaSiswa) return;
+            const option = document.createElement('option');
+            option.value = row.namaSiswa;
+            option.label = `${row.namaSiswa} - ${row.namaHalaqoh || ''} ${row.kelas ? '(' + row.kelas + ')' : ''}`.trim();
+            datalist.appendChild(option);
+        });
+    } catch (e) {
+        console.error('Error loading SD name suggestions', e);
+    }
+}
+
+function autoFillStudentFromSdName(input) {
+    try {
+        if (!input) return;
+        const rawName = input.value;
+        if (!rawName) return;
+
+        const name = String(rawName).trim().toLowerCase();
+        if (!name || !Array.isArray(sdNameSuggestionRows) || sdNameSuggestionRows.length === 0) return;
+
+        const row = sdNameSuggestionRows.find(r => {
+            if (!r || !r.namaSiswa) return false;
+            return String(r.namaSiswa).trim().toLowerCase() === name;
+        });
+
+        if (!row) return;
+
+        const form = input.closest('form');
+        if (!form) return;
+
+        const halaqahSelect = form.querySelector('select[name="halaqah"]');
+        if (halaqahSelect && row.namaHalaqoh) {
+            const normalized = String(row.namaHalaqoh).replace(/^Halaqah\s+/i, '').trim();
+            if (!normalized) return;
+
+            const hasOption = Array.from(halaqahSelect.options || []).some(opt => opt.value === normalized);
+            if (hasOption) {
+                halaqahSelect.value = normalized;
+            }
+        }
+    } catch (e) {
+        console.error('Error in autoFillStudentFromSdName', e);
+    }
+}
+
 function showAddStudentForm() {
     const content = `
         <div class="p-8">
@@ -20,7 +103,7 @@ function showAddStudentForm() {
                     <label class="block text-sm font-bold text-slate-700 mb-2">Nama Santri</label>
                     <input type="text" name="name" required 
                         class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all"
-                        placeholder="Masukkan nama lengkap">
+                        placeholder="Masukkan nama lengkap (ketik untuk menampilkan daftar SD 2025)">
                 </div>
                 
                 <div>
@@ -32,6 +115,21 @@ function showAddStudentForm() {
                             <option value="${h.name.replace('Halaqah ', '')}">${h.name}</option>
                         `).join('')}
                     </select>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2">NIS / NISN</label>
+                        <input type="text" name="nisn" 
+                            class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all"
+                            placeholder="Nomor Induk Siswa">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2">NIK</label>
+                        <input type="text" name="nik" 
+                            class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all"
+                            placeholder="Nomor Induk Kependudukan">
+                    </div>
                 </div>
 
                 <div class="grid grid-cols-2 gap-4">
@@ -117,6 +215,8 @@ function showAddStudentForm() {
     `;
 
     createModal(content, false);
+
+    attachSdNameSuggestions();
 }
 
 function showEditStudentForm(student, fromAdmin = false) {
@@ -161,6 +261,21 @@ function showEditStudentForm(student, fromAdmin = false) {
                             </option>
                         `).join('')}
                     </select>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2">NIS / NISN</label>
+                        <input type="text" name="nisn" value="${student.nisn || ''}"
+                            class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all"
+                            placeholder="Nomor Induk Siswa">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2">NIK</label>
+                        <input type="text" name="nik" value="${student.nik || ''}"
+                            class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all"
+                            placeholder="Nomor Induk Kependudukan">
+                    </div>
                 </div>
 
                 <div class="grid grid-cols-2 gap-4">
@@ -359,6 +474,8 @@ function handleAddStudent(event) {
     const newStudent = {
         id: Date.now(),
         name: formData.get('name'),
+        nisn: formData.get('nisn')?.trim() || '',
+        nik: formData.get('nik')?.trim() || '',
         halaqah: formData.get('halaqah'),
         total_points: parseInt(formData.get('points')),
 
@@ -395,8 +512,9 @@ function handleEditStudent(event, studentId, fromAdmin = false) {
     const student = dashboardData.students.find(s => s.id === studentId);
     if (student) {
         student.name = formData.get('name');
+        student.nisn = (formData.get('nisn') || '').trim();
+        student.nik = (formData.get('nik') || '').trim();
         student.halaqah = formData.get('halaqah');
-        student.total_points = parseInt(formData.get('points'));
 
         // Update New Fields
         student.jenis_kelamin = formData.get('jenis_kelamin');
@@ -407,8 +525,6 @@ function handleEditStudent(event, studentId, fromAdmin = false) {
         student.nama_ayah = formData.get('nama_ayah');
         student.nama_ibu = formData.get('nama_ibu');
         student.sekolah_asal = formData.get('sekolah_asal');
-
-        student.streak = parseInt(formData.get('streak'));
 
         recalculateRankings();
         StorageManager.save();

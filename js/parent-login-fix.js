@@ -1,5 +1,66 @@
 // Parent Login Fix - Auto-load script
 // This script ensures parent-child link works correctly
+//
+function formatHafalan(value) {
+    const n = Number(value);
+    if (Number.isNaN(n) || n <= 0) return '0';
+    const fixed = n.toFixed(2);
+    return fixed.replace(/\.?0+$/, '');
+}
+
+function getHafalanProgressPercent(value, targetJuz = 30) {
+    const n = Number(value);
+    const target = Number(targetJuz) || 30;
+    if (Number.isNaN(n) || n <= 0) return 0;
+    const percent = (n / target) * 100;
+    if (percent < 0) return 0;
+    if (percent > 100) return 100;
+    return Math.round(percent);
+}
+
+function getTargetHafalanJuz(student) {
+    if (!student) return 30;
+
+    const lembaga = (student.lembaga || 'MTA').toUpperCase();
+    const kelasRaw = (student.kelas || '').toString().toLowerCase();
+    const match = kelasRaw.match(/\d+/);
+    const kelasNum = match ? parseInt(match[0], 10) : null;
+
+    if (lembaga === 'SDITA') {
+        if (kelasNum === 1) return 0.55;
+        if (kelasNum === 2) return 1.3;
+        if (kelasNum === 3) return 2.15;
+        if (kelasNum === 4) return 3.3;
+        if (kelasNum === 5) return 4.45;
+        if (kelasNum === 6) return 5;
+        return 5;
+    }
+
+    if (lembaga === 'SMPITA') {
+        if (kelasNum === 7) return 1.5;
+        if (kelasNum === 8) return 3.5;
+        if (kelasNum === 9) return 5;
+        return 5;
+    }
+
+    if (lembaga === 'SMAITA') {
+        const kategoriStr = String(student.kategori || '').toLowerCase();
+        const statusStr = String(student.status || '').toLowerCase();
+        const kategoriHasAlumni = kategoriStr.includes('alumni');
+        const kategoriHasNon = kategoriStr.includes('non') || kategoriStr.includes('bukan');
+        const statusHasAlumni = statusStr.includes('alumni');
+        const statusHasNon = statusStr.includes('non') || statusStr.includes('bukan');
+        const isAlumni = student.is_alumni === true ||
+            ((kategoriHasAlumni || statusHasAlumni) && !(kategoriHasNon || statusHasNon));
+
+        if (kelasNum === 10) return isAlumni ? 6.5 : 1.5;
+        if (kelasNum === 11) return isAlumni ? 8.5 : 3.5;
+        if (kelasNum === 12) return isAlumni ? 10 : 5;
+        return isAlumni ? 10 : 5;
+    }
+
+    return 30;
+}
 
 console.log('🔧 Parent Login Fix loaded');
 
@@ -127,7 +188,10 @@ console.log('🔧 Parent Login Fix loaded');
                 
                 const student = window.currentUserChild;
                 const isTop = student.overall_ranking <= 3;
-                const row = document.createElement('tr');
+                        const targetJuz = getTargetHafalanJuz(student);
+                        const hafalanPercent = getHafalanProgressPercent(student.total_hafalan, targetJuz);
+
+                        const row = document.createElement('tr');
                 row.className = "hover:bg-slate-50/80 transition-colors group cursor-pointer";
                 row.onclick = () => showStudentDetail(student);
 
@@ -146,7 +210,9 @@ console.log('🔧 Parent Login Fix loaded');
                     <td class="px-6 py-4">
                         <div>
                             <div class="font-bold text-slate-800 group-hover:text-primary-600 transition-colors">${student.name}</div>
-                            <div class="text-xs text-slate-500 mt-0.5">${student.halaqah}</div>
+                            <div class="text-xs text-slate-500 mt-0.5">
+                                ${student.halaqah}${student.kelas ? ' · ' + student.kelas : ''}
+                            </div>
                         </div>
                     </td>
                     <td class="px-6 py-4">
@@ -155,11 +221,19 @@ console.log('🔧 Parent Login Fix loaded');
                         </div>
                     </td>
                     <td class="px-6 py-4">
-                        <div class="inline-flex items-center gap-1 text-slate-700 font-semibold">
-                            <svg class="w-4 h-4 text-accent-teal" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                            </svg>
-                            ${student.total_hafalan || 0} Hal
+                        <div class="flex flex-col gap-1 text-slate-700 font-semibold">
+                            <div class="inline-flex items-center gap-1">
+                                <svg class="w-4 h-4 text-accent-teal" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                                </svg>
+                                <span>${formatHafalan(student.total_hafalan)} Juz</span>
+                            </div>
+                            <div class="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                                <div class="h-full bg-emerald-400 rounded-full" style="width: ${hafalanPercent}%;"></div>
+                            </div>
+                            <div class="text-[11px] text-slate-500">
+                                ${hafalanPercent}% dari ${targetJuz} Juz
+                            </div>
                         </div>
                     </td>
                     <td class="px-6 py-4 text-center">

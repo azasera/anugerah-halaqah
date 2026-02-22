@@ -1,4 +1,11 @@
 // Ranking Slider Module - Auto-sliding carousel for rankings
+//
+function formatHafalan(value) {
+    const n = Number(value);
+    if (Number.isNaN(n) || n <= 0) return '0';
+    const fixed = n.toFixed(2);
+    return fixed.replace(/\.?0+$/, '');
+}
 
 let currentSlide = 0;
 let autoPlayInterval = null;
@@ -340,7 +347,7 @@ function renderHafalanLeaders(container) {
                                 <span class="text-[10px] font-bold text-white/50">${idx + 1}</span>
                                 <span class="text-xs font-bold text-white truncate">${s.name}</span>
                             </div>
-                            <span class="text-[10px] font-bold text-emerald-400 whitespace-nowrap">${s.total_hafalan || 0} Hal</span>
+                            <span class="text-[10px] font-bold text-emerald-400 whitespace-nowrap">${formatHafalan(s.total_hafalan)} Juz</span>
                         </div>
                     `).join('')}
                 </div>

@@ -45,7 +45,28 @@ function filterStudents(searchTerm, halaqahFilter = 'all', lembagaFilter = 'all'
     }
 
     if (lembagaFilter !== 'all') {
-        filtered = filtered.filter(s => s.lembaga === lembagaFilter);
+        if (lembagaFilter.startsWith('SDITA_')) {
+            const parts = lembagaFilter.split('_');
+            const kelasTarget = parts.length > 1 ? parseInt(parts[1], 10) : null;
+
+            filtered = filtered.filter(s => {
+                const lembaga = (s.lembaga || '').toUpperCase().trim();
+                if (lembaga !== 'SDITA') return false;
+
+                if (!kelasTarget || Number.isNaN(kelasTarget)) return true;
+
+                const kelasRaw = (s.kelas || '').toString().toLowerCase();
+                const match = kelasRaw.match(/\d+/);
+                const kelasNum = match ? parseInt(match[0], 10) : null;
+
+                return kelasNum === kelasTarget;
+            });
+        } else {
+            filtered = filtered.filter(s => {
+                const lembaga = (s.lembaga || '').toUpperCase().trim();
+                return lembaga === lembagaFilter.toUpperCase();
+            });
+        }
     }
 
     return filtered;

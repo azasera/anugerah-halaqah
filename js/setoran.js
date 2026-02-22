@@ -324,10 +324,11 @@ function handleSetoran(event, studentId) {
         }
     }
 
-    // Update Total Hafalan
+    // Update Total Hafalan (store as Juz)
     if (!student.total_hafalan) student.total_hafalan = 0;
-    student.total_hafalan += parseFloat(halaman);
-    // Round to 2 decimal places to avoid floating point issues
+    const hal = parseFloat(halaman) || 0;
+    const juzIncrement = hal / 20;
+    student.total_hafalan += juzIncrement;
     student.total_hafalan = Math.round(student.total_hafalan * 100) / 100;
 
     recalculateRankings();
@@ -460,8 +461,8 @@ function deleteSetoran(studentId, setoranId) {
     student.total_points -= setoran.poin;
     if (student.total_points < 0) student.total_points = 0;
 
-    // Revert hafalan
-    student.total_hafalan -= setoran.halaman;
+    // Revert hafalan (stored as Juz)
+    student.total_hafalan -= (setoran.halaman || 0) / 20;
     if (student.total_hafalan < 0) student.total_hafalan = 0;
     // Fix floating point issues
     student.total_hafalan = Math.round(student.total_hafalan * 100) / 100;

@@ -26,6 +26,94 @@ function isTransientSupabaseError(error) {
     return false;
 }
 
+function deduplicateStudentsByIdentity(students) {
+    const protectedIds = new Set();
+
+    try {
+        if (typeof userSantriData !== 'undefined' && userSantriData && Array.isArray(userSantriData.relationships)) {
+            userSantriData.relationships.forEach(r => {
+                if (r && r.santriId !== undefined && r.santriId !== null) {
+                    protectedIds.add(r.santriId);
+                }
+            });
+        }
+    } catch (e) {
+    }
+
+    try {
+        if (typeof currentUserChild !== 'undefined' && currentUserChild && currentUserChild.id) {
+            protectedIds.add(currentUserChild.id);
+        }
+        if (typeof window !== 'undefined') {
+            if (window.currentUserChild && window.currentUserChild.id) {
+                protectedIds.add(window.currentUserChild.id);
+            }
+            if (window.getCurrentUserChild && typeof window.getCurrentUserChild === 'function') {
+                const c = window.getCurrentUserChild();
+                if (c && c.id) {
+                    protectedIds.add(c.id);
+                }
+            }
+        }
+    } catch (e) {
+    }
+
+    const keyToStudent = new Map();
+
+    for (const s of students) {
+        const nisn = s.nisn ? String(s.nisn).trim() : '';
+        const nik = s.nik ? String(s.nik).trim() : '';
+
+        let key = '';
+        if (nisn) {
+            key = `nisn:${nisn}`;
+        } else if (nik) {
+            key = `nik:${nik}`;
+        } else {
+            key = `id:${s.id}`;
+        }
+
+        const existing = keyToStudent.get(key);
+        if (!existing) {
+            keyToStudent.set(key, s);
+            continue;
+        }
+
+        const existingId = parseInt(existing.id);
+        const newId = parseInt(s.id);
+        const existingProtected = protectedIds.has(existingId);
+        const newProtected = protectedIds.has(newId);
+
+        let keep = existing;
+        let drop = s;
+
+        if (existingProtected && !newProtected) {
+            keep = existing;
+            drop = s;
+        } else if (!existingProtected && newProtected) {
+            keep = s;
+            drop = existing;
+        } else {
+            const existingScore =
+                (parseFloat(existing.total_hafalan) || 0) +
+                (parseInt(existing.total_points) || 0) / 1000;
+            const newScore =
+                (parseFloat(s.total_hafalan) || 0) +
+                (parseInt(s.total_points) || 0) / 1000;
+
+            if (newScore > existingScore) {
+                keep = s;
+                drop = existing;
+            }
+        }
+
+        keyToStudent.set(key, keep);
+        console.log('[DEDUP] Removing duplicate student:', drop.name, 'key:', key);
+    }
+
+    return Array.from(keyToStudent.values());
+}
+
 // Show sync status
 function showSyncStatus(message, type = 'info') {
     const statusEl = document.getElementById('syncStatus');
@@ -51,26 +139,27 @@ function showSyncStatus(message, type = 'info') {
 async function syncStudentsToSupabase() {
     if (!isOnline) {
         console.log('Offline - data will sync when online');
-        return;
+        return { status: 'skipped_offline' };
     }
 
     // AUTH CHECK: Allow admin and guru to write to DB
     const profile = window.currentProfile;
     if (!profile || (profile.role !== 'admin' && profile.role !== 'guru')) {
         console.warn('⛔ Sync blocked: User is not admin or guru');
-        return;
+        return { status: 'skipped_permission' };
     }
 
     // Prevent concurrent syncs and realtime loops
     if (window.syncInProgress) {
         console.log('⏭️ Sync already in progress, skipping...');
-        return;
+        return { status: 'skipped_in_progress' };
     }
 
     try {
         window.syncInProgress = true;
         isSyncing = true;
-        // Silent sync - no notification
+
+        dashboardData.students = deduplicateStudentsByIdentity(dashboardData.students);
 
         // Upsert students
         // Validate and clean data before upsert
@@ -133,11 +222,13 @@ async function syncStudentsToSupabase() {
             console.log('No valid students to sync');
             isSyncing = false;
             window.syncInProgress = false;
-            return;
+            return { status: 'skipped_empty' };
         }
 
         // Split into chunks to avoid too large payload or complex conflicts
         const chunkSize = 20; // Reduce from 50 to 20 to avoid connection issues
+        const failures = [];
+
         for (let i = 0; i < uniqueStudents.length; i += chunkSize) {
             const chunk = uniqueStudents.slice(i, i + chunkSize);
 
@@ -159,22 +250,28 @@ async function syncStudentsToSupabase() {
                 await new Promise(resolve => setTimeout(resolve, 500));
             } catch (chunkError) {
                 console.error(`[SYNC] Failed to upload chunk ${Math.floor(i / chunkSize) + 1}:`, chunkError);
+                failures.push(chunkError);
                 // Continue with next chunk instead of failing completely
             }
         }
 
-        // Success - no notification (silent sync)
+        if (failures.length > 0) {
+            throw new Error(`Sync failed for ${failures.length} chunks. Check console for details.`);
+        }
+
         isSyncing = false;
 
-        // Clear flag after a delay to allow realtime updates to settle
         setTimeout(() => {
             window.syncInProgress = false;
         }, 2000);
+
+        return { status: 'success', count: uniqueStudents.length };
     } catch (error) {
         console.error('Error syncing students:', error);
         showSyncStatus('❌ Gagal sinkronisasi santri', 'error');
         isSyncing = false;
         window.syncInProgress = false;
+        throw error;
     }
 }
 
@@ -232,13 +329,12 @@ async function loadStudentsFromSupabase() {
         if (error) throw error;
 
         if (data && data.length > 0) {
-            // Create a map of existing students for quick lookup to preserve local data if remote is missing
             const existingMap = new Map();
             if (dashboardData && dashboardData.students) {
                 dashboardData.students.forEach(s => existingMap.set(s.id, s));
             }
 
-            dashboardData.students = data.map(s => {
+            const mappedStudents = data.map(s => {
                 const existing = existingMap.get(s.id);
 
                 // Helper to merge fields from Supabase and local data
@@ -273,7 +369,17 @@ async function loadStudentsFromSupabase() {
                     return fallback;
                 };
 
-                return {
+                const localHafalan = existing ? parseFloat(existing.total_hafalan) : NaN;
+                const remoteHafalan = parseFloat(s.total_hafalan);
+                let totalHafalan = 0;
+                if (!Number.isNaN(remoteHafalan) && remoteHafalan > 0) {
+                    totalHafalan = remoteHafalan;
+                } else if (!Number.isNaN(localHafalan) && localHafalan > 0) {
+                    console.log('[SYNC PRESERVE] Keeping local total_hafalan for', s.name, ':', localHafalan);
+                    totalHafalan = localHafalan;
+                }
+
+                const mapped = {
                     id: s.id,
                     name: s.name,
                     halaqah: s.halaqah,
@@ -299,16 +405,20 @@ async function loadStudentsFromSupabase() {
                     achievements: JSON.parse(s.achievements || '[]'),
                     setoran: JSON.parse(s.setoran || '[]'),
                     lastSetoranDate: s.last_setoran_date,
-                    total_hafalan: parseFloat(s.total_hafalan) || 0
+                    total_hafalan: totalHafalan
                 };
-                
-                // Debug log for students with hafalan
+
                 if (parseFloat(s.total_hafalan) > 0) {
                     console.log('[LOAD] Student with hafalan:', s.name, 'hafalan:', s.total_hafalan);
                 }
+                return mapped;
             });
 
-            console.log('[LOAD] Loaded', data.length, 'students from Supabase');
+            const existingStudents = Array.isArray(dashboardData.students) ? dashboardData.students : [];
+            const combinedStudents = existingStudents.concat(mappedStudents);
+            dashboardData.students = deduplicateStudentsByIdentity(combinedStudents);
+
+            console.log('[LOAD] Loaded', data.length, 'students from Supabase, after dedupe:', dashboardData.students.length);
             console.log('[LOAD] Sample student:', dashboardData.students[0]);
 
             showSyncStatus('✅ Data santri dimuat', 'success');
