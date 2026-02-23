@@ -231,34 +231,108 @@ async function login(rawInput, rawPassword) {
                         // Normalize input
                         const nikInput = String(input).trim();
 
-                        // 1. Try finding in local data
+                        // 1. Try finding in local data with NIK + TTL validation
                         let student = null;
                         if (dashboardData && dashboardData.students) {
-                            student = dashboardData.students.find(s =>
+                            const candidates = dashboardData.students.filter(s =>
                                 String(s.nik).trim() === nikInput ||
                                 String(s.nisn).trim() === nikInput
                             );
+                            
+                            // If multiple candidates, validate with TTL
+                            if (candidates.length > 1) {
+                                console.log(`Found ${candidates.length} students with same NIK/NISN, validating with TTL...`);
+                                student = candidates.find(s => {
+                                    if (!s.tanggal_lahir) return false;
+                                    
+                                    let day, month, year;
+                                    if (s.tanggal_lahir.includes('-')) {
+                                        const parts = s.tanggal_lahir.split('-');
+                                        if (parts[0].length === 4) {
+                                            [year, month, day] = parts;
+                                        } else {
+                                            [day, month, year] = parts;
+                                        }
+                                    } else if (s.tanggal_lahir.includes('/')) {
+                                        const parts = s.tanggal_lahir.split('/');
+                                        [day, month, year] = parts;
+                                    }
+                                    
+                                    if (day && month && year) {
+                                        day = day.toString().padStart(2, '0');
+                                        month = month.toString().padStart(2, '0');
+                                        year = year.toString();
+                                        const birthDatePass = `${day}${month}${year}`;
+                                        return password === birthDatePass;
+                                    }
+                                    return false;
+                                });
+                                
+                                if (student) {
+                                    console.log('Student matched with TTL validation:', student.name);
+                                } else {
+                                    console.warn('No student matched with TTL. Candidates:', candidates.map(c => c.name));
+                                }
+                            } else if (candidates.length === 1) {
+                                student = candidates[0];
+                            }
                         }
 
                         // 2. Fallback: Try finding in Supabase directly (if not found locally)
                         if (!student && window.supabaseClient) {
                             console.log('Student not found locally, querying Supabase directly...');
                             try {
-                                // Use maybeSingle() to avoid 406 error if not found
-                                // Also try with both quoted (string) and unquoted (numeric) format just in case
-                                const { data, error } = await window.supabaseClient
+                                // Query all candidates with NIK/NISN
+                                const { data: candidates, error } = await window.supabaseClient
                                     .from('students')
                                     .select('*')
-                                    .or(`nik.eq."${nikInput}",nisn.eq."${nikInput}",nik.eq.${nikInput},nisn.eq.${nikInput}`)
-                                    .maybeSingle();
+                                    .eq('nik', nikInput);
 
                                 if (error) {
                                     console.warn('Error querying student direct:', error.message);
-                                } else if (data) {
-                                    console.log('Student found in Supabase:', data.name);
-                                    student = data;
+                                } else if (candidates && candidates.length > 0) {
+                                    console.log(`Found ${candidates.length} student(s) in Supabase`);
+                                    
+                                    // If multiple, validate with TTL
+                                    if (candidates.length > 1) {
+                                        console.log('Multiple students found, validating with TTL...');
+                                        student = candidates.find(s => {
+                                            if (!s.tanggal_lahir) return false;
+                                            
+                                            let day, month, year;
+                                            if (s.tanggal_lahir.includes('-')) {
+                                                const parts = s.tanggal_lahir.split('-');
+                                                if (parts[0].length === 4) {
+                                                    [year, month, day] = parts;
+                                                } else {
+                                                    [day, month, year] = parts;
+                                                }
+                                            } else if (s.tanggal_lahir.includes('/')) {
+                                                const parts = s.tanggal_lahir.split('/');
+                                                [day, month, year] = parts;
+                                            }
+                                            
+                                            if (day && month && year) {
+                                                day = day.toString().padStart(2, '0');
+                                                month = month.toString().padStart(2, '0');
+                                                year = year.toString();
+                                                const birthDatePass = `${day}${month}${year}`;
+                                                return password === birthDatePass;
+                                            }
+                                            return false;
+                                        });
+                                        
+                                        if (student) {
+                                            console.log('Student matched with TTL:', student.name);
+                                        } else {
+                                            console.warn('No student matched with TTL');
+                                        }
+                                    } else {
+                                        student = candidates[0];
+                                        console.log('Single student found:', student.name);
+                                    }
                                 } else {
-                                    console.log('Student not found in Supabase (result is null).');
+                                    console.log('Student not found in Supabase.');
                                 }
                             } catch (err) {
                                 console.error('Exception querying student:', err);
@@ -793,24 +867,40 @@ async function refreshUserChildLink(retryCount = 0, maxRetries = 10) {
 
     let student = null;
     if (dataLoaded) {
-        student = dashboardData.students.find(s =>
+        const candidates = dashboardData.students.filter(s =>
             (s.nik && String(s.nik).trim() === nikOrNisn) ||
             (s.nisn && String(s.nisn).trim() === nikOrNisn)
         );
+        
+        // If multiple candidates found, this is unusual for parent login
+        // but we'll take the first one (ideally NIK should be unique)
+        if (candidates.length > 1) {
+            console.warn(`⚠️ Multiple students found with NIK/NISN: ${nikOrNisn}`, candidates.map(c => c.name));
+            student = candidates[0]; // Take first match
+        } else if (candidates.length === 1) {
+            student = candidates[0];
+        }
     }
 
     if (!student && window.supabaseClient) {
         console.log('🔍 Student not found locally, querying Supabase...');
         try {
             const nikInput = nikOrNisn;
-            const { data, error } = await window.supabaseClient
+            // Use .eq() instead of .or() for exact match
+            const { data: candidates, error } = await window.supabaseClient
                 .from('students')
                 .select('*')
-                .or(`nik.eq."${nikInput}",nisn.eq."${nikInput}",nik.eq.${nikInput},nisn.eq.${nikInput}`)
-                .maybeSingle();
+                .eq('nik', nikInput);
 
-            if (!error && data) {
-                console.log('✅ Student found in Supabase:', data.name);
+            if (!error && candidates && candidates.length > 0) {
+                console.log(`✅ Found ${candidates.length} student(s) in Supabase`);
+                
+                if (candidates.length > 1) {
+                    console.warn('⚠️ Multiple students with same NIK:', candidates.map(c => c.name));
+                }
+                
+                const data = candidates[0]; // Take first match
+                console.log('Using student:', data.name);
                 const existing = Array.isArray(dashboardData.students)
                     ? dashboardData.students.find(s => String(s.id) === String(data.id))
                     : null;

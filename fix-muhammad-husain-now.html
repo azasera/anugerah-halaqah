@@ -51,6 +51,7 @@
                 <button onclick="step2()" class="btn-success">2️⃣ Cek/Register Auth</button>
                 <button onclick="step3()" class="btn-success">3️⃣ Test Login Final</button>
                 <button onclick="runAll()" class="btn-warning">🚀 Jalankan Semua</button>
+                <button onclick="autoFixDuplicate()" class="btn-warning" id="fixDuplicateBtn" style="display:none;">🔧 Auto-Fix Duplikat</button>
             </div>
         </div>
 
@@ -88,7 +89,7 @@
             let html = '<div class="card"><h2>1️⃣ Cek Data di Database</h2>';
             
             try {
-                // Query dengan .select() tanpa .or() untuk melihat semua data
+                // Query semua data dengan NIK yang sama
                 const { data: allStudents, error: allError } = await supabaseClient
                     .from('students')
                     .select('*')
@@ -112,21 +113,82 @@ VALUES (
 );</pre>`;
                 } else if (allStudents.length > 1) {
                     html += `<div class="error">❌ DUPLIKAT! Ditemukan ${allStudents.length} data dengan NIK yang sama</div>`;
-                    html += '<table><thead><tr><th>ID</th><th>Nama</th><th>NIK</th><th>TTL</th><th>Halaqah</th></tr></thead><tbody>';
-                    allStudents.forEach(s => {
-                        html += `<tr>
+                    html += '<table><thead><tr><th>ID</th><th>Nama</th><th>NIK</th><th>TTL</th><th>Halaqah</th><th>Password</th><th>Match?</th></tr></thead><tbody>';
+                    
+                    let correctStudent = null;
+                    let correctIndex = -1;
+                    
+                    allStudents.forEach((s, index) => {
+                        // Calculate expected password
+                        let expectedPassword = '';
+                        if (s.tanggal_lahir && s.tanggal_lahir.includes('-')) {
+                            const parts = s.tanggal_lahir.split('-');
+                            if (parts[0].length === 4) {
+                                // YYYY-MM-DD
+                                expectedPassword = parts[2] + parts[1] + parts[0];
+                            } else {
+                                // DD-MM-YYYY
+                                expectedPassword = parts[0] + parts[1] + parts[2];
+                            }
+                        }
+                        
+                        const isMatch = expectedPassword === PASSWORD;
+                        const rowStyle = isMatch ? 'background: #e8f5e9;' : '';
+                        
+                        if (isMatch) {
+                            correctStudent = s;
+                            correctIndex = index;
+                        }
+                        
+                        html += `<tr style="${rowStyle}">
                             <td>${s.id}</td>
-                            <td>${s.name}</td>
+                            <td><strong>${s.name}</strong></td>
                             <td>${s.nik}</td>
                             <td>${s.tanggal_lahir || '-'}</td>
                             <td>${s.halaqah || '-'}</td>
+                            <td><code>${expectedPassword}</code></td>
+                            <td>${isMatch ? '<span class="badge badge-success">✓ MATCH</span>' : '<span class="badge badge-error">✗</span>'}</td>
                         </tr>`;
                     });
                     html += '</tbody></table>';
-                    html += '<div class="warning">⚠️ Hapus data duplikat, sisakan hanya 1 data yang benar</div>';
+                    
+                    if (correctStudent) {
+                        studentData = correctStudent;
+                        html += `<div class="success">✅ Data yang BENAR ditemukan: <strong>${correctStudent.name}</strong> (ID: ${correctStudent.id})</div>`;
+                        html += '<div class="info">💡 Password TTL match dengan data ini. Gunakan data ini untuk login.</div>';
+                        
+                        // Show which records to delete
+                        html += '<h3>🗑️ Hapus Data Duplikat:</h3>';
+                        html += '<div class="warning">Jalankan SQL berikut untuk hapus data yang salah:</div>';
+                        html += '<pre>';
+                        allStudents.forEach((s, index) => {
+                            if (index !== correctIndex) {
+                                html += `-- Hapus: ${s.name} (ID: ${s.id}, Halaqah: ${s.halaqah || '-'})\n`;
+                                html += `DELETE FROM students WHERE id = ${s.id};\n\n`;
+                            }
+                        });
+                        html += '</pre>';
+                        
+                        // Show correct data details
+                        html += '<h3>✅ Data yang Benar:</h3>';
+                        html += '<div class="data-box">';
+                        html += `<table>
+                            <tr><th>Field</th><th>Value</th></tr>
+                            <tr><td>ID</td><td>${correctStudent.id}</td></tr>
+                            <tr><td>Nama</td><td>${correctStudent.name}</td></tr>
+                            <tr><td>NIK</td><td>${correctStudent.nik}</td></tr>
+                            <tr><td>Tanggal Lahir</td><td>${correctStudent.tanggal_lahir}</td></tr>
+                            <tr><td>Lembaga</td><td>${correctStudent.lembaga || '-'}</td></tr>
+                            <tr><td>Halaqah</td><td>${correctStudent.halaqah || '-'}</td></tr>
+                        </table>`;
+                        html += '</div>';
+                    } else {
+                        html += '<div class="error">❌ Tidak ada data yang match dengan password TTL: ' + PASSWORD + '</div>';
+                        html += '<div class="warning">⚠️ Periksa tanggal lahir atau password yang digunakan</div>';
+                    }
                 } else {
                     studentData = allStudents[0];
-                    html += '<div class="success">✅ DATA DITEMUKAN!</div>';
+                    html += '<div class="success">✅ DATA DITEMUKAN (Tidak ada duplikat)</div>';
                     html += '<div class="data-box">';
                     html += `<table>
                         <tr><th>Field</th><th>Value</th><th>Status</th></tr>

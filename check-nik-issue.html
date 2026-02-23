@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Check NIK Issue</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5; }
+        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1 { color: #333; }
+        button { padding: 12px 24px; margin: 5px; cursor: pointer; background: #4CAF50; color: white; border: none; border-radius: 5px; font-size: 14px; font-weight: bold; }
+        button:hover { background: #45a049; }
+        pre { background: #2d3748; color: #e2e8f0; padding: 15px; border-radius: 5px; overflow-x: auto; font-size: 12px; }
+        table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+        table th, table td { padding: 10px; text-align: left; border: 1px solid #ddd; }
+        table th { background: #f7fafc; font-weight: bold; }
+        .error { color: #d32f2f; background: #ffebee; padding: 15px; border-radius: 5px; margin: 10px 0; }
+        .success { color: #388e3c; background: #e8f5e9; padding: 15px; border-radius: 5px; margin: 10px 0; }
+        .info { color: #1976d2; background: #e3f2fd; padding: 15px; border-radius: 5px; margin: 10px 0; }
+        .warning { color: #f57c00; background: #fff3e0; padding: 15px; border-radius: 5px; margin: 10px 0; }
+        .highlight { background: #fff3cd; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Check NIK Issue - Muhammad Hasan vs Husain</h1>
+        
+        <div class="info">
+            <strong>Yang dicari:</strong> Muhammad Husain - NIK: 1971022102090001<br>
+            <strong>Yang muncul juga:</strong> Muhammad Hasan - NIK: 1971052803190001
+        </div>
+
+        <button onclick="checkAllQueries()">🔍 Test Semua Query</button>
+        <button onclick="checkExactMatch()">✅ Test Exact Match</button>
+        <button onclick="findAllMuhammad()">👥 Cari Semua Muhammad</button>
+
+        <div id="result"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        const SUPABASE_URL = 'https://klhegwunosmryqozuahc.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtsaGVnd3Vub3Ntcnlxb3p1YWhjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3Mjg3NDcsImV4cCI6MjA4NjMwNDc0N30.0X54jxpMZI9eilDxfJ7FYUGImuN-TEH9qGQkdRTtRXw';
+        
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        const NIK_HUSAIN = '1971022102090001';
+        const NIK_HASAN = '1971052803190001';
+
+        async function checkAllQueries() {
+            const result = document.getElementById('result');
+            let html = '<h2>📊 Test Berbagai Query</h2>';
+            
+            // Test 1: .eq() dengan string
+            html += '<h3>Test 1: .eq() dengan string</h3>';
+            html += `<pre>SELECT * FROM students WHERE nik = '${NIK_HUSAIN}'</pre>`;
+            try {
+                const { data, error } = await supabaseClient
+                    .from('students')
+                    .select('*')
+                    .eq('nik', NIK_HUSAIN);
+                
+                html += `<p>Hasil: ${data?.length || 0} record</p>`;
+                if (data && data.length > 0) {
+                    html += '<table><tr><th>ID</th><th>Nama</th><th>NIK</th><th>TTL</th></tr>';
+                    data.forEach(s => {
+                        const isCorrect = s.nik === NIK_HUSAIN;
+                        html += `<tr class="${isCorrect ? '' : 'highlight'}">
+                            <td>${s.id}</td>
+                            <td>${s.name}</td>
+                            <td>${s.nik}</td>
+                            <td>${s.tanggal_lahir}</td>
+                        </tr>`;
+                    });
+                    html += '</table>';
+                }
+            } catch (err) {
+                html += `<div class="error">Error: ${err.message}</div>`;
+            }
+            
+            // Test 2: .or() dengan string dan number
+            html += '<h3>Test 2: .or() dengan string dan number (QUERY LAMA)</h3>';
+            html += `<pre>.or(\`nik.eq."${NIK_HUSAIN}",nik.eq.${NIK_HUSAIN}\`)</pre>`;
+            try {
+                const { data, error } = await supabaseClient
+                    .from('students')
+                    .select('*')
+                    .or(`nik.eq."${NIK_HUSAIN}",nik.eq.${NIK_HUSAIN}`);
+                
+                html += `<p>Hasil: ${data?.length || 0} record</p>`;
+                if (data && data.length > 0) {
+                    html += '<table><tr><th>ID</th><th>Nama</th><th>NIK</th><th>TTL</th><th>Match?</th></tr>';
+                    data.forEach(s => {
+                        const isCorrect = s.nik === NIK_HUSAIN;
+                        html += `<tr class="${isCorrect ? '' : 'highlight'}">
+                            <td>${s.id}</td>
+                            <td>${s.name}</td>
+                            <td>${s.nik}</td>
+                            <td>${s.tanggal_lahir}</td>
+                            <td>${isCorrect ? '✅ BENAR' : '❌ SALAH'}</td>
+                        </tr>`;
+                    });
+                    html += '</table>';
+                    
+                    if (data.length > 1) {
+                        html += '<div class="error">❌ Query ini mengembalikan data yang salah!</div>';
+                    }
+                }
+            } catch (err) {
+                html += `<div class="error">Error: ${err.message}</div>`;
+            }
+            
+            // Test 3: Check NIK data type
+            html += '<h3>Test 3: Cek Tipe Data NIK di Database</h3>';
+            try {
+                const { data, error } = await supabaseClient
+                    .from('students')
+                    .select('id, name, nik')
+                    .or(`name.ilike.%muhammad hasan%,name.ilike.%muhammad husain%`);
+                
+                if (data && data.length > 0) {
+                    html += '<table><tr><th>ID</th><th>Nama</th><th>NIK</th><th>Type</th><th>Length</th></tr>';
+                    data.forEach(s => {
+                        html += `<tr>
+                            <td>${s.id}</td>
+                            <td>${s.name}</td>
+                            <td>${s.nik}</td>
+                            <td>${typeof s.nik}</td>
+                            <td>${s.nik ? s.nik.toString().length : 0}</td>
+                        </tr>`;
+                    });
+                    html += '</table>';
+                }
+            } catch (err) {
+                html += `<div class="error">Error: ${err.message}</div>`;
+            }
+            
+            // Test 4: Check if NIK stored as number causes issue
+            html += '<h3>Test 4: Analisis Kemungkinan Masalah</h3>';
+            html += '<div class="info">';
+            html += '<p><strong>NIK Husain:</strong> ' + NIK_HUSAIN + '</p>';
+            html += '<p><strong>NIK Hasan:</strong> ' + NIK_HASAN + '</p>';
+            html += '<p><strong>Perbedaan:</strong></p>';
+            html += '<ul>';
+            html += '<li>Husain: 19710221020<strong>9</strong>0001 (2009)</li>';
+            html += '<li>Hasan: 19710528031<strong>9</strong>0001 (2019)</li>';
+            html += '</ul>';
+            html += '<p>Jika NIK disimpan sebagai <strong>number</strong> (bukan string), bisa terjadi:</p>';
+            html += '<ul>';
+            html += '<li>Leading zeros hilang</li>';
+            html += '<li>Precision loss untuk angka besar</li>';
+            html += '<li>Partial match karena type coercion</li>';
+            html += '</ul>';
+            html += '</div>';
+            
+            result.innerHTML = html;
+        }
+
+        async function checkExactMatch() {
+            const result = document.getElementById('result');
+            let html = '<h2>✅ Test Exact Match (Query yang Benar)</h2>';
+            
+            html += '<h3>Query untuk Muhammad Husain:</h3>';
+            html += `<pre>SELECT * FROM students WHERE nik = '${NIK_HUSAIN}'</pre>`;
+            
+            try {
+                const { data, error } = await supabaseClient
+                    .from('students')
+                    .select('*')
+                    .eq('nik', NIK_HUSAIN);
+                
+                if (error) {
+                    html += `<div class="error">Error: ${error.message}</div>`;
+                } else if (!data || data.length === 0) {
+                    html += '<div class="error">❌ Data tidak ditemukan</div>';
+                } else if (data.length === 1) {
+                    html += '<div class="success">✅ BENAR! Hanya 1 data ditemukan</div>';
+                    html += '<table><tr><th>Field</th><th>Value</th></tr>';
+                    Object.entries(data[0]).forEach(([key, value]) => {
+                        html += `<tr><td>${key}</td><td>${value}</td></tr>`;
+                    });
+                    html += '</table>';
+                } else {
+                    html += `<div class="error">❌ Ditemukan ${data.length} data (seharusnya 1)</div>`;
+                    html += '<table><tr><th>ID</th><th>Nama</th><th>NIK</th></tr>';
+                    data.forEach(s => {
+                        html += `<tr><td>${s.id}</td><td>${s.name}</td><td>${s.nik}</td></tr>`;
+                    });
+                    html += '</table>';
+                }
+            } catch (err) {
+                html += `<div class="error">Exception: ${err.message}</div>`;
+            }
+            
+            result.innerHTML = html;
+        }
+
+        async function findAllMuhammad() {
+            const result = document.getElementById('result');
+            let html = '<h2>👥 Semua Santri Bernama Muhammad</h2>';
+            
+            try {
+                const { data, error } = await supabaseClient
+                    .from('students')
+                    .select('*')
+                    .ilike('name', '%muhammad%')
+                    .order('name');
+                
+                if (error) {
+                    html += `<div class="error">Error: ${error.message}</div>`;
+                } else if (!data || data.length === 0) {
+                    html += '<div class="info">Tidak ada data</div>';
+                } else {
+                    html += `<p>Ditemukan ${data.length} santri</p>`;
+                    html += '<table><tr><th>ID</th><th>Nama</th><th>NIK</th><th>TTL</th><th>Halaqah</th></tr>';
+                    data.forEach(s => {
+                        const isHusain = s.nik === NIK_HUSAIN;
+                        const isHasan = s.nik === NIK_HASAN;
+                        html += `<tr class="${isHusain || isHasan ? 'highlight' : ''}">
+                            <td>${s.id}</td>
+                            <td>${s.name}</td>
+                            <td>${s.nik || '-'}</td>
+                            <td>${s.tanggal_lahir || '-'}</td>
+                            <td>${s.halaqah || '-'}</td>
+                        </tr>`;
+                    });
+                    html += '</table>';
+                }
+            } catch (err) {
+                html += `<div class="error">Exception: ${err.message}</div>`;
+            }
+            
+            result.innerHTML = html;
+        }
+    </script>
+</body>
+</html>
