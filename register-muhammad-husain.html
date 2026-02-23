@@ -122,7 +122,40 @@
                 if (signUpError) {
                     console.error('Register error:', signUpError);
                     
-                    if (signUpError.message.includes('already registered') || signUpError.message.includes('User already registered')) {
+                    if (signUpError.message.includes('email rate limit') || signUpError.message.includes('over_email_send_rate_limit')) {
+                        resultDiv.innerHTML = `
+                            <div class="result error">
+                                <h3>❌ Register Gagal</h3>
+                                <p><strong>Error:</strong> ${signUpError.message}</p>
+                                <p><strong>Code:</strong> ${signUpError.code || 'over_email_send_rate_limit'}</p>
+                            </div>
+                            <div class="result warning">
+                                <h3>⚠️ Email Rate Limit Exceeded</h3>
+                                <p>Supabase membatasi jumlah email konfirmasi yang bisa dikirim.</p>
+                                <p style="margin-top: 15px;"><strong>Solusi Tercepat - Register Manual:</strong></p>
+                                <ol style="margin-left: 20px; margin-top: 10px; line-height: 1.8;">
+                                    <li>Buka <a href="https://supabase.com/dashboard" target="_blank" style="color: #667eea; font-weight: bold;">Supabase Dashboard</a></li>
+                                    <li>Pilih project Anda</li>
+                                    <li>Klik <strong>Authentication > Users</strong></li>
+                                    <li>Klik tombol <strong>"Add User"</strong></li>
+                                    <li>Isi form:
+                                        <pre style="margin: 10px 0;">Email: ${STUDENT_DATA.email}
+Password: ${STUDENT_DATA.password}
+✅ Auto Confirm User (CENTANG!)</pre>
+                                    </li>
+                                    <li>Klik <strong>"Create User"</strong></li>
+                                </ol>
+                                <p style="margin-top: 15px;"><strong>Atau:</strong></p>
+                                <ul style="margin-left: 20px;">
+                                    <li>Tunggu 5-10 menit, lalu coba lagi</li>
+                                    <li>Disable email confirmation di Supabase Settings</li>
+                                </ul>
+                                <p style="margin-top: 15px;">
+                                    <a href="CARA-REGISTER-MUHAMMAD-HUSAIN.md" target="_blank" style="color: #667eea; font-weight: bold;">📖 Baca Panduan Lengkap</a>
+                                </p>
+                            </div>
+                        `;
+                    } else if (signUpError.message.includes('already registered') || signUpError.message.includes('User already registered')) {
                         resultDiv.innerHTML = `
                             <div class="result warning">
                                 <h3>⚠️ Email Sudah Terdaftar</h3>
