@@ -762,16 +762,36 @@ async function importTotalHafalanMta() {
                     return String(name).toLowerCase().replace(/[\s\u00A0]+/g, ' ').trim();
                 };
                 
+                const levenshteinDistance = (str1, str2) => {
+                    const matrix = [];
+                    for (let i = 0; i <= str2.length; i++) {
+                        matrix[i] = [i];
+                    }
+                    for (let j = 0; j <= str1.length; j++) {
+                        matrix[0][j] = j;
+                    }
+                    for (let i = 1; i <= str2.length; i++) {
+                        for (let j = 1; j <= str1.length; j++) {
+                            if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
+                                matrix[i][j] = matrix[i - 1][j - 1];
+                            } else {
+                                matrix[i][j] = Math.min(
+                                    matrix[i - 1][j - 1] + 1,
+                                    matrix[i][j - 1] + 1,
+                                    matrix[i - 1][j] + 1
+                                );
+                            }
+                        }
+                    }
+                    return matrix[str2.length][str1.length];
+                };
+                
                 const calculateSimilarity = (str1, str2) => {
                     const longer = str1.length > str2.length ? str1 : str2;
                     const shorter = str1.length > str2.length ? str2 : str1;
                     if (longer.length === 0) return 100;
-                    
-                    let matches = 0;
-                    for (let i = 0; i < shorter.length; i++) {
-                        if (longer.includes(shorter[i])) matches++;
-                    }
-                    return (matches / longer.length) * 100;
+                    const editDistance = levenshteinDistance(longer, shorter);
+                    return ((longer.length - editDistance) / longer.length) * 100;
                 };
                 
                 const students = Array.isArray(dashboardData.students)
@@ -814,12 +834,12 @@ async function importTotalHafalanMta() {
                     // Try exact match first
                     let match = students.find(s => normalizeName(s.name) === targetNorm);
                     
-                    // If not found, try fuzzy match (for typos like Khairi vs Khoiri)
+                    // If not found, try fuzzy match (for typos like Khairi vs Khoiri, Alfathir vs Al Fathir)
                     if (!match) {
                         const fuzzyMatches = students.map(s => ({
                             student: s,
                             similarity: calculateSimilarity(targetNorm, normalizeName(s.name))
-                        })).filter(m => m.similarity > 85); // 85% similarity threshold
+                        })).filter(m => m.similarity > 80); // 80% similarity threshold (lowered from 85)
                         
                         if (fuzzyMatches.length > 0) {
                             // Sort by similarity and take the best match
