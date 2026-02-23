@@ -31,6 +31,11 @@ function showDebugPanel() {
                     📈 Ringkasan Data
                 </button>
                 
+                <button onclick="debugSyncLocalBackupToSupabase()" 
+                    class="w-full p-4 bg-emerald-50 text-emerald-700 rounded-xl font-bold hover:bg-emerald-100 transition-colors">
+                    ☁️ Naikkan Data Lokal ke Supabase
+                </button>
+                
                 <button onclick="debugClearLocalData()" 
                     class="w-full p-4 bg-orange-50 text-orange-700 rounded-xl font-bold hover:bg-orange-100 transition-colors">
                     🗑️ Hapus Cache Lokal & Reload
@@ -139,6 +144,65 @@ async function debugReloadFromSupabase() {
         
     } catch (error) {
         output.innerHTML = `<div class="text-red-600">❌ Error: ${error.message}</div>`;
+    }
+}
+
+async function debugSyncLocalBackupToSupabase() {
+    const output = document.getElementById('debugOutput');
+    try {
+        const saved = localStorage.getItem('halaqahData');
+        if (!saved) {
+            output.innerHTML = `<div class="text-red-600">❌ Tidak ada data backup lokal (halaqahData) di browser ini.</div>`;
+            output.classList.remove('hidden');
+            return;
+        }
+
+        const parsed = JSON.parse(saved);
+        const localStudents = Array.isArray(parsed.students) ? parsed.students : [];
+        const localHalaqahs = Array.isArray(parsed.halaqahs) ? parsed.halaqahs : [];
+
+        if (localStudents.length === 0) {
+            output.innerHTML = `<div class="text-red-600">❌ Backup lokal tidak memiliki data santri.</div>`;
+            output.classList.remove('hidden');
+            return;
+        }
+
+        const proceed = confirm(`Gunakan data lokal sebagai sumber utama?\n\nSantri lokal: ${localStudents.length}\nHalaqah lokal: ${localHalaqahs.length}\n\nData ini akan di-upsert ke Supabase.`);
+        if (!proceed) {
+            return;
+        }
+
+        dashboardData.students = localStudents;
+        if (localHalaqahs.length > 0) {
+            dashboardData.halaqahs = localHalaqahs;
+        }
+
+        if (typeof recalculateRankings === 'function') {
+            recalculateRankings();
+        }
+
+        output.innerHTML = `<div class="text-blue-600">☁️ Mengirim data lokal ke Supabase...</div>`;
+        output.classList.remove('hidden');
+
+        if (typeof window.syncStudentsToSupabase === 'function') {
+            await window.syncStudentsToSupabase();
+        }
+        if (typeof window.syncHalaqahsToSupabase === 'function') {
+            await window.syncHalaqahsToSupabase();
+        }
+
+        await window.loadStudentsFromSupabase();
+        await window.loadHalaqahsFromSupabase();
+        if (typeof window.refreshAllData === 'function') {
+            window.refreshAllData();
+        }
+
+        output.innerHTML = `<div class="text-green-600">✅ Data lokal berhasil di-upsert ke Supabase.</div>
+            <div class="text-sm mt-2"><strong>Santri (Supabase):</strong> ${dashboardData.students.length}</div>
+            <div class="text-sm"><strong>Halaqah (Supabase):</strong> ${dashboardData.halaqahs.length}</div>`;
+    } catch (error) {
+        output.innerHTML = `<div class="text-red-600">❌ Error saat sync: ${error.message}</div>`;
+        output.classList.remove('hidden');
     }
 }
 

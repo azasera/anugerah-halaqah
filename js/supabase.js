@@ -17,6 +17,22 @@ let isSyncing = false;
 let isOnline = navigator.onLine;
 let lastUserSyncDiagnostics = null;
 
+// Helper: Ensure currentProfile is loaded from localStorage if not already set
+function ensureProfileLoaded() {
+    if (!window.currentProfile) {
+        const storedProfile = localStorage.getItem('currentProfile');
+        if (storedProfile) {
+            try {
+                window.currentProfile = JSON.parse(storedProfile);
+                console.log('[PROFILE] Loaded from localStorage:', window.currentProfile.role);
+            } catch (e) {
+                console.error('[PROFILE] Failed to parse stored profile:', e);
+            }
+        }
+    }
+    return window.currentProfile;
+}
+
 function isTransientSupabaseError(error) {
     if (!error || !error.message) return false;
     const msg = error.message.toLowerCase();
@@ -142,10 +158,17 @@ async function syncStudentsToSupabase() {
         return { status: 'skipped_offline' };
     }
 
-    // AUTH CHECK: Allow admin and guru to write to DB
-    const profile = window.currentProfile;
+    // CHECK: Ensure dashboardData is loaded
+    // dashboardData is a global variable from data.js, not window.dashboardData
+    if (!dashboardData || !dashboardData.students || !Array.isArray(dashboardData.students) || dashboardData.students.length === 0) {
+        console.log('⏭️ dashboardData not loaded yet or empty, skipping sync');
+        return { status: 'skipped_empty' };
+    }
+
+    // AUTH CHECK: Ensure profile is loaded and allow admin and guru to write to DB
+    const profile = ensureProfileLoaded(); // Try to load from localStorage if not set
     if (!profile || (profile.role !== 'admin' && profile.role !== 'guru')) {
-        console.warn('⛔ Sync blocked: User is not admin or guru');
+        console.warn('⛔ Sync blocked: User is not admin or guru (role:', profile?.role || 'undefined', ')');
         return { status: 'skipped_permission' };
     }
 
@@ -159,6 +182,7 @@ async function syncStudentsToSupabase() {
         window.syncInProgress = true;
         isSyncing = true;
 
+        // Deduplicate students before syncing
         dashboardData.students = deduplicateStudentsByIdentity(dashboardData.students);
 
         // Upsert students
@@ -321,10 +345,28 @@ async function loadStudentsFromSupabase() {
     try {
         showSyncStatus('☁️ Memuat data santri...', 'info');
 
-        const { data, error } = await supabaseClient
-            .from('students')
-            .select('*')
-            .order('overall_ranking', { ascending: true });
+        // Fetch all students using pagination (Supabase default limit is 1000)
+        const PAGE_SIZE = 1000;
+        let allData = [];
+        let from = 0;
+        let hasMore = true;
+        while (hasMore) {
+            const { data: pageData, error: pageError } = await supabaseClient
+                .from('students')
+                .select('*')
+                .order('overall_ranking', { ascending: true })
+                .range(from, from + PAGE_SIZE - 1);
+            if (pageError) throw pageError;
+            if (pageData && pageData.length > 0) {
+                allData = allData.concat(pageData);
+                from += PAGE_SIZE;
+                hasMore = pageData.length === PAGE_SIZE;
+            } else {
+                hasMore = false;
+            }
+        }
+        const data = allData;
+        const error = null;
 
         if (error) throw error;
 
@@ -414,15 +456,13 @@ async function loadStudentsFromSupabase() {
                 return mapped;
             });
 
-            const existingStudents = Array.isArray(dashboardData.students) ? dashboardData.students : [];
-            const combinedStudents = existingStudents.concat(mappedStudents);
-            dashboardData.students = deduplicateStudentsByIdentity(combinedStudents);
+            dashboardData.students = deduplicateStudentsByIdentity(mappedStudents);
 
             console.log('[LOAD] Loaded', data.length, 'students from Supabase, after dedupe:', dashboardData.students.length);
             console.log('[LOAD] Sample student:', dashboardData.students[0]);
 
             showSyncStatus('✅ Data santri dimuat', 'success');
-            
+
             // Refresh parent-child link after data is loaded
             if (typeof refreshUserChildLink === 'function') {
                 console.log('🔗 Refreshing parent-child link after data load...');

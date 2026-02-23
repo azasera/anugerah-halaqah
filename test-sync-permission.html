@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Sync Permission</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="bg-gray-50 p-8">
+    <div class="max-w-4xl mx-auto">
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+            <h1 class="text-3xl font-bold text-gray-800 mb-4">🔐 Test Sync Permission</h1>
+            <p class="text-gray-600 mb-4">Tool ini akan mengecek kenapa data tidak tersinkron ke Supabase</p>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+            <h2 class="text-xl font-bold text-gray-800 mb-4">📊 Status Saat Ini</h2>
+            <div id="statusInfo" class="space-y-3">
+                <p class="text-gray-500">Memuat...</p>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+            <h2 class="text-xl font-bold text-gray-800 mb-4">🧪 Test Sinkronisasi</h2>
+            <button onclick="testSync()" class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 font-bold">
+                🚀 Test Sync Sekarang
+            </button>
+            <div id="syncResult" class="mt-4"></div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-lg p-6">
+            <h2 class="text-xl font-bold text-gray-800 mb-4">💡 Solusi</h2>
+            <div id="solution" class="space-y-4"></div>
+        </div>
+    </div>
+
+    <script src="js/settings.js"></script>
+    <script src="js/data.js"></script>
+    <script src="js/supabase.js"></script>
+    <script src="js/auth.js"></script>
+    
+    <script>
+        function checkStatus() {
+            const statusDiv = document.getElementById('statusInfo');
+            const solutionDiv = document.getElementById('solution');
+            
+            let html = '';
+            let solutionHtml = '';
+
+            // Check current profile - try multiple sources
+            let profile = window.currentProfile;
+            
+            // Fallback: try to get from localStorage
+            if (!profile) {
+                try {
+                    const storedProfile = localStorage.getItem('currentProfile');
+                    if (storedProfile) {
+                        profile = JSON.parse(storedProfile);
+                        console.log('Profile loaded from localStorage:', profile);
+                    }
+                } catch (e) {
+                    console.error('Error loading profile from localStorage:', e);
+                }
+            }
+            
+            // Fallback: try to get from Supabase session
+            if (!profile && window.supabaseClient) {
+                console.log('Trying to get profile from Supabase session...');
+                window.supabaseClient.auth.getSession().then(({ data: { session } }) => {
+                    if (session && session.user) {
+                        console.log('Session found:', session.user.email);
+                        // Try to load profile from profiles table
+                        window.supabaseClient
+                            .from('profiles')
+                            .select('*')
+                            .eq('email', session.user.email)
+                            .single()
+                            .then(({ data, error }) => {
+                                if (data) {
+                                    window.currentProfile = data;
+                                    console.log('Profile loaded from Supabase:', data);
+                                    checkStatus(); // Re-run check with loaded profile
+                                }
+                            });
+                    }
+                });
+            }
+            if (profile) {
+                html += `
+                    <div class="flex items-center gap-2">
+                        <span class="font-bold">👤 User:</span>
+                        <span class="text-gray-700">${profile.name || profile.email || 'Unknown'}</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="font-bold">🎭 Role:</span>
+                        <span class="px-3 py-1 rounded-full text-sm font-bold ${
+                            profile.role === 'admin' ? 'bg-red-100 text-red-700' :
+                            profile.role === 'guru' ? 'bg-blue-100 text-blue-700' :
+                            'bg-gray-100 text-gray-700'
+                        }">${profile.role || 'Unknown'}</span>
+                    </div>
+                `;
+
+                if (profile.role !== 'admin' && profile.role !== 'guru') {
+                    html += `
+                        <div class="bg-red-50 border-l-4 border-red-400 p-4 mt-4">
+                            <p class="text-red-700 font-bold">❌ MASALAH DITEMUKAN!</p>
+                            <p class="text-red-600 mt-2">Role Anda adalah "${profile.role}". Hanya Admin dan Guru yang bisa menyinkronkan data ke Supabase.</p>
+                        </div>
+                    `;
+
+                    solutionHtml = `
+                        <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4">
+                            <h3 class="font-bold text-yellow-800 mb-2">⚠️ Solusi:</h3>
+                            <ol class="list-decimal list-inside text-yellow-700 space-y-2">
+                                <li>Logout dari akun saat ini</li>
+                                <li>Login menggunakan akun <strong>Admin</strong> atau <strong>Guru</strong></li>
+                                <li>Coba tambah/import santri lagi</li>
+                            </ol>
+                        </div>
+                        <div class="bg-blue-50 border-l-4 border-blue-400 p-4">
+                            <h3 class="font-bold text-blue-800 mb-2">🔧 Atau ubah role user:</h3>
+                            <p class="text-blue-700">Jika Anda seharusnya Admin/Guru, minta admin untuk mengubah role Anda di menu "Manajemen User"</p>
+                        </div>
+                    `;
+                } else {
+                    html += `
+                        <div class="bg-green-50 border-l-4 border-green-400 p-4 mt-4">
+                            <p class="text-green-700 font-bold">✅ Role Anda sudah benar!</p>
+                            <p class="text-green-600 mt-2">Anda memiliki permission untuk sync data.</p>
+                        </div>
+                    `;
+                }
+            } else {
+                html += `
+                    <div class="bg-red-50 border-l-4 border-red-400 p-4">
+                        <p class="text-red-700 font-bold">❌ Tidak ada user yang login!</p>
+                        <p class="text-red-600 mt-2">Silakan login terlebih dahulu.</p>
+                    </div>
+                `;
+
+                solutionHtml = `
+                    <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4">
+                        <h3 class="font-bold text-yellow-800 mb-2">⚠️ Solusi:</h3>
+                        <ol class="list-decimal list-inside text-yellow-700 space-y-2">
+                            <li>Kembali ke dashboard</li>
+                            <li>Login menggunakan akun Admin atau Guru</li>
+                            <li>Coba tambah/import santri lagi</li>
+                        </ol>
+                    </div>
+                `;
+            }
+
+            // Check online status
+            html += `
+                <div class="flex items-center gap-2">
+                    <span class="font-bold">🌐 Status Koneksi:</span>
+                    <span class="px-3 py-1 rounded-full text-sm font-bold ${
+                        navigator.onLine ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                    }">${navigator.onLine ? 'Online' : 'Offline'}</span>
+                </div>
+            `;
+
+            if (!navigator.onLine) {
+                html += `
+                    <div class="bg-red-50 border-l-4 border-red-400 p-4 mt-4">
+                        <p class="text-red-700 font-bold">❌ Tidak ada koneksi internet!</p>
+                        <p class="text-red-600 mt-2">Data tidak bisa disinkronkan ke Supabase saat offline.</p>
+                    </div>
+                `;
+
+                solutionHtml += `
+                    <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4">
+                        <h3 class="font-bold text-yellow-800 mb-2">⚠️ Solusi:</h3>
+                        <ol class="list-decimal list-inside text-yellow-700 space-y-2">
+                            <li>Pastikan koneksi internet aktif</li>
+                            <li>Refresh halaman ini</li>
+                            <li>Coba sync manual dari diagnose-tambah-santri.html</li>
+                        </ol>
+                    </div>
+                `;
+            }
+
+            // Check Supabase config
+            const supabaseConfigured = window.supabaseClient && window.SUPABASE_URL && window.SUPABASE_URL !== 'YOUR_SUPABASE_URL';
+            html += `
+                <div class="flex items-center gap-2">
+                    <span class="font-bold">☁️ Supabase:</span>
+                    <span class="px-3 py-1 rounded-full text-sm font-bold ${
+                        supabaseConfigured ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                    }">${supabaseConfigured ? 'Terkonfigurasi' : 'Tidak Terkonfigurasi'}</span>
+                </div>
+            `;
+
+            if (!supabaseConfigured) {
+                html += `
+                    <div class="bg-red-50 border-l-4 border-red-400 p-4 mt-4">
+                        <p class="text-red-700 font-bold">❌ Supabase tidak terkonfigurasi!</p>
+                        <p class="text-red-600 mt-2">Periksa file js/settings.js</p>
+                    </div>
+                `;
+            }
+
+            statusDiv.innerHTML = html;
+            solutionDiv.innerHTML = solutionHtml;
+        }
+
+        async function testSync() {
+            const resultDiv = document.getElementById('syncResult');
+            resultDiv.innerHTML = '<p class="text-blue-600">🔄 Testing sync...</p>';
+
+            try {
+                if (!window.syncStudentsToSupabase) {
+                    resultDiv.innerHTML = '<p class="text-red-600">❌ Fungsi syncStudentsToSupabase tidak tersedia</p>';
+                    return;
+                }
+
+                const result = await window.syncStudentsToSupabase();
+                
+                let html = '<div class="bg-white border-2 rounded-lg p-4">';
+                html += `<p class="font-bold mb-2">📊 Hasil Test:</p>`;
+                html += `<pre class="bg-gray-100 p-3 rounded overflow-x-auto text-sm">${JSON.stringify(result, null, 2)}</pre>`;
+                
+                if (result.status === 'success') {
+                    html += '<p class="text-green-600 font-bold mt-3">✅ Sync berhasil!</p>';
+                } else if (result.status === 'skipped_permission') {
+                    html += '<p class="text-red-600 font-bold mt-3">❌ Sync gagal: Tidak ada permission (bukan admin/guru)</p>';
+                } else if (result.status === 'skipped_offline') {
+                    html += '<p class="text-red-600 font-bold mt-3">❌ Sync gagal: Tidak ada koneksi internet</p>';
+                } else {
+                    html += `<p class="text-yellow-600 font-bold mt-3">⚠️ Status: ${result.status}</p>`;
+                }
+                
+                html += '</div>';
+                resultDiv.innerHTML = html;
+            } catch (error) {
+                console.error('Test sync error:', error);
+                resultDiv.innerHTML = `
+                    <div class="bg-red-50 border-l-4 border-red-400 p-4">
+                        <p class="text-red-700 font-bold">❌ Error:</p>
+                        <p class="text-red-600 mt-2">${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Auto check on load
+        window.addEventListener('load', () => {
+            setTimeout(checkStatus, 500);
+        });
+    </script>
+</body>
+</html>

@@ -301,6 +301,15 @@ function renderSantri(searchTerm = "") {
         const isTop = student.overall_ranking <= 3;
         const targetJuz = getTargetHafalanJuz(student);
         const hafalanPercent = getHafalanProgressPercent(student.total_hafalan, targetJuz);
+        const kategoriStr = String(student.kategori || '').toLowerCase();
+        const statusStr = String(student.status || '').toLowerCase();
+        const kategoriHasAlumni = kategoriStr.includes('alumni');
+        const kategoriHasNon = kategoriStr.includes('non') || kategoriStr.includes('bukan');
+        const statusHasAlumni = statusStr.includes('alumni');
+        const statusHasNon = statusStr.includes('non') || statusStr.includes('bukan');
+        const isAlumni = student.is_alumni === true ||
+            ((kategoriHasAlumni || statusHasAlumni) && !(kategoriHasNon || statusHasNon));
+        const alumniInline = isAlumni ? ' · <span class="text-amber-600 font-semibold">Alumni</span>' : '';
 
         const row = document.createElement('tr');
         row.className = "hover:bg-slate-50/80 transition-colors group cursor-pointer";
@@ -322,7 +331,7 @@ function renderSantri(searchTerm = "") {
                 <div>
                     <div class="font-bold text-slate-800 group-hover:text-primary-600 transition-colors">${student.name}</div>
                     <div class="text-xs text-slate-500 mt-0.5">
-                        ${student.halaqah}${student.kelas ? ' · ' + student.kelas : ''}
+                        ${student.halaqah}${student.kelas ? ' · ' + student.kelas : ''}${alumniInline}
                     </div>
                 </div>
             </td>

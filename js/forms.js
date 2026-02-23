@@ -499,6 +499,7 @@ function handleAddStudent(event) {
     dashboardData.students.push(newStudent);
     recalculateRankings();
     StorageManager.save();
+    if (window.autoSync) autoSync();
 
     closeModal();
     refreshAllData();

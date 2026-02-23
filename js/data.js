@@ -223,3 +223,4 @@ function refreshAllData() {
 
 window.recalculateRankings = recalculateRankings;
 window.refreshAllData = refreshAllData;
+window.dashboardData = dashboardData; // Export for debugging and external access

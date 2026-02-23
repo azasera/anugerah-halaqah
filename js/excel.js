@@ -1,6 +1,42 @@
 // Excel Import/Export Module
 // Using SheetJS (xlsx) library for Excel handling
 
+/**
+ * Helper: Tunggu hingga sync yang sedang berjalan selesai, lalu jalankan sync baru.
+ * Mengatasi race condition antara auto-sync startup dan sync saat import.
+ * @param {number} maxWaitMs - Maksimal tunggu dalam ms (default 60 detik)
+ * @returns {Promise<object>} - Hasil dari syncStudentsToSupabase
+ */
+async function waitAndSyncAfterImport(maxWaitMs = 60000) {
+    const pollInterval = 500; // cek setiap 500ms
+    let waited = 0;
+
+    // Tunggu jika sync sedang berjalan
+    while (window.syncInProgress && waited < maxWaitMs) {
+        console.log(`[IMPORT RETRY] Sync sedang berjalan, menunggu... (${waited}ms)`);
+        await new Promise(resolve => setTimeout(resolve, pollInterval));
+        waited += pollInterval;
+    }
+
+    if (window.syncInProgress) {
+        console.warn('[IMPORT RETRY] Timeout menunggu sync selesai. Memaksa sync baru...');
+    } else {
+        console.log(`[IMPORT RETRY] Sync selesai setelah ${waited}ms. Memulai sync import...`);
+    }
+
+    // Jalankan sync santri (dan halaqah jika ada)
+    const retryPromises = [];
+    if (typeof window.syncHalaqahsToSupabase === 'function') {
+        retryPromises.push(window.syncHalaqahsToSupabase());
+    }
+    if (typeof window.syncStudentsToSupabase === 'function') {
+        retryPromises.push(window.syncStudentsToSupabase());
+    }
+    const results = await Promise.all(retryPromises);
+    return results.find(r => r && r.status) || { status: 'unknown' };
+}
+
+
 function showImportExcel() {
     const content = `
         <div class="p-8">
@@ -751,7 +787,7 @@ function confirmSdApiImport() {
     }
 
     let created = 0;
-    
+
     // Calculate next ID
     let nextId = dashboardData.students.reduce((max, s) => {
         const id = parseInt(s.id);
@@ -798,22 +834,57 @@ function confirmSdApiImport() {
     if (created > 0) {
         recalculateRankings();
         StorageManager.save();
-        
+
         // SYNC TO SUPABASE - Critical for persistence
-        if (typeof syncStudentsToSupabase === 'function' && navigator.onLine) {
+        if (navigator.onLine) {
             showNotification('☁️ Menyimpan data ke database...', 'info');
-            syncStudentsToSupabase().then(result => {
-                if (result && result.status === 'success') {
+            const sdSyncPromises = [];
+            // Sync halaqah dulu (kalau ada halaqah baru)
+            if (typeof window.syncHalaqahsToSupabase === 'function') {
+                sdSyncPromises.push(window.syncHalaqahsToSupabase());
+            }
+            // Sync santri
+            if (typeof window.syncStudentsToSupabase === 'function') {
+                sdSyncPromises.push(window.syncStudentsToSupabase());
+            } else {
+                console.error('[IMPORT API] window.syncStudentsToSupabase not found!');
+            }
+
+            Promise.all(sdSyncPromises).then(sdResults => {
+                console.log('[IMPORT API] Sync results:', sdResults);
+                const studentSync = sdResults.find(r => r && r.status);
+                if (studentSync && studentSync.status === 'success') {
                     showNotification('✅ Data berhasil tersimpan permanen.', 'success');
-                } else if (result && result.status && result.status.startsWith('skipped_')) {
-                    showNotification('⚠️ Data tersimpan lokal, tetapi belum tersimpan di server.', 'warning');
+                } else if (studentSync && studentSync.status === 'skipped_in_progress') {
+                    // Auto-sync sedang berjalan - tunggu lalu retry
+                    console.log('[IMPORT API] Sync diblokir karena sync lain sedang berjalan. Auto-retry setelah selesai...');
+                    showNotification('⏳ Menunggu sinkronisasi selesai, lalu menyimpan data baru...', 'info');
+                    waitAndSyncAfterImport().then(retryResult => {
+                        console.log('[IMPORT API] Retry result:', retryResult);
+                        if (retryResult && retryResult.status === 'success') {
+                            showNotification('✅ Data berhasil tersimpan permanen ke server.', 'success');
+                        } else {
+                            showNotification('⚠️ Data tersimpan lokal. Status: ' + (retryResult && retryResult.status || 'unknown'), 'warning');
+                        }
+                    }).catch(err => {
+                        console.error('[IMPORT API] Retry failed:', err);
+                        showNotification('⚠️ Gagal menyimpan ke server setelah retry.', 'warning');
+                    });
+                } else if (studentSync && studentSync.status === 'skipped_permission') {
+                    console.warn('[IMPORT API] Sync diblokir - user bukan admin/guru. Profile:', window.currentProfile);
+                    showNotification('⚠️ Sync gagal: pastikan Anda login sebagai Admin atau Guru.', 'warning');
+                } else if (studentSync && studentSync.status && studentSync.status.startsWith('skipped_')) {
+                    console.log('[IMPORT API] Sync skipped:', studentSync.status);
+                    showNotification('⚠️ Data tersimpan lokal, belum tersimpan di server.', 'warning');
                 } else {
                     showNotification('✅ Proses sinkronisasi selesai.', 'success');
                 }
             }).catch(err => {
-                console.error('Sync failed:', err);
+                console.error('[IMPORT API] Sync failed:', err);
                 showNotification('⚠️ Data tersimpan lokal, tapi gagal sync ke server.', 'warning');
             });
+        } else {
+            showNotification('✅ Data tersimpan lokal (offline).', 'success');
         }
 
         if (window.autoSync) autoSync();
@@ -1474,7 +1545,7 @@ function confirmImport() {
 
     recalculateRankings();
     StorageManager.save();
-    
+
     // Close modal and show results first (Optimistic UI)
     closeModal();
     refreshAllData();
@@ -1484,30 +1555,60 @@ function confirmImport() {
     // SYNC TO SUPABASE - Critical for persistence
     if (navigator.onLine) {
         showNotification('☁️ Menyimpan data ke database server...', 'info');
-        
+
         const syncPromises = [];
-        if (typeof syncHalaqahsToSupabase === 'function') {
-            syncPromises.push(syncHalaqahsToSupabase());
+        // PENTING: gunakan window. prefix agar fungsi dari supabase.js terdeteksi
+        if (typeof window.syncHalaqahsToSupabase === 'function') {
+            syncPromises.push(window.syncHalaqahsToSupabase());
+        } else {
+            console.warn('[IMPORT] window.syncHalaqahsToSupabase not found - pastikan supabase.js termuat');
         }
-        if (typeof syncStudentsToSupabase === 'function') {
-            syncPromises.push(syncStudentsToSupabase());
+        if (typeof window.syncStudentsToSupabase === 'function') {
+            syncPromises.push(window.syncStudentsToSupabase());
+        } else {
+            console.error('[IMPORT] window.syncStudentsToSupabase not found - DATA TIDAK AKAN TERSIMPAN KE SERVER!');
+            showNotification('❌ Fungsi sync tidak ditemukan. Pastikan supabase.js termuat dengan benar.', 'error');
         }
 
-        Promise.all(syncPromises)
-            .then(results => {
-                const studentSync = results.find(r => r && r.status);
-                if (studentSync && studentSync.status === 'success') {
-                    showNotification('✅ Data berhasil tersimpan permanen di server.', 'success');
-                } else if (studentSync && studentSync.status && studentSync.status.startsWith('skipped_')) {
-                    showNotification('⚠️ Data tersimpan lokal, tetapi belum tersimpan di server.', 'warning');
-                } else {
-                    showNotification('✅ Proses sinkronisasi selesai.', 'success');
-                }
-            })
-            .catch(err => {
-                console.error('Import Sync Failed:', err);
-                showNotification('⚠️ Data tersimpan lokal, tapi GAGAL sync ke server. Cek koneksi & coba lagi.', 'warning');
-            });
+        if (syncPromises.length === 0) {
+            console.error('[IMPORT] syncPromises kosong - tidak ada fungsi sync yang ditemukan!');
+        } else {
+            Promise.all(syncPromises)
+                .then(syncResults => {
+                    const studentSync = syncResults.find(r => r && r.status);
+                    console.log('[IMPORT] Sync results:', syncResults);
+                    if (studentSync && studentSync.status === 'success') {
+                        showNotification('✅ Data berhasil tersimpan permanen di server.', 'success');
+                    } else if (studentSync && studentSync.status === 'skipped_in_progress') {
+                        // Auto-sync sedang berjalan - tunggu lalu retry otomatis
+                        console.log('[IMPORT] Sync diblokir (in_progress). Auto-retry setelah selesai...');
+                        showNotification('⏳ Menunggu sinkronisasi selesai, lalu menyimpan data baru...', 'info');
+                        waitAndSyncAfterImport().then(retryResult => {
+                            console.log('[IMPORT] Retry result:', retryResult);
+                            if (retryResult && retryResult.status === 'success') {
+                                showNotification('✅ Data berhasil tersimpan permanen ke server.', 'success');
+                            } else {
+                                showNotification('⚠️ Status sync: ' + (retryResult && retryResult.status || 'unknown'), 'warning');
+                            }
+                        }).catch(err => {
+                            console.error('[IMPORT] Retry failed:', err);
+                            showNotification('⚠️ Gagal menyimpan ke server setelah retry.', 'warning');
+                        });
+                    } else if (studentSync && studentSync.status === 'skipped_permission') {
+                        console.warn('[IMPORT] Sync diblokir - user bukan admin/guru. Profile:', window.currentProfile);
+                        showNotification('⚠️ Sync gagal: pastikan Anda login sebagai Admin atau Guru.', 'warning');
+                    } else if (studentSync && studentSync.status && studentSync.status.startsWith('skipped_')) {
+                        console.warn('[IMPORT] Sync skipped:', studentSync.status);
+                        showNotification('⚠️ Data tersimpan lokal, belum tersimpan di server (' + studentSync.status + ').', 'warning');
+                    } else {
+                        showNotification('✅ Proses sinkronisasi selesai.', 'success');
+                    }
+                })
+                .catch(err => {
+                    console.error('[IMPORT] Sync failed:', err);
+                    showNotification('⚠️ Data tersimpan lokal, tapi GAGAL sync ke server. Cek koneksi & coba lagi.', 'warning');
+                });
+        }
     }
 
     if (window.autoSync) {
