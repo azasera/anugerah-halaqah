@@ -597,17 +597,33 @@ async function importTotalHafalanSdFromGuru() {
         const encodedGuru = encodeURIComponent(namaDepan);
         const url = `https://asia-southeast1-mootabaah.cloudfunctions.net/api/totalHafalan2025/${jenjangSlug}/${encodedGuru}`;
 
+        console.log('[DEBUG] Import Total Hafalan:');
+        console.log('  - Lembaga:', lembagaKey);
+        console.log('  - Jenjang Slug:', jenjangSlug);
+        console.log('  - Input Guru:', guruName);
+        console.log('  - Normalized Guru:', normalizedGuru);
+        console.log('  - Nama Depan:', namaDepan);
+        console.log('  - URL:', url);
+
         showNotification(`☁️ Mengambil total hafalan 2025 untuk ${guruName} (${lembagaKey})...`, 'info');
 
         const res = await fetch(url);
+        console.log('[DEBUG] Response status:', res.status, res.statusText);
+        
         if (!res.ok) {
-            showNotification('❌ Gagal mengambil data total hafalan dari server.', 'error');
+            console.error('[DEBUG] Response not OK:', res.status, res.statusText);
+            showNotification(`❌ Gagal mengambil data total hafalan dari server. (${res.status})`, 'error');
             return;
         }
 
         const json = await res.json();
+        console.log('[DEBUG] Response JSON:', json);
+        
         const payload = json && typeof json === 'object' ? json : {};
         const data = payload.data && typeof payload.data === 'object' ? payload.data : null;
+
+        console.log('[DEBUG] Data extracted:', data);
+        console.log('[DEBUG] Data keys count:', data ? Object.keys(data).length : 0);
 
         if (!data || Object.keys(data).length === 0) {
             showNotification('ℹ️ Tidak ada data hafalan yang diterima untuk ustadz tersebut.', 'info');
