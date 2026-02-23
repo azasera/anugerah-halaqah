@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quick Check - Muhammad Husain</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5; }
+        .container { max-width: 900px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1 { color: #333; }
+        button { padding: 15px 30px; margin: 10px 5px; cursor: pointer; background: #4CAF50; color: white; border: none; border-radius: 5px; font-size: 16px; font-weight: bold; }
+        button:hover { background: #45a049; }
+        .result { margin: 20px 0; padding: 20px; background: #f9f9f9; border-radius: 8px; border-left: 4px solid #2196F3; }
+        pre { background: white; padding: 15px; border-radius: 5px; overflow-x: auto; font-size: 13px; border: 1px solid #ddd; }
+        .error { color: #d32f2f; background: #ffebee; padding: 15px; border-radius: 5px; margin: 10px 0; border-left: 4px solid #d32f2f; }
+        .success { color: #388e3c; background: #e8f5e9; padding: 15px; border-radius: 5px; margin: 10px 0; border-left: 4px solid #388e3c; }
+        .info { color: #1976d2; background: #e3f2fd; padding: 15px; border-radius: 5px; margin: 10px 0; border-left: 4px solid #1976d2; }
+        .warning { color: #f57c00; background: #fff3e0; padding: 15px; border-radius: 5px; margin: 10px 0; border-left: 4px solid #f57c00; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Quick Check - Muhammad Husain</h1>
+        
+        <div class="info">
+            <strong>Data yang dicari:</strong><br>
+            NIK: 1971022102090001<br>
+            Password: 21022009
+        </div>
+
+        <button onclick="checkAll()">🚀 Check Semua</button>
+        <button onclick="tryLogin()">🔐 Test Login</button>
+        <button onclick="tryRegister()">📝 Register Akun</button>
+
+        <div id="result" class="result"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        const SUPABASE_URL = 'https://klhegwunosmryqozuahc.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtsaGVnd3Vub3Ntcnlxb3p1YWhjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3Mjg3NDcsImV4cCI6MjA4NjMwNDc0N30.0X54jxpMZI9eilDxfJ7FYUGImuN-TEH9qGQkdRTtRXw';
+        
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        const NIK = '1971022102090001';
+        const PASSWORD = '21022009';
+        const EMAIL = NIK + '@sekolah.id';
+
+        async function checkAll() {
+            const result = document.getElementById('result');
+            result.innerHTML = '<h2>⏳ Checking...</h2>';
+            
+            let html = '<h2>📊 Hasil Pemeriksaan</h2>';
+            
+            // 1. Check student data
+            html += '<h3>1️⃣ Cek Data Santri di Database</h3>';
+            try {
+                const { data: student, error } = await supabaseClient
+                    .from('students')
+                    .select('*')
+                    .or(`nik.eq."${NIK}",nik.eq.${NIK}`)
+                    .maybeSingle();
+                
+                if (error) {
+                    html += `<div class="error">❌ Error: ${error.message}</div>`;
+                } else if (student) {
+                    html += '<div class="success">✅ Data santri DITEMUKAN!</div>';
+                    html += `<pre>${JSON.stringify(student, null, 2)}</pre>`;
+                    
+                    // Validate data
+                    html += '<h4>Validasi Data:</h4>';
+                    html += `<p>✅ Nama: ${student.name}</p>`;
+                    html += `<p>${student.nik ? '✅' : '❌'} NIK: ${student.nik || 'KOSONG'}</p>`;
+                    html += `<p>${student.tanggal_lahir ? '✅' : '❌'} Tanggal Lahir: ${student.tanggal_lahir || 'KOSONG'}</p>`;
+                    html += `<p>${student.halaqah ? '✅' : '⚠️'} Halaqah: ${student.halaqah || 'Tidak ada'}</p>`;
+                    
+                    // Check password format
+                    if (student.tanggal_lahir) {
+                        const ttl = student.tanggal_lahir;
+                        let expectedPassword = '';
+                        
+                        if (ttl.includes('-')) {
+                            const parts = ttl.split('-');
+                            if (parts[0].length === 4) {
+                                // YYYY-MM-DD
+                                expectedPassword = parts[2] + parts[1] + parts[0];
+                            } else {
+                                // DD-MM-YYYY
+                                expectedPassword = parts[0] + parts[1] + parts[2];
+                            }
+                        }
+                        
+                        html += `<p>Expected Password: ${expectedPassword}</p>`;
+                        html += `<p>${expectedPassword === PASSWORD ? '✅' : '❌'} Password Match: ${expectedPassword === PASSWORD}</p>`;
+                    }
+                } else {
+                    html += '<div class="error">❌ Data santri TIDAK DITEMUKAN!</div>';
+                    html += '<div class="warning">💡 Data perlu ditambahkan ke database terlebih dahulu</div>';
+                }
+            } catch (err) {
+                html += `<div class="error">❌ Exception: ${err.message}</div>`;
+            }
+            
+            // 2. Check auth
+            html += '<h3>2️⃣ Test Login ke Auth</h3>';
+            try {
+                const { data: authData, error: authError } = await supabaseClient.auth.signInWithPassword({
+                    email: EMAIL,
+                    password: PASSWORD
+                });
+                
+                if (authError) {
+                    html += `<div class="error">❌ Login Failed: ${authError.message}</div>`;
+                    
+                    if (authError.message.includes('Invalid login credentials')) {
+                        html += '<div class="warning">⚠️ Akun belum terdaftar di Auth</div>';
+                        html += '<div class="info">💡 Klik tombol "Register Akun" untuk mendaftar</div>';
+                    }
+                } else if (authData?.user) {
+                    html += '<div class="success">✅ Login BERHASIL!</div>';
+                    html += `<p>User ID: ${authData.user.id}</p>`;
+                    html += `<p>Email: ${authData.user.email}</p>`;
+                    
+                    // Sign out after test
+                    await supabaseClient.auth.signOut();
+                    html += '<p><em>(Auto signed out after test)</em></p>';
+                }
+            } catch (err) {
+                html += `<div class="error">❌ Exception: ${err.message}</div>`;
+            }
+            
+            result.innerHTML = html;
+        }
+
+        async function tryLogin() {
+            const result = document.getElementById('result');
+            result.innerHTML = '<h2>⏳ Testing login...</h2>';
+            
+            try {
+                const { data, error } = await supabaseClient.auth.signInWithPassword({
+                    email: EMAIL,
+                    password: PASSWORD
+                });
+                
+                if (error) {
+                    result.innerHTML = `
+                        <div class="error">
+                            <h3>❌ Login Gagal</h3>
+                            <p><strong>Error:</strong> ${error.message}</p>
+                            <p><strong>Email:</strong> ${EMAIL}</p>
+                            <p><strong>Password:</strong> ${PASSWORD}</p>
+                        </div>
+                        <div class="info">
+                            💡 Jika error "Invalid login credentials", akun belum terdaftar.<br>
+                            Klik tombol "Register Akun" untuk mendaftar.
+                        </div>
+                    `;
+                } else {
+                    result.innerHTML = `
+                        <div class="success">
+                            <h3>✅ Login Berhasil!</h3>
+                            <p><strong>User ID:</strong> ${data.user.id}</p>
+                            <p><strong>Email:</strong> ${data.user.email}</p>
+                            <pre>${JSON.stringify(data.user, null, 2)}</pre>
+                        </div>
+                    `;
+                    
+                    // Sign out
+                    await supabaseClient.auth.signOut();
+                }
+            } catch (err) {
+                result.innerHTML = `<div class="error">❌ Exception: ${err.message}</div>`;
+            }
+        }
+
+        async function tryRegister() {
+            const result = document.getElementById('result');
+            result.innerHTML = '<h2>⏳ Registering account...</h2>';
+            
+            try {
+                // First check if student exists
+                const { data: student, error: studentError } = await supabaseClient
+                    .from('students')
+                    .select('*')
+                    .or(`nik.eq."${NIK}",nik.eq.${NIK}`)
+                    .maybeSingle();
+                
+                if (studentError || !student) {
+                    result.innerHTML = `
+                        <div class="error">
+                            <h3>❌ Tidak Bisa Register</h3>
+                            <p>Data santri tidak ditemukan di database.</p>
+                            <p>Tambahkan data santri terlebih dahulu.</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                // Try to register
+                const { data, error } = await supabaseClient.auth.signUp({
+                    email: EMAIL,
+                    password: PASSWORD,
+                    options: {
+                        data: {
+                            full_name: student.name,
+                            role: 'ortu',
+                            nik: student.nik
+                        }
+                    }
+                });
+                
+                if (error) {
+                    result.innerHTML = `
+                        <div class="error">
+                            <h3>❌ Register Gagal</h3>
+                            <p><strong>Error:</strong> ${error.message}</p>
+                        </div>
+                    `;
+                    
+                    if (error.message.includes('already registered')) {
+                        result.innerHTML += `
+                            <div class="info">
+                                💡 Email sudah terdaftar. Coba login langsung.
+                            </div>
+                        `;
+                    }
+                } else {
+                    result.innerHTML = `
+                        <div class="success">
+                            <h3>✅ Register Berhasil!</h3>
+                            <p><strong>Email:</strong> ${EMAIL}</p>
+                            <p><strong>User ID:</strong> ${data.user?.id}</p>
+                            <p>Silakan login menggunakan NIK dan password TTL.</p>
+                        </div>
+                    `;
+                }
+            } catch (err) {
+                result.innerHTML = `<div class="error">❌ Exception: ${err.message}</div>`;
+            }
+        }
+
+        // Auto check on load
+        window.addEventListener('load', () => {
+            console.log('Ready to check Muhammad Husain login');
+            console.log('NIK:', NIK);
+            console.log('Email:', EMAIL);
+            console.log('Password:', PASSWORD);
+        });
+    </script>
+</body>
+</html>
