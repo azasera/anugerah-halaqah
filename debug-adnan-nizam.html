@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Adnan & Nizam</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5; }
+        .container { max-width: 900px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1 { color: #333; }
+        button { padding: 12px 24px; margin: 5px; cursor: pointer; background: #4CAF50; color: white; border: none; border-radius: 5px; font-size: 14px; font-weight: bold; }
+        button:hover { background: #45a049; }
+        pre { background: #2d3748; color: #e2e8f0; padding: 15px; border-radius: 5px; overflow-x: auto; font-size: 12px; }
+        .info { background: #e3f2fd; padding: 15px; border-radius: 5px; margin: 10px 0; border-left: 5px solid #2196F3; }
+        .error { background: #ffebee; padding: 15px; border-radius: 5px; margin: 10px 0; border-left: 5px solid #f44336; }
+        .success { background: #e8f5e9; padding: 15px; border-radius: 5px; margin: 10px 0; border-left: 5px solid #4CAF50; }
+        table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+        table th, table td { padding: 10px; text-align: left; border: 1px solid #ddd; }
+        table th { background: #f7fafc; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Debug Adnan & Nizam</h1>
+        
+        <button onclick="checkAPI()">1️⃣ Cek Nama di API</button>
+        <button onclick="checkLocal()">2️⃣ Cek Nama di Sistem</button>
+        <button onclick="compareNames()">3️⃣ Compare & Calculate Similarity</button>
+
+        <div id="result"></div>
+    </div>
+
+    <script>
+        let apiData = {};
+        let localData = [];
+
+        async function checkAPI() {
+            const result = document.getElementById('result');
+            result.innerHTML = '<p>⏳ Fetching API data...</p>';
+            
+            const guruList = ['Alim', 'Naufal', 'Harziki'];
+            apiData = {};
+            
+            for (const guru of guruList) {
+                try {
+                    const res = await fetch(`https://asia-southeast1-mootabaah.cloudfunctions.net/api/totalHafalan2025/mta/${guru}`);
+                    if (res.ok) {
+                        const json = await res.json();
+                        Object.assign(apiData, json.data || {});
+                    }
+                } catch (err) {
+                    console.error(err);
+                }
+            }
+            
+            const apiNames = Object.keys(apiData).map(k => ({
+                key: k,
+                name: apiData[k].namaSiswa || apiData[k].nama || k,
+                total: apiData[k].totalHafalan
+            }));
+            
+            // Filter Adnan and Nizam
+            const targets = apiNames.filter(n => 
+                n.name.toLowerCase().includes('adnan') || 
+                n.name.toLowerCase().includes('nizam')
+            );
+            
+            let html = '<h2>📡 Data dari API:</h2>';
+            html += `<p>Total: ${apiNames.length} santri</p>`;
+            html += '<h3>Adnan & Nizam:</h3>';
+            html += '<table><tr><th>Nama di API</th><th>Total Hafalan</th><th>Normalized</th></tr>';
+            
+            targets.forEach(t => {
+                const normalized = t.name.toLowerCase().replace(/[\s\u00A0]+/g, ' ').trim();
+                html += `<tr>
+                    <td><strong>${t.name}</strong></td>
+                    <td>${t.total}</td>
+                    <td><code>${normalized}</code></td>
+                </tr>`;
+            });
+            
+            html += '</table>';
+            html += '<pre>' + JSON.stringify(targets, null, 2) + '</pre>';
+            
+            result.innerHTML = html;
+        }
+
+        async function checkLocal() {
+            const result = document.getElementById('result');
+            result.innerHTML = '<p>⏳ Loading local data...</p>';
+            
+            try {
+                const stored = localStorage.getItem('halaqahData');
+                if (stored) {
+                    const parsed = JSON.parse(stored);
+                    localData = (parsed.students || []).filter(s => s.lembaga === 'MTA');
+                }
+            } catch (err) {
+                result.innerHTML = `<div class="error">Error: ${err.message}</div>`;
+                return;
+            }
+            
+            // Filter Adnan and Nizam
+            const targets = localData.filter(s => 
+                s.name.toLowerCase().includes('adnan') || 
+                s.name.toLowerCase().includes('nizam')
+            );
+            
+            let html = '<h2>💾 Data di Sistem Lokal:</h2>';
+            html += `<p>Total MTA: ${localData.length} santri</p>`;
+            html += '<h3>Adnan & Nizam:</h3>';
+            html += '<table><tr><th>Nama di Sistem</th><th>Total Hafalan</th><th>Halaqah</th><th>Normalized</th></tr>';
+            
+            targets.forEach(t => {
+                const normalized = t.name.toLowerCase().replace(/[\s\u00A0]+/g, ' ').trim();
+                html += `<tr>
+                    <td><strong>${t.name}</strong></td>
+                    <td>${t.total_hafalan || 0}</td>
+                    <td>${t.halaqah || '-'}</td>
+                    <td><code>${normalized}</code></td>
+                </tr>`;
+            });
+            
+            html += '</table>';
+            html += '<pre>' + JSON.stringify(targets, null, 2) + '</pre>';
+            
+            result.innerHTML = html;
+        }
+
+        async function compareNames() {
+            const result = document.getElementById('result');
+            
+            if (Object.keys(apiData).length === 0) {
+                result.innerHTML = '<div class="error">Run "Cek Nama di API" first!</div>';
+                return;
+            }
+            
+            if (localData.length === 0) {
+                result.innerHTML = '<div class="error">Run "Cek Nama di Sistem" first!</div>';
+                return;
+            }
+            
+            const apiNames = Object.keys(apiData).map(k => ({
+                name: apiData[k].namaSiswa || apiData[k].nama || k,
+                total: apiData[k].totalHafalan
+            })).filter(n => 
+                n.name.toLowerCase().includes('adnan') || 
+                n.name.toLowerCase().includes('nizam')
+            );
+            
+            const localNames = localData.filter(s => 
+                s.name.toLowerCase().includes('adnan') || 
+                s.name.toLowerCase().includes('nizam')
+            );
+            
+            let html = '<h2>🔬 Comparison:</h2>';
+            html += '<table><tr><th>API Name</th><th>Local Name</th><th>Similarity</th><th>Match?</th></tr>';
+            
+            apiNames.forEach(api => {
+                const apiNorm = api.name.toLowerCase().replace(/[\s\u00A0]+/g, ' ').trim();
+                
+                localNames.forEach(local => {
+                    const localNorm = local.name.toLowerCase().replace(/[\s\u00A0]+/g, ' ').trim();
+                    const similarity = calculateSimilarity(apiNorm, localNorm);
+                    const match = similarity > 80 ? '✅' : '❌';
+                    
+                    html += `<tr>
+                        <td><code>${api.name}</code><br><small>${apiNorm}</small></td>
+                        <td><code>${local.name}</code><br><small>${localNorm}</small></td>
+                        <td><strong>${similarity.toFixed(1)}%</strong></td>
+                        <td>${match}</td>
+                    </tr>`;
+                });
+            });
+            
+            html += '</table>';
+            
+            html += '<h3>💡 Analysis:</h3>';
+            html += '<div class="info">';
+            html += '<p>Jika similarity > 80% tapi masih tidak match, kemungkinan:</p>';
+            html += '<ul>';
+            html += '<li>Ada karakter invisible (non-breaking space, zero-width space)</li>';
+            html += '<li>Encoding berbeda</li>';
+            html += '<li>Bug di kode fuzzy matching</li>';
+            html += '</ul>';
+            html += '</div>';
+            
+            result.innerHTML = html;
+        }
+
+        function levenshteinDistance(str1, str2) {
+            const matrix = [];
+            for (let i = 0; i <= str2.length; i++) {
+                matrix[i] = [i];
+            }
+            for (let j = 0; j <= str1.length; j++) {
+                matrix[0][j] = j;
+            }
+            for (let i = 1; i <= str2.length; i++) {
+                for (let j = 1; j <= str1.length; j++) {
+                    if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
+                        matrix[i][j] = matrix[i - 1][j - 1];
+                    } else {
+                        matrix[i][j] = Math.min(
+                            matrix[i - 1][j - 1] + 1,
+                            matrix[i][j - 1] + 1,
+                            matrix[i - 1][j] + 1
+                        );
+                    }
+                }
+            }
+            return matrix[str2.length][str1.length];
+        }
+
+        function calculateSimilarity(str1, str2) {
+            const longer = str1.length > str2.length ? str1 : str2;
+            const shorter = str1.length > str2.length ? str2 : str1;
+            if (longer.length === 0) return 100;
+            const editDistance = levenshteinDistance(longer, shorter);
+            return ((longer.length - editDistance) / longer.length) * 100;
+        }
+    </script>
+</body>
+</html>
