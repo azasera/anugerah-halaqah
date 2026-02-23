@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test MTA Hafalan API</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5; }
+        .container { max-width: 1000px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1 { color: #333; }
+        button { padding: 12px 24px; margin: 5px; cursor: pointer; background: #4CAF50; color: white; border: none; border-radius: 5px; font-size: 14px; font-weight: bold; }
+        button:hover { background: #45a049; }
+        .result { margin: 20px 0; padding: 15px; border-radius: 5px; }
+        .error { background: #ffebee; color: #c62828; border-left: 5px solid #c62828; }
+        .success { background: #e8f5e9; color: #2e7d32; border-left: 5px solid #2e7d32; }
+        .info { background: #e3f2fd; color: #1976d2; border-left: 5px solid #1976d2; }
+        pre { background: #2d3748; color: #e2e8f0; padding: 15px; border-radius: 5px; overflow-x: auto; font-size: 12px; }
+        table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+        table th, table td { padding: 10px; text-align: left; border: 1px solid #ddd; }
+        table th { background: #f7fafc; font-weight: bold; }
+        .status-ok { color: #2e7d32; font-weight: bold; }
+        .status-error { color: #c62828; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Test MTA Hafalan API</h1>
+        
+        <div class="info">
+            <strong>Guru MTA yang tersedia:</strong>
+            <ul>
+                <li>Ustadz Alim</li>
+                <li>Ustadz Harziki</li>
+                <li>Ustadz Naufal Hudiya</li>
+            </ul>
+        </div>
+
+        <button onclick="testAllEndpoints()">🚀 Test Semua Endpoint</button>
+        <button onclick="testCustom()">🔧 Test Custom URL</button>
+
+        <div style="margin: 20px 0;">
+            <input type="text" id="customUrl" placeholder="Custom URL" style="width: 70%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+        </div>
+
+        <div id="result"></div>
+    </div>
+
+    <script>
+        const BASE_URL = 'https://asia-southeast1-mootabaah.cloudfunctions.net/api';
+        
+        const testCases = [
+            // Format 1: /totalHafalan2025/mta/{nama}
+            { url: `${BASE_URL}/totalHafalan2025/mta/Alim`, desc: 'MTA - Alim' },
+            { url: `${BASE_URL}/totalHafalan2025/mta/Harziki`, desc: 'MTA - Harziki' },
+            { url: `${BASE_URL}/totalHafalan2025/mta/Naufal`, desc: 'MTA - Naufal' },
+            
+            // Format 2: Dengan USTADZ prefix
+            { url: `${BASE_URL}/totalHafalan2025/mta/USTADZ%20Alim`, desc: 'MTA - USTADZ Alim' },
+            { url: `${BASE_URL}/totalHafalan2025/mta/Ustadz%20Alim`, desc: 'MTA - Ustadz Alim' },
+            
+            // Format 3: Nama lengkap
+            { url: `${BASE_URL}/totalHafalan2025/mta/Naufal%20Hudiya`, desc: 'MTA - Naufal Hudiya' },
+            { url: `${BASE_URL}/totalHafalan2025/mta/USTADZ%20NAUFAL%20HUDIYA`, desc: 'MTA - USTADZ NAUFAL HUDIYA' },
+            
+            // Format 4: Lowercase
+            { url: `${BASE_URL}/totalHafalan2025/mta/alim`, desc: 'MTA - alim (lowercase)' },
+            { url: `${BASE_URL}/totalHafalan2025/mta/naufal`, desc: 'MTA - naufal (lowercase)' },
+            
+            // Format 5: Test endpoint lain
+            { url: `${BASE_URL}/listnamamta2025`, desc: 'List Nama MTA (untuk referensi)' },
+        ];
+
+        async function testAllEndpoints() {
+            const result = document.getElementById('result');
+            result.innerHTML = '<p>⏳ Testing endpoints...</p>';
+            
+            let html = '<h2>📊 Test Results:</h2>';
+            html += '<table>';
+            html += '<tr><th>Endpoint</th><th>Status</th><th>Response</th></tr>';
+            
+            for (const test of testCases) {
+                try {
+                    const res = await fetch(test.url);
+                    const statusClass = res.ok ? 'status-ok' : 'status-error';
+                    const statusText = res.ok ? `✅ ${res.status}` : `❌ ${res.status}`;
+                    
+                    let responseText = '';
+                    if (res.ok) {
+                        const json = await res.json();
+                        const dataCount = json.data ? Object.keys(json.data).length : 0;
+                        responseText = `${dataCount} records`;
+                    } else {
+                        responseText = res.statusText;
+                    }
+                    
+                    html += `<tr>
+                        <td>${test.desc}<br><small style="color: #666;">${test.url}</small></td>
+                        <td class="${statusClass}">${statusText}</td>
+                        <td>${responseText}</td>
+                    </tr>`;
+                } catch (err) {
+                    html += `<tr>
+                        <td>${test.desc}<br><small style="color: #666;">${test.url}</small></td>
+                        <td class="status-error">❌ Error</td>
+                        <td>${err.message}</td>
+                    </tr>`;
+                }
+            }
+            
+            html += '</table>';
+            
+            html += '<div class="info" style="margin-top: 20px;">';
+            html += '<h3>💡 Kesimpulan:</h3>';
+            html += '<p>Jika semua endpoint MTA mengembalikan 404, kemungkinan:</p>';
+            html += '<ul>';
+            html += '<li>Backend belum support endpoint <code>/totalHafalan2025/mta/</code></li>';
+            html += '<li>Data total hafalan MTA belum tersedia di server</li>';
+            html += '<li>Format URL berbeda untuk MTA</li>';
+            html += '</ul>';
+            html += '<p><strong>Solusi:</strong> Hubungi developer backend untuk menambahkan support MTA atau konfirmasi format URL yang benar.</p>';
+            html += '</div>';
+            
+            result.innerHTML = html;
+        }
+
+        async function testCustom() {
+            const customUrl = document.getElementById('customUrl').value.trim();
+            if (!customUrl) {
+                alert('Masukkan URL terlebih dahulu');
+                return;
+            }
+            
+            const result = document.getElementById('result');
+            result.innerHTML = '<p>⏳ Testing custom URL...</p>';
+            
+            try {
+                const res = await fetch(customUrl);
+                
+                let html = '<h2>📊 Custom URL Test:</h2>';
+                html += `<p><strong>URL:</strong> ${customUrl}</p>`;
+                html += `<p><strong>Status:</strong> ${res.status} ${res.statusText}</p>`;
+                
+                if (res.ok) {
+                    const json = await res.json();
+                    html += '<div class="success">✅ Request berhasil!</div>';
+                    html += '<pre>' + JSON.stringify(json, null, 2) + '</pre>';
+                } else {
+                    html += '<div class="error">❌ Request gagal</div>';
+                }
+                
+                result.innerHTML = html;
+            } catch (err) {
+                result.innerHTML = `<div class="error">❌ Error: ${err.message}</div>`;
+            }
+        }
+    </script>
+</body>
+</html>
