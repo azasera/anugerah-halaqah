@@ -393,37 +393,82 @@ async function importFromJenjangApi(config) {
             }
             const rawName = row.namaSiswa || row.nama || '';
             const rawHalaqah = row.namaHalaqoh || row.halaqah || '';
+            const rawGuruHalaqoh = row.guruHalaqoh || '';
+            
             const name = String(rawName).trim();
             const halaqahNameRaw = String(rawHalaqah).trim();
+            const guruHalaqoh = String(rawGuruHalaqoh).trim();
+            
+            // Remove "Halaqah" prefix if exists
             const halaqahName = halaqahNameRaw.replace(/^Halaqah\s+/i, '').trim();
-            if (!name || !halaqahName) {
-                return { index, canImport: false, reason: 'Nama atau Halaqah kosong', name, halaqahName, row };
+            
+            if (!name) {
+                return { index, canImport: false, reason: 'Nama kosong', name, halaqahName, row };
             }
+            
+            // Check if student already exists
             const exists = dashboardData.students.some(s => {
                 if (!s) return false;
                 const sName = String(s.name || '').trim().toLowerCase();
                 const sHalaqah = String(s.halaqah || '').trim().toLowerCase();
                 return sName === name.toLowerCase() && sHalaqah === halaqahName.toLowerCase();
             });
-            const halaqahExists = dashboardData.halaqahs.some(h => {
-                if (!h || !h.name) return false;
-                const base = String(h.name).replace(/^Halaqah\s+/i, '').trim().toLowerCase();
-                return base === halaqahName.toLowerCase();
-            });
+            
+            // Check if halaqah exists - with flexible matching
+            // Try exact match first, then partial match (for MTA where API returns "Naufal" but system has "Naufal Hudiya")
+            let halaqahExists = false;
+            let matchedHalaqah = null;
+            
+            if (halaqahName) {
+                // Try exact match
+                matchedHalaqah = dashboardData.halaqahs.find(h => {
+                    if (!h || !h.name) return false;
+                    const base = String(h.name).replace(/^Halaqah\s+/i, '').trim().toLowerCase();
+                    return base === halaqahName.toLowerCase();
+                });
+                
+                // If not found, try partial match (halaqah name starts with the API value)
+                if (!matchedHalaqah) {
+                    matchedHalaqah = dashboardData.halaqahs.find(h => {
+                        if (!h || !h.name) return false;
+                        const base = String(h.name).replace(/^Halaqah\s+/i, '').trim().toLowerCase();
+                        return base.startsWith(halaqahName.toLowerCase());
+                    });
+                }
+                
+                // If still not found and we have guruHalaqoh, try matching with guru name
+                if (!matchedHalaqah && guruHalaqoh) {
+                    // Extract name from "Ustadz Naufal Hudiya" -> "Naufal Hudiya"
+                    const guruNameOnly = guruHalaqoh.replace(/^(Ustadz|Ustadzah|Ust\.?)\s+/i, '').trim();
+                    matchedHalaqah = dashboardData.halaqahs.find(h => {
+                        if (!h || !h.name) return false;
+                        const base = String(h.name).replace(/^Halaqah\s+/i, '').trim().toLowerCase();
+                        return base === guruNameOnly.toLowerCase() || base.startsWith(guruNameOnly.toLowerCase().split(' ')[0]);
+                    });
+                }
+                
+                halaqahExists = !!matchedHalaqah;
+            }
+            
             let reason = '';
             let canImport = true;
             if (exists) {
                 canImport = false;
                 reason = 'Sudah ada di sistem';
+            } else if (!halaqahName && !guruHalaqoh) {
+                canImport = false;
+                reason = 'Halaqah belum ada di sistem';
             } else if (!halaqahExists) {
                 canImport = false;
                 reason = 'Halaqah belum ada di sistem';
             }
+            
             return {
                 index,
                 row,
                 name,
-                halaqahName,
+                halaqahName: matchedHalaqah ? matchedHalaqah.name.replace(/^Halaqah\s+/i, '').trim() : halaqahName,
+                guruHalaqoh,
                 exists,
                 halaqahExists,
                 canImport,

@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Check MTA API Response</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5; }
+        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1 { color: #333; }
+        button { padding: 12px 24px; margin: 5px; cursor: pointer; background: #4CAF50; color: white; border: none; border-radius: 5px; font-size: 14px; font-weight: bold; }
+        button:hover { background: #45a049; }
+        pre { background: #2d3748; color: #e2e8f0; padding: 15px; border-radius: 5px; overflow-x: auto; font-size: 12px; max-height: 600px; }
+        .info { background: #e3f2fd; padding: 15px; border-radius: 5px; margin: 10px 0; border-left: 5px solid #2196F3; }
+        .error { background: #ffebee; padding: 15px; border-radius: 5px; margin: 10px 0; border-left: 5px solid #f44336; }
+        .success { background: #e8f5e9; padding: 15px; border-radius: 5px; margin: 10px 0; border-left: 5px solid #4CAF50; }
+        table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+        table th, table td { padding: 10px; text-align: left; border: 1px solid #ddd; font-size: 13px; }
+        table th { background: #f7fafc; font-weight: bold; }
+        .highlight { background: #fff3cd; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Check MTA API Response</h1>
+        
+        <div class="info">
+            <strong>API URL:</strong> https://asia-southeast1-mootabaah.cloudfunctions.net/api/listnamamta2025
+        </div>
+
+        <button onclick="checkAPI()">📡 Fetch API Data</button>
+        <button onclick="analyzeFields()">🔬 Analyze Fields</button>
+
+        <div id="result"></div>
+    </div>
+
+    <script>
+        let apiData = null;
+
+        async function checkAPI() {
+            const result = document.getElementById('result');
+            result.innerHTML = '<p>⏳ Fetching data...</p>';
+            
+            try {
+                const res = await fetch('https://asia-southeast1-mootabaah.cloudfunctions.net/api/listnamamta2025');
+                
+                if (!res.ok) {
+                    result.innerHTML = `<div class="error">❌ HTTP Error: ${res.status} ${res.statusText}</div>`;
+                    return;
+                }
+                
+                const json = await res.json();
+                apiData = json;
+                
+                let html = '<div class="success">✅ Data berhasil diambil!</div>';
+                html += '<h2>Raw Response:</h2>';
+                html += `<pre>${JSON.stringify(json, null, 2)}</pre>`;
+                
+                result.innerHTML = html;
+            } catch (error) {
+                result.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+            }
+        }
+
+        async function analyzeFields() {
+            const result = document.getElementById('result');
+            
+            if (!apiData) {
+                result.innerHTML = '<div class="error">❌ Fetch data dulu dengan klik "Fetch API Data"</div>';
+                return;
+            }
+            
+            const rows = Array.isArray(apiData.data) ? apiData.data : [];
+            
+            if (rows.length === 0) {
+                result.innerHTML = '<div class="error">❌ Tidak ada data</div>';
+                return;
+            }
+            
+            let html = '<div class="success">✅ Analyzing ' + rows.length + ' records...</div>';
+            
+            // Analyze first record
+            html += '<h2>Sample Record (First):</h2>';
+            html += `<pre>${JSON.stringify(rows[0], null, 2)}</pre>`;
+            
+            // Check all field names
+            html += '<h2>All Field Names in First Record:</h2>';
+            html += '<ul>';
+            Object.keys(rows[0] || {}).forEach(key => {
+                html += `<li><strong>${key}:</strong> ${typeof rows[0][key]} = ${JSON.stringify(rows[0][key])}</li>`;
+            });
+            html += '</ul>';
+            
+            // Check halaqah field variations
+            html += '<h2>Halaqah Field Analysis:</h2>';
+            html += '<table>';
+            html += '<tr><th>#</th><th>Nama</th><th>namaHalaqoh</th><th>halaqah</th><th>namaHalaqah</th><th>guru</th><th>All Keys</th></tr>';
+            
+            rows.slice(0, 10).forEach((row, index) => {
+                const keys = Object.keys(row).join(', ');
+                html += `<tr>
+                    <td>${index + 1}</td>
+                    <td>${row.namaSiswa || row.nama || '-'}</td>
+                    <td class="${row.namaHalaqoh ? '' : 'highlight'}">${row.namaHalaqoh || '-'}</td>
+                    <td class="${row.halaqah ? '' : 'highlight'}">${row.halaqah || '-'}</td>
+                    <td class="${row.namaHalaqah ? '' : 'highlight'}">${row.namaHalaqah || '-'}</td>
+                    <td>${row.guru || row.namaGuru || '-'}</td>
+                    <td style="font-size: 10px;">${keys}</td>
+                </tr>`;
+            });
+            html += '</table>';
+            
+            // Summary
+            html += '<h2>Summary:</h2>';
+            const hasNamaHalaqoh = rows.filter(r => r.namaHalaqoh).length;
+            const hasHalaqah = rows.filter(r => r.halaqah).length;
+            const hasNamaHalaqah = rows.filter(r => r.namaHalaqah).length;
+            const hasGuru = rows.filter(r => r.guru || r.namaGuru).length;
+            
+            html += '<ul>';
+            html += `<li><strong>Total records:</strong> ${rows.length}</li>`;
+            html += `<li><strong>Has 'namaHalaqoh':</strong> ${hasNamaHalaqoh} (${(hasNamaHalaqoh/rows.length*100).toFixed(1)}%)</li>`;
+            html += `<li><strong>Has 'halaqah':</strong> ${hasHalaqah} (${(hasHalaqah/rows.length*100).toFixed(1)}%)</li>`;
+            html += `<li><strong>Has 'namaHalaqah':</strong> ${hasNamaHalaqah} (${(hasNamaHalaqah/rows.length*100).toFixed(1)}%)</li>`;
+            html += `<li><strong>Has 'guru':</strong> ${hasGuru} (${(hasGuru/rows.length*100).toFixed(1)}%)</li>`;
+            html += '</ul>';
+            
+            // Recommendation
+            html += '<h2>🔧 Recommendation:</h2>';
+            html += '<div class="info">';
+            if (hasNamaHalaqoh > 0) {
+                html += '<p>✅ Use field: <code>namaHalaqoh</code></p>';
+            } else if (hasHalaqah > 0) {
+                html += '<p>✅ Use field: <code>halaqah</code></p>';
+            } else if (hasNamaHalaqah > 0) {
+                html += '<p>✅ Use field: <code>namaHalaqah</code></p>';
+            } else if (hasGuru > 0) {
+                html += '<p>⚠️ No halaqah field found, but <code>guru</code> field exists. Consider using guru name as halaqah.</p>';
+            } else {
+                html += '<p>❌ No halaqah-related field found in API response!</p>';
+            }
+            html += '</div>';
+            
+            result.innerHTML = html;
+        }
+    </script>
+</body>
+</html>
