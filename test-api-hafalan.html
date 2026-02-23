@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test API Total Hafalan</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .result { margin: 20px 0; padding: 15px; background: #f5f5f5; border-radius: 5px; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+        pre { background: #fff; padding: 10px; border: 1px solid #ddd; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>Test API Total Hafalan 2025</h1>
+    
+    <div>
+        <button onclick="testMTA()">Test MTA - Naufal</button>
+        <button onclick="testSD()">Test SD - Contoh</button>
+        <button onclick="testSMP()">Test SMP - Contoh</button>
+    </div>
+
+    <div id="result" class="result"></div>
+
+    <script>
+        async function testAPI(jenjang, namaGuru) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = `<p>⏳ Testing ${jenjang}/${namaGuru}...</p>`;
+            
+            try {
+                const url = `https://asia-southeast1-mootabaah.cloudfunctions.net/api/totalHafalan2025/${jenjang}/${encodeURIComponent(namaGuru)}`;
+                resultDiv.innerHTML += `<p>URL: ${url}</p>`;
+                
+                const res = await fetch(url);
+                const data = await res.json();
+                
+                resultDiv.innerHTML += `<p>✅ Status: ${res.status}</p>`;
+                resultDiv.innerHTML += `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+            } catch (error) {
+                resultDiv.innerHTML += `<p>❌ Error: ${error.message}</p>`;
+            }
+        }
+
+        function testMTA() {
+            testAPI('mta', 'Naufal');
+        }
+
+        function testSD() {
+            testAPI('sd', 'USTADZ CONTOH');
+        }
+
+        function testSMP() {
+            testAPI('smp', 'USTADZ CONTOH');
+        }
+    </script>
+</body>
+</html>

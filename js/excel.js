@@ -517,16 +517,13 @@ async function importTotalHafalanSdFromGuru() {
             return;
         }
 
-        if (lembagaKey === 'MTA') {
-            showNotification('ℹ️ Sinkron total hafalan 2025 per ustadz untuk MTA belum tersedia di server Mutaba\'ah.', 'info');
-            return;
-        }
-
         let jenjangSlug = 'sd';
         if (lembagaKey === 'SMPITA') {
             jenjangSlug = 'smp';
         } else if (lembagaKey === 'SMAITA') {
             jenjangSlug = 'sma';
+        } else if (lembagaKey === 'MTA') {
+            jenjangSlug = 'mta';
         }
 
         let normalizedGuru = guruName.toUpperCase().trim().replace(/\s+/g, ' ');
@@ -546,7 +543,14 @@ async function importTotalHafalanSdFromGuru() {
             normalizedGuru = 'USTADZ ' + normalizedGuru;
         }
 
-        const encodedGuru = encodeURIComponent(normalizedGuru);
+        // Untuk API, hanya gunakan nama depan (kata pertama setelah prefix)
+        const namaParts = normalizedGuru.split(' ');
+        let namaDepan = namaParts[0];
+        if (namaParts.length > 1 && (namaParts[0] === 'USTADZ' || namaParts[0] === 'USTADZAH')) {
+            namaDepan = namaParts[1] || namaParts[0];
+        }
+
+        const encodedGuru = encodeURIComponent(namaDepan);
         const url = `https://asia-southeast1-mootabaah.cloudfunctions.net/api/totalHafalan2025/${jenjangSlug}/${encodedGuru}`;
 
         showNotification(`☁️ Mengambil total hafalan 2025 untuk ${guruName} (${lembagaKey})...`, 'info');
