@@ -725,7 +725,117 @@ async function importTotalHafalanSdFromGuru() {
 
 async function importTotalHafalanMta() {
     try {
-        showNotification('ℹ️ Sinkron total hafalan 2025 untuk MTA (Alim, Naufal, Harziki) belum tersedia di server Mutaba\'ah.', 'info');
+        const guruList = ['Alim', 'Naufal', 'Harziki'];
+        
+        showNotification('☁️ Mengambil total hafalan MTA 2025 untuk semua ustadz...', 'info');
+        
+        let totalUpdated = 0;
+        let totalNotFound = 0;
+        let totalInvalid = 0;
+        const errors = [];
+        
+        for (const guru of guruList) {
+            try {
+                const url = `https://asia-southeast1-mootabaah.cloudfunctions.net/api/totalHafalan2025/mta/${guru}`;
+                console.log(`[MTA] Fetching data for ${guru}:`, url);
+                
+                const res = await fetch(url);
+                if (!res.ok) {
+                    console.warn(`[MTA] Failed to fetch ${guru}: ${res.status}`);
+                    errors.push(`${guru}: HTTP ${res.status}`);
+                    continue;
+                }
+                
+                const json = await res.json();
+                const data = json?.data || {};
+                
+                if (Object.keys(data).length === 0) {
+                    console.log(`[MTA] No data for ${guru}`);
+                    continue;
+                }
+                
+                console.log(`[MTA] Processing ${Object.keys(data).length} students for ${guru}`);
+                
+                // Process each student
+                const normalizeName = (name) => {
+                    if (!name) return '';
+                    return String(name).toLowerCase().replace(/[\s\u00A0]+/g, ' ').trim();
+                };
+                
+                const students = Array.isArray(dashboardData.students)
+                    ? dashboardData.students.filter(s => s && s.lembaga === 'MTA')
+                    : [];
+                
+                Object.entries(data).forEach(([key, value]) => {
+                    if (!value || typeof value !== 'object') {
+                        totalInvalid++;
+                        return;
+                    }
+                    
+                    const rawName = value.namaSiswa || value.nama || key;
+                    const name = String(rawName).trim();
+                    if (!name) {
+                        totalInvalid++;
+                        return;
+                    }
+                    
+                    const rawTotal = value.totalHafalan;
+                    if (rawTotal === undefined || rawTotal === null || rawTotal === '') {
+                        totalInvalid++;
+                        return;
+                    }
+                    
+                    let total = 0;
+                    if (typeof rawTotal === 'number') {
+                        total = rawTotal;
+                    } else if (typeof rawTotal === 'string') {
+                        const parsed = parseFloat(rawTotal);
+                        if (isNaN(parsed)) {
+                            totalInvalid++;
+                            return;
+                        }
+                        total = parsed;
+                    }
+                    
+                    const targetNorm = normalizeName(name);
+                    const match = students.find(s => normalizeName(s.name) === targetNorm);
+                    
+                    if (!match) {
+                        totalNotFound++;
+                        return;
+                    }
+                    
+                    match.total_hafalan = total;
+                    totalUpdated++;
+                });
+                
+            } catch (err) {
+                console.error(`[MTA] Error processing ${guru}:`, err);
+                errors.push(`${guru}: ${err.message}`);
+            }
+        }
+        
+        if (totalUpdated === 0) {
+            let message = 'ℹ️ Tidak ada santri MTA yang berhasil diupdate.';
+            if (errors.length > 0) {
+                message += ` Errors: ${errors.join(', ')}`;
+            }
+            showNotification(message, 'info');
+            return;
+        }
+        
+        StorageManager.save();
+        refreshAllData();
+        
+        let message = `✅ Berhasil mengupdate total hafalan ${totalUpdated} santri MTA.`;
+        if (totalNotFound > 0 || totalInvalid > 0) {
+            message += ` (${totalNotFound} nama tidak ditemukan, ${totalInvalid} data tidak valid.)`;
+        }
+        if (errors.length > 0) {
+            message += ` Errors: ${errors.join(', ')}`;
+        }
+        showNotification(message, 'success');
+        
     } catch (error) {
         console.error('Error importTotalHafalanMta', error);
         showNotification('❌ Terjadi kesalahan internal saat menjalankan sinkron total hafalan MTA.', 'error');
