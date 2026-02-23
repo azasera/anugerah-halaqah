@@ -593,6 +593,9 @@ async function importTotalHafalanSdFromGuru() {
         if (namaParts.length > 1 && (namaParts[0] === 'USTADZ' || namaParts[0] === 'USTADZAH')) {
             namaDepan = namaParts[1] || namaParts[0];
         }
+        
+        // Convert to Title Case for API (Naufal, not NAUFAL)
+        namaDepan = namaDepan.charAt(0).toUpperCase() + namaDepan.slice(1).toLowerCase();
 
         const encodedGuru = encodeURIComponent(namaDepan);
         const url = `https://asia-southeast1-mootabaah.cloudfunctions.net/api/totalHafalan2025/${jenjangSlug}/${encodedGuru}`;
