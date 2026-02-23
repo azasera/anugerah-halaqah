@@ -762,6 +762,18 @@ async function importTotalHafalanMta() {
                     return String(name).toLowerCase().replace(/[\s\u00A0]+/g, ' ').trim();
                 };
                 
+                const calculateSimilarity = (str1, str2) => {
+                    const longer = str1.length > str2.length ? str1 : str2;
+                    const shorter = str1.length > str2.length ? str2 : str1;
+                    if (longer.length === 0) return 100;
+                    
+                    let matches = 0;
+                    for (let i = 0; i < shorter.length; i++) {
+                        if (longer.includes(shorter[i])) matches++;
+                    }
+                    return (matches / longer.length) * 100;
+                };
+                
                 const students = Array.isArray(dashboardData.students)
                     ? dashboardData.students.filter(s => s && s.lembaga === 'MTA')
                     : [];
@@ -798,10 +810,28 @@ async function importTotalHafalanMta() {
                     }
                     
                     const targetNorm = normalizeName(name);
-                    const match = students.find(s => normalizeName(s.name) === targetNorm);
+                    
+                    // Try exact match first
+                    let match = students.find(s => normalizeName(s.name) === targetNorm);
+                    
+                    // If not found, try fuzzy match (for typos like Khairi vs Khoiri)
+                    if (!match) {
+                        const fuzzyMatches = students.map(s => ({
+                            student: s,
+                            similarity: calculateSimilarity(targetNorm, normalizeName(s.name))
+                        })).filter(m => m.similarity > 85); // 85% similarity threshold
+                        
+                        if (fuzzyMatches.length > 0) {
+                            // Sort by similarity and take the best match
+                            fuzzyMatches.sort((a, b) => b.similarity - a.similarity);
+                            match = fuzzyMatches[0].student;
+                            console.log(`[MTA] Fuzzy match: "${name}" → "${match.name}" (${fuzzyMatches[0].similarity.toFixed(1)}%)`);
+                        }
+                    }
                     
                     if (!match) {
                         totalNotFound++;
+                        console.log(`[MTA] Not found: "${name}"`);
                         return;
                     }
                     

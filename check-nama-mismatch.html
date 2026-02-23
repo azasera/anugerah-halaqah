@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Check Nama Mismatch - MTA</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5; }
+        .container { max-width: 1400px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1 { color: #333; }
+        button { padding: 12px 24px; margin: 5px; cursor: pointer; background: #4CAF50; color: white; border: none; border-radius: 5px; font-size: 14px; font-weight: bold; }
+        button:hover { background: #45a049; }
+        table { width: 100%; border-collapse: collapse; margin: 15px 0; font-size: 13px; }
+        table th, table td { padding: 10px; text-align: left; border: 1px solid #ddd; }
+        table th { background: #f7fafc; font-weight: bold; position: sticky; top: 0; }
+        .match { background: #e8f5e9; }
+        .mismatch { background: #ffebee; }
+        .not-found { background: #fff3e0; }
+        .info { background: #e3f2fd; padding: 15px; border-radius: 5px; margin: 10px 0; border-left: 5px solid #2196F3; }
+        .warning { background: #fff3e0; padding: 15px; border-radius: 5px; margin: 10px 0; border-left: 5px solid #ff9800; }
+        pre { background: #2d3748; color: #e2e8f0; padding: 10px; border-radius: 5px; font-size: 11px; max-height: 300px; overflow: auto; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Check Nama Mismatch - MTA</h1>
+        
+        <div class="info">
+            <strong>Tujuan:</strong> Membandingkan nama santri di API dengan nama di sistem lokal untuk menemukan typo atau perbedaan ejaan.
+        </div>
+
+        <button onclick="checkMismatch()">🚀 Check Mismatch</button>
+        <button onclick="generateFixSQL()">🔧 Generate Fix SQL</button>
+
+        <div id="result"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'https://asia-southeast1-mootabaah.cloudfunctions.net/api/totalHafalan2025/mta';
+        const GURU_LIST = ['Alim', 'Naufal', 'Harziki'];
+        
+        let apiData = {};
+        let localData = [];
+        let mismatches = [];
+
+        async function checkMismatch() {
+            const result = document.getElementById('result');
+            result.innerHTML = '<p>⏳ Fetching data...</p>';
+            
+            // Fetch API data
+            apiData = {};
+            for (const guru of GURU_LIST) {
+                try {
+                    const res = await fetch(`${API_BASE}/${guru}`);
+                    if (res.ok) {
+                        const json = await res.json();
+                        Object.assign(apiData, json.data || {});
+                    }
+                } catch (err) {
+                    console.error(`Error fetching ${guru}:`, err);
+                }
+            }
+            
+            // Get local data (from localStorage)
+            try {
+                const stored = localStorage.getItem('halaqahData');
+                if (stored) {
+                    const parsed = JSON.parse(stored);
+                    localData = (parsed.students || []).filter(s => s.lembaga === 'MTA');
+                }
+            } catch (err) {
+                console.error('Error loading local data:', err);
+            }
+            
+            // Compare
+            const apiNames = Object.keys(apiData).map(k => apiData[k].namaSiswa || apiData[k].nama || k);
+            const localNames = localData.map(s => s.name);
+            
+            let html = '<h2>📊 Comparison Results:</h2>';
+            html += `<p><strong>API Names:</strong> ${apiNames.length} | <strong>Local Names:</strong> ${localNames.length}</p>`;
+            
+            // Find mismatches
+            mismatches = [];
+            
+            html += '<h3>Detailed Comparison:</h3>';
+            html += '<table>';
+            html += '<tr><th>API Name</th><th>Total Hafalan</th><th>Match Status</th><th>Local Name</th><th>Similarity</th></tr>';
+            
+            apiNames.forEach(apiName => {
+                const apiNorm = normalize(apiName);
+                
+                // Try exact match
+                let localMatch = localData.find(s => normalize(s.name) === apiNorm);
+                let status = 'match';
+                let localName = localMatch ? localMatch.name : '-';
+                let similarity = 100;
+                
+                if (!localMatch) {
+                    // Try fuzzy match
+                    const fuzzy = findFuzzyMatch(apiName, localNames);
+                    if (fuzzy) {
+                        localMatch = localData.find(s => s.name === fuzzy.name);
+                        localName = fuzzy.name;
+                        similarity = fuzzy.similarity;
+                        status = similarity > 80 ? 'mismatch' : 'not-found';
+                        
+                        if (similarity > 80) {
+                            mismatches.push({
+                                apiName,
+                                localName: fuzzy.name,
+                                similarity,
+                                totalHafalan: apiData[apiName]?.totalHafalan || '-'
+                            });
+                        }
+                    } else {
+                        status = 'not-found';
+                    }
+                }
+                
+                const rowClass = status;
+                const totalHafalan = apiData[apiName]?.totalHafalan || '-';
+                
+                html += `<tr class="${rowClass}">
+                    <td>${apiName}</td>
+                    <td>${totalHafalan}</td>
+                    <td>${status === 'match' ? '✅ Match' : status === 'mismatch' ? '⚠️ Typo?' : '❌ Not Found'}</td>
+                    <td>${localName}</td>
+                    <td>${similarity}%</td>
+                </tr>`;
+            });
+            
+            html += '</table>';
+            
+            // Summary
+            html += '<h3>📋 Summary:</h3>';
+            html += '<div class="warning">';
+            html += `<p><strong>Potential Typos/Mismatches:</strong> ${mismatches.length}</p>`;
+            if (mismatches.length > 0) {
+                html += '<ul>';
+                mismatches.forEach(m => {
+                    html += `<li><strong>API:</strong> "${m.apiName}" → <strong>Local:</strong> "${m.localName}" (${m.similarity}% similar)</li>`;
+                });
+                html += '</ul>';
+            }
+            html += '</div>';
+            
+            result.innerHTML = html;
+        }
+
+        function normalize(str) {
+            return String(str).toLowerCase().replace(/[\s\u00A0]+/g, ' ').trim();
+        }
+
+        function findFuzzyMatch(apiName, localNames) {
+            const apiNorm = normalize(apiName);
+            let bestMatch = null;
+            let bestSimilarity = 0;
+            
+            localNames.forEach(localName => {
+                const localNorm = normalize(localName);
+                const similarity = calculateSimilarity(apiNorm, localNorm);
+                
+                if (similarity > bestSimilarity && similarity > 70) {
+                    bestSimilarity = similarity;
+                    bestMatch = { name: localName, similarity: Math.round(similarity) };
+                }
+            });
+            
+            return bestMatch;
+        }
+
+        function calculateSimilarity(str1, str2) {
+            const longer = str1.length > str2.length ? str1 : str2;
+            const shorter = str1.length > str2.length ? str2 : str1;
+            
+            if (longer.length === 0) return 100;
+            
+            const editDistance = levenshteinDistance(longer, shorter);
+            return ((longer.length - editDistance) / longer.length) * 100;
+        }
+
+        function levenshteinDistance(str1, str2) {
+            const matrix = [];
+            
+            for (let i = 0; i <= str2.length; i++) {
+                matrix[i] = [i];
+            }
+            
+            for (let j = 0; j <= str1.length; j++) {
+                matrix[0][j] = j;
+            }
+            
+            for (let i = 1; i <= str2.length; i++) {
+                for (let j = 1; j <= str1.length; j++) {
+                    if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
+                        matrix[i][j] = matrix[i - 1][j - 1];
+                    } else {
+                        matrix[i][j] = Math.min(
+                            matrix[i - 1][j - 1] + 1,
+                            matrix[i][j - 1] + 1,
+                            matrix[i - 1][j] + 1
+                        );
+                    }
+                }
+            }
+            
+            return matrix[str2.length][str1.length];
+        }
+
+        function generateFixSQL() {
+            if (mismatches.length === 0) {
+                alert('Run "Check Mismatch" first!');
+                return;
+            }
+            
+            const result = document.getElementById('result');
+            let html = '<h2>🔧 SQL Fix Commands:</h2>';
+            html += '<div class="info">Copy dan jalankan SQL ini di Supabase SQL Editor untuk memperbaiki nama yang typo.</div>';
+            html += '<pre>';
+            
+            mismatches.forEach(m => {
+                html += `-- Fix: "${m.localName}" → "${m.apiName}"\n`;
+                html += `UPDATE students SET name = '${m.apiName}' WHERE name = '${m.localName}' AND lembaga = 'MTA';\n\n`;
+            });
+            
+            html += '</pre>';
+            
+            result.innerHTML += html;
+        }
+    </script>
+</body>
+</html>
