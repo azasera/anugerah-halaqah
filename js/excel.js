@@ -406,12 +406,11 @@ async function importFromJenjangApi(config) {
                 return { index, canImport: false, reason: 'Nama kosong', name, halaqahName, row };
             }
             
-            // Check if student already exists
+            // Check if student already exists - by name only (nama santri harus unique)
             const exists = dashboardData.students.some(s => {
                 if (!s) return false;
                 const sName = String(s.name || '').trim().toLowerCase();
-                const sHalaqah = String(s.halaqah || '').trim().toLowerCase();
-                return sName === name.toLowerCase() && sHalaqah === halaqahName.toLowerCase();
+                return sName === name.toLowerCase();
             });
             
             // Check if halaqah exists - with flexible matching

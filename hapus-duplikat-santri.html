@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hapus Duplikat Santri</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .card { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); margin-bottom: 20px; }
+        h1 { color: #333; margin-bottom: 10px; font-size: 28px; }
+        .info { background: #e3f2fd; padding: 20px; border-radius: 10px; margin: 20px 0; border-left: 5px solid #2196F3; }
+        .warning { background: #fff3e0; padding: 20px; border-radius: 10px; margin: 20px 0; border-left: 5px solid #ff9800; }
+        .error { background: #ffebee; padding: 20px; border-radius: 10px; margin: 20px 0; border-left: 5px solid #f44336; }
+        .success { background: #e8f5e9; padding: 20px; border-radius: 10px; margin: 20px 0; border-left: 5px solid #4CAF50; }
+        button { padding: 15px 30px; margin: 10px 5px; cursor: pointer; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 10px; font-size: 16px; font-weight: bold; transition: all 0.3s; }
+        button:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
+        button:disabled { background: #ccc; cursor: not-allowed; transform: none; }
+        button.danger { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+        table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+        table th, table td { padding: 12px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+        table th { background: #f7fafc; font-weight: bold; color: #2d3748; }
+        table tr:hover { background: #f7fafc; }
+        .duplicate { background: #fff3cd; }
+        .loading { text-align: center; padding: 20px; }
+        .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #667eea; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin: 0 auto 15px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        pre { background: #2d3748; color: #e2e8f0; padding: 15px; border-radius: 8px; overflow-x: auto; font-size: 12px; }
+        .checkbox { width: 20px; height: 20px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>🗑️ Hapus Duplikat Santri</h1>
+            
+            <div class="warning">
+                <strong>⚠️ Peringatan:</strong> Tool ini akan menghapus data santri duplikat dari Supabase. Pastikan Anda sudah backup data!
+            </div>
+
+            <button onclick="findDuplicates()">🔍 Cari Duplikat</button>
+            <button onclick="deleteSelected()" class="danger" id="deleteBtn" style="display:none;">🗑️ Hapus Yang Dipilih</button>
+
+            <div id="result"></div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        const SUPABASE_URL = 'https://klhegwunosmryqozuahc.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtsaGVnd3Vub3Ntcnlxb3p1YWhjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3Mjg3NDcsImV4cCI6MjA4NjMwNDc0N30.0X54jxpMZI9eilDxfJ7FYUGImuN-TEH9qGQkdRTtRXw';
+        
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        let duplicates = [];
+
+        async function findDuplicates() {
+            const result = document.getElementById('result');
+            const deleteBtn = document.getElementById('deleteBtn');
+            
+            result.innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p style="color: #667eea; font-weight: bold;">Mencari duplikat...</p>
+                </div>
+            `;
+            deleteBtn.style.display = 'none';
+            
+            try {
+                // Get all students
+                const { data: students, error } = await supabaseClient
+                    .from('students')
+                    .select('*')
+                    .order('name', { ascending: true });
+                
+                if (error) {
+                    result.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+                    return;
+                }
+                
+                // Find duplicates by name
+                const nameMap = {};
+                students.forEach(s => {
+                    const name = s.name.trim().toLowerCase();
+                    if (!nameMap[name]) {
+                        nameMap[name] = [];
+                    }
+                    nameMap[name].push(s);
+                });
+                
+                // Filter only duplicates
+                duplicates = [];
+                Object.entries(nameMap).forEach(([name, records]) => {
+                    if (records.length > 1) {
+                        duplicates.push({ name, records });
+                    }
+                });
+                
+                if (duplicates.length === 0) {
+                    result.innerHTML = '<div class="success">✅ Tidak ada duplikat ditemukan!</div>';
+                    return;
+                }
+                
+                // Display duplicates
+                let html = `<div class="warning">⚠️ Ditemukan ${duplicates.length} nama duplikat dengan total ${duplicates.reduce((sum, d) => sum + d.records.length, 0)} record</div>`;
+                
+                html += '<div class="info">💡 <strong>Cara pakai:</strong> Centang record yang ingin dihapus (biasanya yang lebih baru/ID lebih besar), lalu klik "Hapus Yang Dipilih"</div>';
+                
+                duplicates.forEach((dup, dupIndex) => {
+                    html += `<h3 style="margin-top: 20px;">Duplikat ${dupIndex + 1}: ${dup.records[0].name}</h3>`;
+                    html += '<table>';
+                    html += '<thead><tr><th><input type="checkbox" class="checkbox" onclick="toggleGroup(${dupIndex})"></th><th>ID</th><th>Nama</th><th>Halaqah</th><th>Lembaga</th><th>NIK</th><th>Created</th></tr></thead>';
+                    html += '<tbody>';
+                    
+                    dup.records.forEach((record, recIndex) => {
+                        const createdDate = record.created_at ? new Date(record.created_at).toLocaleString('id-ID') : '-';
+                        html += `<tr class="duplicate">
+                            <td><input type="checkbox" class="checkbox" data-id="${record.id}" data-group="${dupIndex}"></td>
+                            <td>${record.id}</td>
+                            <td>${record.name}</td>
+                            <td>${record.halaqah || '-'}</td>
+                            <td>${record.lembaga || '-'}</td>
+                            <td>${record.nik || '-'}</td>
+                            <td>${createdDate}</td>
+                        </tr>`;
+                    });
+                    
+                    html += '</tbody></table>';
+                });
+                
+                result.innerHTML = html;
+                deleteBtn.style.display = 'inline-block';
+                
+            } catch (err) {
+                result.innerHTML = `<div class="error">❌ Exception: ${err.message}</div>`;
+            }
+        }
+
+        function toggleGroup(groupIndex) {
+            const checkboxes = document.querySelectorAll(`input[data-group="${groupIndex}"]`);
+            const masterCheckbox = event.target;
+            checkboxes.forEach(cb => cb.checked = masterCheckbox.checked);
+        }
+
+        async function deleteSelected() {
+            const checkboxes = document.querySelectorAll('input[data-id]:checked');
+            
+            if (checkboxes.length === 0) {
+                alert('Pilih minimal 1 record untuk dihapus');
+                return;
+            }
+            
+            const ids = Array.from(checkboxes).map(cb => parseInt(cb.dataset.id));
+            
+            if (!confirm(`Yakin ingin menghapus ${ids.length} record?\n\nIDs: ${ids.join(', ')}\n\nAksi ini TIDAK BISA dibatalkan!`)) {
+                return;
+            }
+            
+            const result = document.getElementById('result');
+            const deleteBtn = document.getElementById('deleteBtn');
+            
+            deleteBtn.disabled = true;
+            result.innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p style="color: #667eea; font-weight: bold;">Menghapus ${ids.length} record...</p>
+                </div>
+            `;
+            
+            try {
+                let successCount = 0;
+                let errorCount = 0;
+                const errors = [];
+                
+                for (const id of ids) {
+                    const { error } = await supabaseClient
+                        .from('students')
+                        .delete()
+                        .eq('id', id);
+                    
+                    if (error) {
+                        errorCount++;
+                        errors.push({ id, error: error.message });
+                    } else {
+                        successCount++;
+                    }
+                }
+                
+                let html = '';
+                if (successCount > 0) {
+                    html += `<div class="success">✅ Berhasil menghapus ${successCount} record</div>`;
+                }
+                if (errorCount > 0) {
+                    html += `<div class="error">❌ Gagal menghapus ${errorCount} record:<br>`;
+                    errors.forEach(e => {
+                        html += `<br>ID ${e.id}: ${e.error}`;
+                    });
+                    html += '</div>';
+                }
+                
+                html += '<button onclick="findDuplicates()" style="margin-top: 20px;">🔍 Cari Duplikat Lagi</button>';
+                
+                result.innerHTML = html;
+                deleteBtn.style.display = 'none';
+                
+            } catch (err) {
+                result.innerHTML = `<div class="error">❌ Exception: ${err.message}</div>`;
+                deleteBtn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>
