@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register Muhammad Husain</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+        .container { max-width: 600px; width: 100%; }
+        .card { background: white; padding: 40px; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+        h1 { color: #333; margin-bottom: 10px; font-size: 28px; text-align: center; }
+        .info { background: #e3f2fd; padding: 20px; border-radius: 10px; margin: 20px 0; border-left: 5px solid #2196F3; }
+        .info p { margin: 5px 0; color: #1976d2; }
+        button { width: 100%; padding: 18px; margin: 10px 0; cursor: pointer; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 10px; font-size: 18px; font-weight: bold; transition: all 0.3s; }
+        button:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
+        button:active { transform: translateY(0); }
+        button:disabled { background: #ccc; cursor: not-allowed; transform: none; }
+        .result { margin: 20px 0; padding: 20px; border-radius: 10px; }
+        .error { background: #ffebee; color: #c62828; border-left: 5px solid #c62828; }
+        .success { background: #e8f5e9; color: #2e7d32; border-left: 5px solid #2e7d32; }
+        .warning { background: #fff3e0; color: #e65100; border-left: 5px solid #e65100; }
+        .loading { text-align: center; padding: 20px; }
+        .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #667eea; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin: 0 auto 15px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        pre { background: #2d3748; color: #e2e8f0; padding: 15px; border-radius: 8px; overflow-x: auto; font-size: 13px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>🔐 Register Muhammad Husain</h1>
+            
+            <div class="info">
+                <p><strong>Nama:</strong> Muhammad Husain</p>
+                <p><strong>NIK:</strong> 1971022102090001</p>
+                <p><strong>TTL:</strong> 2009-02-21</p>
+                <p><strong>Password:</strong> 21022009</p>
+                <p><strong>Email Auth:</strong> 1971022102090001@sekolah.id</p>
+            </div>
+
+            <button id="registerBtn" onclick="registerAccount()">📝 Register Akun Sekarang</button>
+            <button id="testLoginBtn" onclick="testLogin()" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); display: none;">🔐 Test Login</button>
+
+            <div id="result"></div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        const SUPABASE_URL = 'https://klhegwunosmryqozuahc.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtsaGVnd3Vub3Ntcnlxb3p1YWhjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3Mjg3NDcsImV4cCI6MjA4NjMwNDc0N30.0X54jxpMZI9eilDxfJ7FYUGImuN-TEH9qGQkdRTtRXw';
+        
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        const STUDENT_DATA = {
+            id: 1771675116059,
+            name: 'Muhammad Husain',
+            nik: '1971022102090001',
+            tanggal_lahir: '2009-02-21',
+            password: '21022009',
+            email: '1971022102090001@sekolah.id',
+            lembaga: 'MTA',
+            halaqah: 'Naufal Hudiya'
+        };
+
+        async function registerAccount() {
+            const resultDiv = document.getElementById('result');
+            const registerBtn = document.getElementById('registerBtn');
+            const testLoginBtn = document.getElementById('testLoginBtn');
+            
+            registerBtn.disabled = true;
+            resultDiv.innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p style="color: #667eea; font-weight: bold;">Mendaftarkan akun...</p>
+                </div>
+            `;
+            
+            try {
+                // Step 1: Check if already registered
+                console.log('Step 1: Checking if account exists...');
+                const { data: loginCheck, error: loginError } = await supabaseClient.auth.signInWithPassword({
+                    email: STUDENT_DATA.email,
+                    password: STUDENT_DATA.password
+                });
+                
+                if (!loginError && loginCheck?.user) {
+                    // Already registered
+                    resultDiv.innerHTML = `
+                        <div class="result success">
+                            <h3>✅ Akun Sudah Terdaftar!</h3>
+                            <p>Email: ${STUDENT_DATA.email}</p>
+                            <p>User ID: ${loginCheck.user.id}</p>
+                            <p style="margin-top: 15px;">Akun sudah bisa digunakan untuk login.</p>
+                        </div>
+                    `;
+                    
+                    // Sign out after check
+                    await supabaseClient.auth.signOut();
+                    
+                    testLoginBtn.style.display = 'block';
+                    registerBtn.disabled = false;
+                    return;
+                }
+                
+                // Step 2: Register new account
+                console.log('Step 2: Registering new account...');
+                const { data: signUpData, error: signUpError } = await supabaseClient.auth.signUp({
+                    email: STUDENT_DATA.email,
+                    password: STUDENT_DATA.password,
+                    options: {
+                        data: {
+                            full_name: STUDENT_DATA.name,
+                            role: 'ortu',
+                            student_id: STUDENT_DATA.id,
+                            nik: STUDENT_DATA.nik
+                        }
+                    }
+                });
+                
+                if (signUpError) {
+                    console.error('Register error:', signUpError);
+                    
+                    if (signUpError.message.includes('already registered') || signUpError.message.includes('User already registered')) {
+                        resultDiv.innerHTML = `
+                            <div class="result warning">
+                                <h3>⚠️ Email Sudah Terdaftar</h3>
+                                <p>Email: ${STUDENT_DATA.email}</p>
+                                <p style="margin-top: 15px;">Akun sudah ada, tapi password mungkin berbeda.</p>
+                                <p><strong>Solusi:</strong></p>
+                                <ol style="margin-left: 20px; margin-top: 10px;">
+                                    <li>Coba login dengan password: ${STUDENT_DATA.password}</li>
+                                    <li>Jika gagal, reset password di Supabase Dashboard</li>
+                                </ol>
+                            </div>
+                        `;
+                        testLoginBtn.style.display = 'block';
+                    } else {
+                        resultDiv.innerHTML = `
+                            <div class="result error">
+                                <h3>❌ Register Gagal</h3>
+                                <p><strong>Error:</strong> ${signUpError.message}</p>
+                                <p><strong>Code:</strong> ${signUpError.code || 'N/A'}</p>
+                                <p style="margin-top: 15px;">Silakan coba lagi atau hubungi admin.</p>
+                            </div>
+                        `;
+                    }
+                    registerBtn.disabled = false;
+                    return;
+                }
+                
+                // Success
+                console.log('Register success:', signUpData);
+                resultDiv.innerHTML = `
+                    <div class="result success">
+                        <h3>✅ Register Berhasil!</h3>
+                        <p><strong>Email:</strong> ${STUDENT_DATA.email}</p>
+                        <p><strong>User ID:</strong> ${signUpData.user?.id}</p>
+                        <p><strong>Nama:</strong> ${STUDENT_DATA.name}</p>
+                        <p style="margin-top: 15px; padding: 15px; background: #fff3e0; border-radius: 8px; color: #e65100;">
+                            <strong>📝 Catatan:</strong> Akun berhasil dibuat. Silakan login menggunakan:<br>
+                            <strong>NIK:</strong> ${STUDENT_DATA.nik}<br>
+                            <strong>Password:</strong> ${STUDENT_DATA.password}
+                        </p>
+                    </div>
+                `;
+                
+                testLoginBtn.style.display = 'block';
+                
+            } catch (err) {
+                console.error('Exception:', err);
+                resultDiv.innerHTML = `
+                    <div class="result error">
+                        <h3>❌ Error</h3>
+                        <p>${err.message}</p>
+                        <pre>${err.stack}</pre>
+                    </div>
+                `;
+                registerBtn.disabled = false;
+            }
+        }
+
+        async function testLogin() {
+            const resultDiv = document.getElementById('result');
+            const testLoginBtn = document.getElementById('testLoginBtn');
+            
+            testLoginBtn.disabled = true;
+            resultDiv.innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p style="color: #667eea; font-weight: bold;">Testing login...</p>
+                </div>
+            `;
+            
+            try {
+                const { data, error } = await supabaseClient.auth.signInWithPassword({
+                    email: STUDENT_DATA.email,
+                    password: STUDENT_DATA.password
+                });
+                
+                if (error) {
+                    resultDiv.innerHTML = `
+                        <div class="result error">
+                            <h3>❌ Login Gagal</h3>
+                            <p><strong>Error:</strong> ${error.message}</p>
+                            <p style="margin-top: 15px;">Kemungkinan:</p>
+                            <ul style="margin-left: 20px;">
+                                <li>Password salah</li>
+                                <li>Email belum dikonfirmasi</li>
+                                <li>Akun belum terdaftar</li>
+                            </ul>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="result success">
+                            <h3>✅ Login Berhasil! 🎉</h3>
+                            <p><strong>Email:</strong> ${data.user.email}</p>
+                            <p><strong>User ID:</strong> ${data.user.id}</p>
+                            <p><strong>Created:</strong> ${new Date(data.user.created_at).toLocaleString('id-ID')}</p>
+                            <p style="margin-top: 15px; padding: 15px; background: #e8f5e9; border-radius: 8px; color: #2e7d32;">
+                                <strong>✅ Sukses!</strong> Muhammad Husain sekarang bisa login ke dashboard dengan NIK dan password TTL.
+                            </p>
+                        </div>
+                    `;
+                    
+                    // Sign out after test
+                    await supabaseClient.auth.signOut();
+                }
+                
+                testLoginBtn.disabled = false;
+            } catch (err) {
+                resultDiv.innerHTML = `
+                    <div class="result error">
+                        <h3>❌ Exception</h3>
+                        <p>${err.message}</p>
+                    </div>
+                `;
+                testLoginBtn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>
