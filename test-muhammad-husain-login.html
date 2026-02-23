@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Login - Muhammad Husain</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1 { color: #333; margin-bottom: 20px; }
+        .test-section { margin: 20px 0; padding: 20px; background: #f9f9f9; border-radius: 8px; border-left: 4px solid #4CAF50; }
+        .result { margin: 15px 0; padding: 15px; background: white; border-radius: 5px; border: 1px solid #ddd; }
+        button { padding: 12px 24px; margin: 5px; cursor: pointer; background: #4CAF50; color: white; border: none; border-radius: 5px; font-size: 14px; }
+        button:hover { background: #45a049; }
+        pre { background: #f5f5f5; padding: 10px; border-radius: 5px; overflow-x: auto; font-size: 12px; }
+        .error { color: #d32f2f; background: #ffebee; padding: 10px; border-radius: 5px; margin: 10px 0; }
+        .success { color: #388e3c; background: #e8f5e9; padding: 10px; border-radius: 5px; margin: 10px 0; }
+        .info { color: #1976d2; background: #e3f2fd; padding: 10px; border-radius: 5px; margin: 10px 0; }
+        input { padding: 10px; margin: 5px 0; width: 100%; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; }
+        label { font-weight: bold; display: block; margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Debug Login - Muhammad Husain</h1>
+        
+        <div class="info">
+            <strong>Data Santri:</strong><br>
+            Nama: Muhammad Husain<br>
+            NIK: 1971022102090001<br>
+            TTL: 21-02-2009 (21022009)
+        </div>
+
+        <div class="test-section">
+            <h3>Test 1: Validasi Format</h3>
+            <button onclick="testFormat()">Cek Format NIK & TTL</button>
+            <div id="formatResult" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>Test 2: Cari Data di Supabase</h3>
+            <button onclick="testSupabaseQuery()">Query Supabase</button>
+            <div id="supabaseResult" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>Test 3: Simulasi Login</h3>
+            <label>NIK:</label>
+            <input type="text" id="nikInput" value="1971022102090001">
+            <label>Password (TTL - DDMMYYYY):</label>
+            <input type="text" id="ttlInput" value="21022009">
+            <button onclick="testLogin()">Test Login</button>
+            <div id="loginResult" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>Test 4: Cek Auth Email</h3>
+            <button onclick="testAuthEmail()">Cek Email di Auth</button>
+            <div id="authResult" class="result"></div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        // Initialize Supabase
+        const SUPABASE_URL = 'https://xtqkfqvvqxqhqxqhqxqh.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'; // Ganti dengan key yang benar
+        
+        let supabaseClient;
+        
+        try {
+            supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            console.log('✅ Supabase client initialized');
+        } catch (error) {
+            console.error('❌ Failed to initialize Supabase:', error);
+        }
+
+        function testFormat() {
+            const result = document.getElementById('formatResult');
+            const nik = '1971022102090001';
+            const ttl = '21022009';
+            
+            let html = '<h4>Validasi Format:</h4>';
+            
+            // Cek NIK
+            html += `<p><strong>NIK:</strong> ${nik}</p>`;
+            html += `<p>Panjang: ${nik.length} karakter ${nik.length === 16 ? '✅' : '❌ (harus 16)'}</p>`;
+            html += `<p>Format angka: ${/^\d+$/.test(nik) ? '✅' : '❌'}</p>`;
+            
+            // Cek TTL
+            html += `<p><strong>TTL (Password):</strong> ${ttl}</p>`;
+            html += `<p>Panjang: ${ttl.length} karakter ${ttl.length === 8 ? '✅' : '❌ (harus 8)'}</p>`;
+            html += `<p>Format DDMMYYYY: ${/^\d{8}$/.test(ttl) ? '✅' : '❌'}</p>`;
+            
+            // Parse tanggal
+            const day = ttl.substring(0, 2);
+            const month = ttl.substring(2, 4);
+            const year = ttl.substring(4, 8);
+            html += `<p>Parsed: ${day}/${month}/${year}</p>`;
+            
+            // Email yang akan dibuat
+            const email = `${nik}@sekolah.id`;
+            html += `<p><strong>Email untuk Auth:</strong> ${email}</p>`;
+            
+            result.innerHTML = html;
+        }
+
+        async function testSupabaseQuery() {
+            const result = document.getElementById('supabaseResult');
+            result.innerHTML = '<p>⏳ Querying Supabase...</p>';
+            
+            if (!supabaseClient) {
+                result.innerHTML = '<div class="error">❌ Supabase client not initialized</div>';
+                return;
+            }
+            
+            const nik = '1971022102090001';
+            
+            try {
+                const { data, error } = await supabaseClient
+                    .from('students')
+                    .select('*')
+                    .or(`nik.eq."${nik}",nik.eq.${nik}`)
+                    .maybeSingle();
+                
+                let html = '<h4>Query Result:</h4>';
+                
+                if (error) {
+                    html += `<div class="error">❌ Error: ${error.message}</div>`;
+                } else if (data) {
+                    html += '<div class="success">✅ Data ditemukan!</div>';
+                    html += `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+                    
+                    // Cek field penting
+                    html += '<h4>Validasi Data:</h4>';
+                    html += `<p>Nama: ${data.name || '❌ Kosong'}</p>`;
+                    html += `<p>NIK: ${data.nik || '❌ Kosong'}</p>`;
+                    html += `<p>Tanggal Lahir: ${data.tanggal_lahir || '❌ Kosong'}</p>`;
+                    html += `<p>Email: ${data.email || '❌ Kosong'}</p>`;
+                } else {
+                    html += '<div class="error">❌ Data tidak ditemukan di tabel students</div>';
+                }
+                
+                result.innerHTML = html;
+            } catch (err) {
+                result.innerHTML = `<div class="error">❌ Exception: ${err.message}</div>`;
+            }
+        }
+
+        async function testLogin() {
+            const result = document.getElementById('loginResult');
+            const nik = document.getElementById('nikInput').value.trim();
+            const ttl = document.getElementById('ttlInput').value.trim();
+            
+            result.innerHTML = '<p>⏳ Testing login...</p>';
+            
+            if (!supabaseClient) {
+                result.innerHTML = '<div class="error">❌ Supabase client not initialized</div>';
+                return;
+            }
+            
+            const email = `${nik}@sekolah.id`;
+            
+            let html = '<h4>Login Test:</h4>';
+            html += `<p>Email: ${email}</p>`;
+            html += `<p>Password: ${ttl}</p>`;
+            
+            try {
+                const { data, error } = await supabaseClient.auth.signInWithPassword({
+                    email: email,
+                    password: ttl
+                });
+                
+                if (error) {
+                    html += `<div class="error">❌ Login Failed: ${error.message}</div>`;
+                    html += `<p>Error Code: ${error.code || 'N/A'}</p>`;
+                    html += `<p>Status: ${error.status || 'N/A'}</p>`;
+                    
+                    if (error.message.includes('Invalid login credentials')) {
+                        html += '<div class="info">💡 Kemungkinan: Akun belum terdaftar di Auth atau password salah</div>';
+                    }
+                } else if (data?.user) {
+                    html += '<div class="success">✅ Login Berhasil!</div>';
+                    html += `<pre>${JSON.stringify(data.user, null, 2)}</pre>`;
+                } else {
+                    html += '<div class="error">❌ Login failed: No user data returned</div>';
+                }
+            } catch (err) {
+                html += `<div class="error">❌ Exception: ${err.message}</div>`;
+            }
+            
+            result.innerHTML = html;
+        }
+
+        async function testAuthEmail() {
+            const result = document.getElementById('authResult');
+            result.innerHTML = '<p>⏳ Checking auth users...</p>';
+            
+            if (!supabaseClient) {
+                result.innerHTML = '<div class="error">❌ Supabase client not initialized</div>';
+                return;
+            }
+            
+            const nik = '1971022102090001';
+            const email = `${nik}@sekolah.id`;
+            
+            let html = '<h4>Auth Check:</h4>';
+            html += `<p>Looking for: ${email}</p>`;
+            
+            try {
+                // Note: Querying auth.users requires admin privileges
+                // This will likely fail with anon key
+                const { data, error } = await supabaseClient.auth.admin.listUsers();
+                
+                if (error) {
+                    html += `<div class="error">❌ Cannot query auth users (requires admin key)</div>`;
+                    html += `<p>Error: ${error.message}</p>`;
+                    html += '<div class="info">💡 Gunakan Supabase Dashboard untuk cek auth.users</div>';
+                } else {
+                    const user = data.users.find(u => u.email === email);
+                    if (user) {
+                        html += '<div class="success">✅ User found in auth!</div>';
+                        html += `<pre>${JSON.stringify(user, null, 2)}</pre>`;
+                    } else {
+                        html += '<div class="error">❌ User not found in auth.users</div>';
+                        html += '<div class="info">💡 Akun perlu didaftarkan terlebih dahulu</div>';
+                    }
+                }
+            } catch (err) {
+                html += `<div class="error">❌ Exception: ${err.message}</div>`;
+                html += '<div class="info">💡 Gunakan Supabase Dashboard untuk cek auth.users</div>';
+            }
+            
+            result.innerHTML = html;
+        }
+    </script>
+</body>
+</html>
