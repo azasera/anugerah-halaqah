@@ -48,9 +48,9 @@ function renderSlider() {
         return `
             <div id="slide-${index}" class="absolute inset-0 transition-all duration-500 ${isActive ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-full'}" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
                 <div class="absolute inset-0 bg-black/20"></div>
-                <div class="relative h-full p-4 md:p-6 flex flex-col">
-                    <h2 class="text-xl md:text-2xl font-bold text-white mb-3">${slide.title}</h2>
-                    <div id="slide-content-${index}" class="flex-1">
+                <div class="relative h-full p-4 md:p-6 flex flex-col overflow-hidden">
+                    <h2 class="text-xl md:text-2xl font-bold text-white mb-3 flex-shrink-0">${slide.title}</h2>
+                    <div id="slide-content-${index}" class="flex-1 overflow-y-auto min-h-0">
                         <!-- Content populated dynamically -->
                     </div>
                 </div>
@@ -356,7 +356,7 @@ function renderHafalanLeaders(container) {
     }).join('');
 
     container.innerHTML = `
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-2 h-full overflow-y-auto py-1">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-2 h-full">
             ${content || '<div class="col-span-full text-center text-white/50 text-sm">Belum ada data hafalan</div>'}
         </div>
     `;
