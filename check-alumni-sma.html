@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cek Alumni SMA</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background: #4CAF50;
+            color: white;
+        }
+        tr:nth-child(even) { background: #f9f9f9; }
+        .alumni { background: #fff3cd !important; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎓 Cek Alumni SMA</h1>
+        <div id="result"></div>
+    </div>
+
+    <script>
+        function loadData() {
+            const saved = localStorage.getItem('halaqahData');
+            if (!saved) {
+                document.getElementById('result').innerHTML = '<p style="color: red;">Tidak ada data di localStorage</p>';
+                return;
+            }
+
+            const data = JSON.parse(saved);
+            const smaStudents = data.students.filter(s => 
+                (s.lembaga || '').toUpperCase() === 'SMAITA'
+            );
+            
+            let html = `<p><strong>Total Santri SMA:</strong> ${smaStudents.length}</p>`;
+            html += '<table>';
+            html += '<tr><th>No</th><th>Nama</th><th>Lembaga</th><th>Status</th><th>Kategori</th><th>Kelas</th><th>Is Alumni?</th></tr>';
+            
+            smaStudents.forEach((s, i) => {
+                const lembaga = (s.lembaga || '').toUpperCase();
+                const status = (s.status || '').toLowerCase();
+                const kategori = (s.kategori || '').toLowerCase();
+                const isAlumni = lembaga === 'SMAITA' && (
+                    status.includes('alumni') || 
+                    kategori.includes('alumni') ||
+                    status === 'alumni' ||
+                    kategori === 'alumni'
+                );
+                
+                const rowClass = isAlumni ? 'alumni' : '';
+                
+                html += `<tr class="${rowClass}">`;
+                html += `<td>${i + 1}</td>`;
+                html += `<td>${s.name}</td>`;
+                html += `<td>${s.lembaga || '-'}</td>`;
+                html += `<td>${s.status || '-'}</td>`;
+                html += `<td>${s.kategori || '-'}</td>`;
+                html += `<td>${s.kelas || '-'}</td>`;
+                html += `<td>${isAlumni ? '✅ YES' : '❌ NO'}</td>`;
+                html += '</tr>';
+            });
+            
+            html += '</table>';
+            document.getElementById('result').innerHTML = html;
+        }
+
+        window.addEventListener('load', loadData);
+    </script>
+</body>
+</html>
