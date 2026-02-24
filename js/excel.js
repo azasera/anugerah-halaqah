@@ -705,8 +705,22 @@ async function importTotalHafalanSdFromGuru() {
             return;
         }
 
-        // Save to localStorage and refresh
+        // Save to localStorage
         StorageManager.save();
+        
+        // Sync to Supabase to prevent data being overwritten on refresh
+        console.log(`[${jenjangSlug.toUpperCase()}] Syncing to Supabase...`);
+        if (typeof window.syncStudentsToSupabase === 'function') {
+            try {
+                await window.syncStudentsToSupabase();
+                console.log(`[${jenjangSlug.toUpperCase()}] Supabase sync completed`);
+            } catch (syncError) {
+                console.error(`[${jenjangSlug.toUpperCase()}] Supabase sync failed:`, syncError);
+                // Continue anyway, data is saved to localStorage
+            }
+        }
+        
+        // Refresh UI
         refreshAllData();
 
         let message = `✅ Berhasil mengupdate total hafalan ${updatedCount} santri ${lembagaKey}.`;

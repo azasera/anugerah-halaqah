@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Force Sync Hafalan MTA</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        button:hover { background: #45a049; }
+        pre {
+            background: #f4f4f4;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            max-height: 400px;
+            overflow-y: auto;
+            font-size: 12px;
+        }
+        .success { color: green; }
+        .error { color: red; }
+        .warning { color: orange; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔄 Force Sync Hafalan MTA</h1>
+        <p>Tool untuk force sync total hafalan MTA dengan detail log</p>
+
+        <button onclick="forceSyncMTA()">🚀 Force Sync Sekarang</button>
+        <button onclick="checkData()">🔍 Cek Data Sebelum & Sesudah</button>
+
+        <h3>Log:</h3>
+        <pre id="log"></pre>
+
+        <h3>Hasil:</h3>
+        <pre id="result"></pre>
+    </div>
+
+    <script>
+        function log(message, type = 'info') {
+            const logEl = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const color = type === 'error' ? 'red' : type === 'success' ? 'green' : type === 'warning' ? 'orange' : 'black';
+            logEl.innerHTML += `<span style="color: ${color}">[${timestamp}] ${message}</span>\n`;
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+
+        const normalizeName = (name) => {
+            if (!name) return '';
+            let normalized = String(name).replace(/\b([A-Z])\.\s*/g, '$1 ');
+            normalized = normalized.toLowerCase().replace(/[\s\u00A0]+/g, ' ').trim();
+            return normalized;
+        };
+
+        async function forceSyncMTA() {
+            document.getElementById('log').textContent = '';
+            document.getElementById('result').textContent = '';
+            
+            log('🚀 Starting force sync...', 'info');
+
+            try {
+                // Fetch API data
+                const url = 'https://asia-southeast1-mootabaah.cloudfunctions.net/api/totalHafalan2025/mta';
+                log(`📡 Fetching from: ${url}`, 'info');
+                
+                const res = await fetch(url);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                
+                const json = await res.json();
+                const allGuruData = json?.data || {};
+                log(`✅ API data received`, 'success');
+                log(`   Guru: ${Object.keys(allGuruData).join(', ')}`, 'info');
+
+                // Get local data
+                const saved = localStorage.getItem('halaqahData');
+                if (!saved) {
+                    log('❌ No data in localStorage', 'error');
+                    return;
+                }
+
+                const dashboardData = JSON.parse(saved);
+                const students = dashboardData.students.filter(s => s.lembaga === 'MTA');
+                log(`📊 Local MTA students: ${students.length}`, 'info');
+
+                // Process updates
+                let updated = 0;
+                let notFound = 0;
+                const changes = [];
+
+                Object.entries(allGuruData).forEach(([guruName, guruStudents]) => {
+                    log(`\n👨‍🏫 Processing guru: ${guruName}`, 'info');
+                    
+                    Object.entries(guruStudents).forEach(([studentKey, studentData]) => {
+                        const apiName = String(studentData.namaSiswa || studentData.nama || studentKey).trim();
+                        const rawTotal = studentData.totalHafalan;
+                        
+                        let total = 0;
+                        if (typeof rawTotal === 'number') {
+                            total = rawTotal;
+                        } else if (typeof rawTotal === 'string') {
+                            total = parseFloat(rawTotal) || 0;
+                        }
+
+                        const targetNorm = normalizeName(apiName);
+                        const match = students.find(s => normalizeName(s.name) === targetNorm);
+
+                        if (match) {
+                            const oldValue = match.total_hafalan || 0;
+                            match.total_hafalan = total;
+                            updated++;
+                            
+                            if (oldValue !== total) {
+                                const change = `   ✏️  ${match.name}: ${oldValue} → ${total} Juz`;
+                                log(change, 'warning');
+                                changes.push({ name: match.name, old: oldValue, new: total });
+                            } else {
+                                log(`   ✓ ${match.name}: ${total} Juz (no change)`, 'info');
+                            }
+                        } else {
+                            notFound++;
+                            log(`   ❌ Not found: "${apiName}"`, 'error');
+                        }
+                    });
+                });
+
+                // Save to localStorage
+                localStorage.setItem('halaqahData', JSON.stringify(dashboardData));
+                log('\n💾 Data saved to localStorage', 'success');
+
+                // Summary
+                log(`\n📊 Summary:`, 'success');
+                log(`   Updated: ${updated}`, 'success');
+                log(`   Not found: ${notFound}`, notFound > 0 ? 'warning' : 'info');
+                log(`   Changed: ${changes.length}`, changes.length > 0 ? 'warning' : 'info');
+
+                // Display changes
+                if (changes.length > 0) {
+                    document.getElementById('result').textContent = JSON.stringify(changes, null, 2);
+                } else {
+                    document.getElementById('result').textContent = 'No changes detected. All data is up to date.';
+                }
+
+                log('\n✅ Sync completed! Refresh dashboard to see changes.', 'success');
+
+            } catch (error) {
+                log(`\n❌ Error: ${error.message}`, 'error');
+                console.error(error);
+            }
+        }
+
+        async function checkData() {
+            document.getElementById('result').textContent = '';
+            
+            try {
+                // Get API data
+                const res = await fetch('https://asia-southeast1-mootabaah.cloudfunctions.net/api/totalHafalan2025/mta');
+                const json = await res.json();
+                const allGuruData = json?.data || {};
+
+                // Get local data
+                const saved = localStorage.getItem('halaqahData');
+                const dashboardData = JSON.parse(saved);
+                const students = dashboardData.students.filter(s => s.lembaga === 'MTA');
+
+                // Compare
+                const comparison = [];
+                Object.entries(allGuruData).forEach(([guruName, guruStudents]) => {
+                    Object.entries(guruStudents).forEach(([studentKey, studentData]) => {
+                        const apiName = String(studentData.namaSiswa || studentData.nama || studentKey).trim();
+                        const apiTotal = typeof studentData.totalHafalan === 'number' 
+                            ? studentData.totalHafalan 
+                            : parseFloat(studentData.totalHafalan) || 0;
+
+                        const targetNorm = normalizeName(apiName);
+                        const match = students.find(s => normalizeName(s.name) === targetNorm);
+
+                        if (match) {
+                            const localTotal = match.total_hafalan || 0;
+                            comparison.push({
+                                name: match.name,
+                                api: apiTotal,
+                                local: localTotal,
+                                match: apiTotal === localTotal ? '✅' : '❌'
+                            });
+                        }
+                    });
+                });
+
+                document.getElementById('result').textContent = JSON.stringify(comparison, null, 2);
+                log('✅ Data comparison completed', 'success');
+
+            } catch (error) {
+                log(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+    </script>
+</body>
+</html>

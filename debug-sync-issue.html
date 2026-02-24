@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Sync Issue</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 1400px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        button:hover { background: #45a049; }
+        button.primary { background: #2196F3; }
+        button.primary:hover { background: #0b7dda; }
+        button.danger { background: #f44336; }
+        button.danger:hover { background: #da190b; }
+        pre {
+            background: #f4f4f4;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            max-height: 400px;
+            overflow-y: auto;
+            font-size: 12px;
+        }
+        .success { color: green; font-weight: bold; }
+        .error { color: red; font-weight: bold; }
+        .warning { color: orange; font-weight: bold; }
+        .info { color: blue; }
+        .section { margin: 20px 0; padding: 15px; border-left: 4px solid #2196F3; background: #e3f2fd; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Debug Sync Issue</h1>
+        <p>Tool untuk mendiagnosis mengapa data tidak persist setelah refresh</p>
+
+        <div class="section">
+            <h3>Langkah Debugging:</h3>
+            <ol>
+                <li>Klik "Step 1" untuk cek status saat ini</li>
+                <li>Klik "Step 2" untuk sync dari API ke localStorage</li>
+                <li>Klik "Step 3" untuk cek apakah sync ke Supabase berhasil</li>
+                <li>Klik "Step 4" untuk force sync ke Supabase</li>
+                <li>Refresh halaman dan klik "Step 5" untuk verifikasi data persist</li>
+            </ol>
+        </div>
+
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <button onclick="step1_checkStatus()" class="primary">Step 1: Cek Status</button>
+            <button onclick="step2_syncFromAPI()">Step 2: Sync dari API</button>
+            <button onclick="step3_checkSupabase()" class="primary">Step 3: Cek Supabase</button>
+            <button onclick="step4_forceSync()" class="danger">Step 4: Force Sync</button>
+            <button onclick="step5_verifyPersist()" class="primary">Step 5: Verify Persist</button>
+        </div>
+
+        <h3>Log:</h3>
+        <pre id="log"></pre>
+
+        <h3>Data Comparison:</h3>
+        <pre id="result"></pre>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://klhegwunosmryqozuahc.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtsaGVnd3Vub3Ntcnlxb3p1YWhjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3Mjg3NDcsImV4cCI6MjA4NjMwNDc0N30.0X54jxpMZI9eilDxfJ7FYUGImuN-TEH9qGQkdRTtRXw';
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        function log(message, type = 'info') {
+            const logEl = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type === 'error' ? 'error' : type === 'success' ? 'success' : type === 'warning' ? 'warning' : 'info';
+            logEl.innerHTML += `<span class="${className}">[${timestamp}] ${message}</span>\n`;
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+
+        const normalizeName = (name) => {
+            if (!name) return '';
+            let normalized = String(name).replace(/\b([A-Z])\.\s*/g, '$1 ');
+            normalized = normalized.toLowerCase().replace(/[\s\u00A0]+/g, ' ').trim();
+            return normalized;
+        };
+
+        async function step1_checkStatus() {
+            document.getElementById('log').textContent = '';
+            document.getElementById('result').textContent = '';
+            log('=== STEP 1: Checking Current Status ===', 'info');
+
+            try {
+                // Check localStorage
+                const saved = localStorage.getItem('halaqahData');
+                if (!saved) {
+                    log('❌ localStorage is empty!', 'error');
+                    return;
+                }
+
+                const dashboardData = JSON.parse(saved);
+                const mtaStudents = dashboardData.students.filter(s => s.lembaga === 'MTA');
+                log(`✅ localStorage: Found ${mtaStudents.length} MTA students`, 'success');
+
+                // Check currentProfile
+                const profileStr = localStorage.getItem('currentProfile');
+                if (!profileStr) {
+                    log('❌ No currentProfile in localStorage!', 'error');
+                    log('   This will block sync to Supabase!', 'error');
+                } else {
+                    const profile = JSON.parse(profileStr);
+                    log(`✅ currentProfile: ${profile.name} (${profile.role})`, 'success');
+                    if (profile.role !== 'admin' && profile.role !== 'guru') {
+                        log(`⚠️ WARNING: Role "${profile.role}" cannot sync to Supabase!`, 'warning');
+                        log('   Only admin and guru can write to database', 'warning');
+                    }
+                }
+
+                // Sample students with hafalan
+                const withHafalan = mtaStudents.filter(s => s.total_hafalan > 0);
+                log(`\n📊 Students with hafalan: ${withHafalan.length}`, 'info');
+                
+                const sample = withHafalan.slice(0, 5).map(s => ({
+                    name: s.name,
+                    hafalan: s.total_hafalan
+                }));
+                
+                document.getElementById('result').textContent = 'Sample students in localStorage:\n' + JSON.stringify(sample, null, 2);
+
+            } catch (error) {
+                log(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function step2_syncFromAPI() {
+            log('\n=== STEP 2: Syncing from API to localStorage ===', 'info');
+
+            try {
+                const url = 'https://asia-southeast1-mootabaah.cloudfunctions.net/api/totalHafalan2025/mta';
+                log('Fetching from API...', 'info');
+                
+                const res = await fetch(url);
+                if (!res.ok) {
+                    log(`❌ API returned ${res.status}`, 'error');
+                    return;
+                }
+
+                const json = await res.json();
+                const allGuruData = json?.data || {};
+                log(`✅ API returned data for ${Object.keys(allGuruData).length} guru`, 'success');
+
+                const saved = localStorage.getItem('halaqahData');
+                const dashboardData = JSON.parse(saved);
+                const students = dashboardData.students.filter(s => s.lembaga === 'MTA');
+
+                let updated = 0;
+                let unchanged = 0;
+                
+                Object.entries(allGuruData).forEach(([guruName, guruStudents]) => {
+                    Object.entries(guruStudents).forEach(([studentKey, studentData]) => {
+                        const apiName = String(studentData.namaSiswa || studentData.nama || studentKey).trim();
+                        const total = typeof studentData.totalHafalan === 'number' 
+                            ? studentData.totalHafalan 
+                            : parseFloat(studentData.totalHafalan) || 0;
+
+                        const targetNorm = normalizeName(apiName);
+                        const match = students.find(s => normalizeName(s.name) === targetNorm);
+
+                        if (match) {
+                            const oldValue = match.total_hafalan || 0;
+                            match.total_hafalan = total;
+                            if (oldValue !== total) {
+                                log(`   Updated: ${match.name}: ${oldValue} → ${total}`, 'warning');
+                                updated++;
+                            } else {
+                                unchanged++;
+                            }
+                        }
+                    });
+                });
+
+                localStorage.setItem('halaqahData', JSON.stringify(dashboardData));
+                log(`\n✅ localStorage updated!`, 'success');
+                log(`   Changed: ${updated} students`, 'success');
+                log(`   Unchanged: ${unchanged} students`, 'info');
+
+            } catch (error) {
+                log(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function step3_checkSupabase() {
+            log('\n=== STEP 3: Checking Supabase Data ===', 'info');
+
+            try {
+                // Get sample students from localStorage
+                const saved = localStorage.getItem('halaqahData');
+                const dashboardData = JSON.parse(saved);
+                const mtaStudents = dashboardData.students.filter(s => s.lembaga === 'MTA');
+                const sampleLocal = mtaStudents.slice(0, 10);
+
+                log(`Checking ${sampleLocal.length} students in Supabase...`, 'info');
+
+                const comparison = [];
+                
+                for (const student of sampleLocal) {
+                    const { data, error } = await supabase
+                        .from('students')
+                        .select('id, name, total_hafalan')
+                        .eq('id', student.id)
+                        .single();
+
+                    if (error) {
+                        log(`   ❌ ${student.name}: Error - ${error.message}`, 'error');
+                        comparison.push({
+                            name: student.name,
+                            local: student.total_hafalan || 0,
+                            supabase: 'ERROR',
+                            match: false
+                        });
+                    } else {
+                        const match = data.total_hafalan === student.total_hafalan;
+                        const symbol = match ? '✓' : '✗';
+                        log(`   ${symbol} ${student.name}: Local=${student.total_hafalan}, Supabase=${data.total_hafalan}`, match ? 'success' : 'warning');
+                        comparison.push({
+                            name: student.name,
+                            local: student.total_hafalan || 0,
+                            supabase: data.total_hafalan || 0,
+                            match: match
+                        });
+                    }
+                }
+
+                const mismatches = comparison.filter(c => !c.match);
+                if (mismatches.length > 0) {
+                    log(`\n⚠️ Found ${mismatches.length} mismatches!`, 'warning');
+                    log('   Data in localStorage is different from Supabase', 'warning');
+                    log('   This is why data reverts after refresh!', 'warning');
+                } else {
+                    log(`\n✅ All data matches! Sync is working correctly.`, 'success');
+                }
+
+                document.getElementById('result').textContent = 'Comparison:\n' + JSON.stringify(comparison, null, 2);
+
+            } catch (error) {
+                log(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function step4_forceSync() {
+            if (!confirm('⚠️ This will force sync all MTA students to Supabase. Continue?')) {
+                return;
+            }
+
+            log('\n=== STEP 4: Force Syncing to Supabase ===', 'info');
+
+            try {
+                const saved = localStorage.getItem('halaqahData');
+                const dashboardData = JSON.parse(saved);
+                const mtaStudents = dashboardData.students.filter(s => s.lembaga === 'MTA');
+
+                log(`Preparing to sync ${mtaStudents.length} students...`, 'info');
+
+                let successCount = 0;
+                let errorCount = 0;
+
+                // Update in batches
+                const batchSize = 10;
+                for (let i = 0; i < mtaStudents.length; i += batchSize) {
+                    const batch = mtaStudents.slice(i, i + batchSize);
+                    
+                    log(`\nBatch ${Math.floor(i / batchSize) + 1}/${Math.ceil(mtaStudents.length / batchSize)}:`, 'info');
+                    
+                    for (const student of batch) {
+                        try {
+                            const { data, error } = await supabase
+                                .from('students')
+                                .update({ 
+                                    total_hafalan: student.total_hafalan || 0,
+                                    updated_at: new Date().toISOString()
+                                })
+                                .eq('id', student.id);
+
+                            if (error) throw error;
+
+                            log(`   ✓ ${student.name}: ${student.total_hafalan} Juz`, 'success');
+                            successCount++;
+
+                        } catch (err) {
+                            log(`   ✗ ${student.name}: ${err.message}`, 'error');
+                            errorCount++;
+                        }
+                    }
+
+                    // Small delay between batches
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                }
+
+                log(`\n✅ Sync completed!`, 'success');
+                log(`   Success: ${successCount}`, 'success');
+                log(`   Errors: ${errorCount}`, errorCount > 0 ? 'error' : 'info');
+                
+                if (errorCount === 0) {
+                    log(`\n🎉 All data synced successfully!`, 'success');
+                    log(`   Now refresh the page and run Step 5 to verify`, 'info');
+                }
+
+            } catch (error) {
+                log(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function step5_verifyPersist() {
+            log('\n=== STEP 5: Verifying Data Persistence ===', 'info');
+            log('This should be run AFTER page refresh', 'info');
+
+            try {
+                // Check if data in localStorage matches what we expect
+                const saved = localStorage.getItem('halaqahData');
+                const dashboardData = JSON.parse(saved);
+                const mtaStudents = dashboardData.students.filter(s => s.lembaga === 'MTA');
+                
+                const withHafalan = mtaStudents.filter(s => s.total_hafalan > 0);
+                log(`✅ Found ${withHafalan.length} students with hafalan in localStorage`, 'success');
+
+                // Check a few samples in Supabase
+                const samples = withHafalan.slice(0, 5);
+                log(`\nVerifying ${samples.length} samples in Supabase:`, 'info');
+
+                let allMatch = true;
+                for (const student of samples) {
+                    const { data, error } = await supabase
+                        .from('students')
+                        .select('id, name, total_hafalan')
+                        .eq('id', student.id)
+                        .single();
+
+                    if (error) {
+                        log(`   ❌ ${student.name}: Error - ${error.message}`, 'error');
+                        allMatch = false;
+                    } else {
+                        const match = data.total_hafalan === student.total_hafalan;
+                        const symbol = match ? '✓' : '✗';
+                        log(`   ${symbol} ${student.name}: ${data.total_hafalan} Juz`, match ? 'success' : 'error');
+                        if (!match) allMatch = false;
+                    }
+                }
+
+                if (allMatch) {
+                    log(`\n🎉 SUCCESS! Data persists after refresh!`, 'success');
+                    log(`   The sync issue is FIXED!`, 'success');
+                } else {
+                    log(`\n❌ FAILED! Data still not persisting`, 'error');
+                    log(`   Check console for errors during page load`, 'error');
+                }
+
+            } catch (error) {
+                log(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+    </script>
+</body>
+</html>
