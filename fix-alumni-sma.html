@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fix Alumni SMA</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 1000px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #f8fafc;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #1e293b;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            color: #64748b;
+            margin-bottom: 30px;
+        }
+        button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        button:hover {
+            background: #2563eb;
+        }
+        button.success {
+            background: #10b981;
+        }
+        button.success:hover {
+            background: #059669;
+        }
+        button.danger {
+            background: #ef4444;
+        }
+        button.danger:hover {
+            background: #dc2626;
+        }
+        .results {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f1f5f9;
+            border-radius: 8px;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        .success { color: #059669; font-weight: bold; }
+        .error { color: #dc2626; font-weight: bold; }
+        .warning { color: #d97706; font-weight: bold; }
+        .info { color: #0284c7; font-weight: bold; }
+        .student-list {
+            margin-top: 15px;
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+        }
+        .student-item {
+            padding: 10px;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .student-item:last-child {
+            border-bottom: none;
+        }
+        .student-info {
+            flex: 1;
+        }
+        .student-name {
+            font-weight: 600;
+            color: #1e293b;
+        }
+        .student-details {
+            font-size: 12px;
+            color: #64748b;
+            margin-top: 4px;
+        }
+        .checkbox-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Fix Alumni SMA</h1>
+        <p class="subtitle">Tool untuk memperbaiki status alumni SMA yang hilang</p>
+
+        <button onclick="loadSMAStudents()">1. Load Santri SMA</button>
+        <button onclick="selectAllAlumni()" class="success">2. Pilih Semua Alumni</button>
+        <button onclick="markAsAlumni()" class="success">3. Tandai sebagai Alumni</button>
+        <button onclick="syncToSupabase()" class="success">4. Sync ke Supabase</button>
+
+        <div id="studentList" class="student-list" style="display: none;"></div>
+        <div id="results" class="results"></div>
+    </div>
+
+    <script>
+        // Supabase configuration
+        const SUPABASE_URL = 'https://klhegwunosmryqozuahc.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtsaGVnd3Vub3Ntcnlxb3p1YWhjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3Mjg3NDcsImV4cCI6MjA4NjMwNDc0N30.0X54jxpMZI9eilDxfJ7FYUGImuN-TEH9qGQkdRTtRXw';
+        
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const results = document.getElementById('results');
+        const studentList = document.getElementById('studentList');
+        let smaStudents = [];
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type;
+            results.innerHTML += `<span class="${className}">[${timestamp}] ${message}</span>\n`;
+        }
+
+        function loadSMAStudents() {
+            results.innerHTML = '';
+            studentList.innerHTML = '';
+            log('=== LOADING SANTRI SMA ===', 'info');
+
+            // Load from localStorage
+            const localData = localStorage.getItem('halaqahData');
+            if (!localData) {
+                log('❌ Tidak ada data di localStorage', 'error');
+                return;
+            }
+
+            const parsed = JSON.parse(localData);
+            smaStudents = parsed.students.filter(s => {
+                const lembaga = (s.lembaga || '').toUpperCase();
+                return lembaga === 'SMA';
+            });
+
+            log(`✅ Ditemukan ${smaStudents.length} santri SMA`, 'success');
+
+            if (smaStudents.length === 0) {
+                log('⚠️ Tidak ada santri SMA di localStorage', 'warning');
+                return;
+            }
+
+            // Display students
+            studentList.style.display = 'block';
+            studentList.innerHTML = '<h3 style="margin-bottom: 15px; color: #1e293b;">Daftar Santri SMA</h3>';
+
+            smaStudents.forEach((student, index) => {
+                const isAlumni = student.is_alumni === true || 
+                    (student.kategori || '').toLowerCase().includes('alumni') ||
+                    (student.status || '').toLowerCase().includes('alumni');
+
+                const item = document.createElement('div');
+                item.className = 'student-item';
+                item.innerHTML = `
+                    <div class="student-info">
+                        <div class="student-name">${student.name}</div>
+                        <div class="student-details">
+                            Halaqah: ${student.halaqah || '-'} | 
+                            Kelas: ${student.kelas || '-'} | 
+                            Status: ${isAlumni ? '✅ Alumni' : '❌ Bukan Alumni'}
+                        </div>
+                    </div>
+                    <div class="checkbox-container">
+                        <label>
+                            <input type="checkbox" 
+                                   id="student-${index}" 
+                                   data-index="${index}"
+                                   ${isAlumni ? 'checked' : ''}>
+                            Alumni
+                        </label>
+                    </div>
+                `;
+                studentList.appendChild(item);
+            });
+
+            log(`\n📋 Silakan centang santri yang merupakan alumni, lalu klik "Tandai sebagai Alumni"`, 'info');
+        }
+
+        function selectAllAlumni() {
+            const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+            checkboxes.forEach(cb => cb.checked = true);
+            log('✅ Semua santri SMA dipilih sebagai alumni', 'success');
+        }
+
+        function markAsAlumni() {
+            if (smaStudents.length === 0) {
+                log('❌ Load santri SMA terlebih dahulu!', 'error');
+                return;
+            }
+
+            results.innerHTML = '';
+            log('=== MENANDAI SEBAGAI ALUMNI ===', 'info');
+
+            let updated = 0;
+            const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+            
+            checkboxes.forEach(cb => {
+                const index = parseInt(cb.dataset.index);
+                const student = smaStudents[index];
+                const shouldBeAlumni = cb.checked;
+
+                if (shouldBeAlumni) {
+                    student.is_alumni = true;
+                    if (!student.kategori || !student.kategori.toLowerCase().includes('alumni')) {
+                        student.kategori = 'Alumni SMA';
+                    }
+                    updated++;
+                    log(`✅ ${student.name} → Alumni`, 'success');
+                } else {
+                    student.is_alumni = false;
+                    student.kategori = 'Santri Aktif';
+                    log(`ℹ️ ${student.name} → Aktif`, 'info');
+                }
+            });
+
+            // Update localStorage
+            const localData = localStorage.getItem('halaqahData');
+            const parsed = JSON.parse(localData);
+            
+            // Update students in localStorage
+            smaStudents.forEach(updatedStudent => {
+                const existing = parsed.students.find(s => s.name === updatedStudent.name);
+                if (existing) {
+                    existing.is_alumni = updatedStudent.is_alumni;
+                    existing.kategori = updatedStudent.kategori;
+                }
+            });
+
+            localStorage.setItem('halaqahData', JSON.stringify(parsed));
+
+            log(`\n✅ ${updated} santri ditandai sebagai alumni`, 'success');
+            log('💾 Data disimpan ke localStorage', 'success');
+            log('\n⚠️ PENTING: Klik "Sync ke Supabase" untuk menyimpan ke database!', 'warning');
+        }
+
+        async function syncToSupabase() {
+            if (smaStudents.length === 0) {
+                log('❌ Load dan tandai santri terlebih dahulu!', 'error');
+                return;
+            }
+
+            results.innerHTML = '';
+            log('=== SYNC KE SUPABASE ===', 'info');
+
+            try {
+                let synced = 0;
+                let failed = 0;
+
+                for (const student of smaStudents) {
+                    try {
+                        // Find student by name
+                        const { data: existing, error: findError } = await supabaseClient
+                            .from('students')
+                            .select('id')
+                            .eq('name', student.name)
+                            .single();
+
+                        if (findError) {
+                            log(`⚠️ ${student.name}: Tidak ditemukan di Supabase`, 'warning');
+                            failed++;
+                            continue;
+                        }
+
+                        // Update alumni status
+                        const { error: updateError } = await supabaseClient
+                            .from('students')
+                            .update({
+                                is_alumni: student.is_alumni,
+                                kategori: student.kategori
+                            })
+                            .eq('id', existing.id);
+
+                        if (updateError) throw updateError;
+
+                        log(`✅ ${student.name}: Synced`, 'success');
+                        synced++;
+
+                    } catch (err) {
+                        log(`❌ ${student.name}: ${err.message}`, 'error');
+                        failed++;
+                    }
+                }
+
+                log(`\n=== HASIL SYNC ===`, 'info');
+                log(`✅ Berhasil: ${synced}`, 'success');
+                if (failed > 0) {
+                    log(`❌ Gagal: ${failed}`, 'error');
+                }
+
+                if (synced > 0) {
+                    log(`\n🎉 Selesai! Refresh dashboard untuk melihat perubahan.`, 'success');
+                }
+
+            } catch (err) {
+                log(`❌ Error: ${err.message}`, 'error');
+            }
+        }
+
+        // Auto-run on load
+        window.addEventListener('load', () => {
+            log('🚀 Tool siap. Klik "Load Santri SMA" untuk mulai.', 'info');
+        });
+    </script>
+</body>
+</html>
