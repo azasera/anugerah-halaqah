@@ -338,16 +338,16 @@ function renderHafalanLeaders(container) {
         if (top3.length === 0) return '';
 
         return `
-            <div class="bg-white/10 backdrop-blur-sm rounded-xl p-3 border border-white/20">
-                <div class="text-xs font-bold text-yellow-300 mb-2 uppercase tracking-wider border-b border-white/10 pb-1">${lembaga}</div>
+            <div class="bg-white/10 backdrop-blur-sm rounded-xl p-2.5 md:p-3 border border-white/20">
+                <div class="text-[11px] md:text-xs font-bold text-yellow-300 mb-1.5 md:mb-2 uppercase tracking-wider border-b border-white/10 pb-1">${lembaga}</div>
                 <div class="space-y-1">
                     ${top3.map((s, idx) => `
-                        <div class="flex items-center justify-between gap-2">
-                            <div class="flex items-center gap-2 min-w-0">
-                                <span class="text-[10px] font-bold text-white/50">${idx + 1}</span>
-                                <span class="text-xs font-bold text-white truncate">${s.name}</span>
+                        <div class="flex items-center justify-between gap-1.5 md:gap-2">
+                            <div class="flex items-center gap-1.5 md:gap-2 min-w-0 flex-1">
+                                <span class="text-[10px] font-bold text-white/50 flex-shrink-0">${idx + 1}</span>
+                                <span class="text-[11px] md:text-xs font-bold text-white truncate">${s.name}</span>
                             </div>
-                            <span class="text-[10px] font-bold text-emerald-400 whitespace-nowrap">${formatHafalan(s.total_hafalan)} Juz</span>
+                            <span class="text-[10px] md:text-[11px] font-bold text-emerald-400 whitespace-nowrap flex-shrink-0">${formatHafalan(s.total_hafalan)} Juz</span>
                         </div>
                     `).join('')}
                 </div>
@@ -356,7 +356,7 @@ function renderHafalanLeaders(container) {
     }).join('');
 
     container.innerHTML = `
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-2 h-full items-center">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-2 h-full overflow-y-auto py-1">
             ${content || '<div class="col-span-full text-center text-white/50 text-sm">Belum ada data hafalan</div>'}
         </div>
     `;
