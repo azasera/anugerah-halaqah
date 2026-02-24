@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Alumni SMA</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #f8fafc;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #1e293b;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            color: #64748b;
+            margin-bottom: 30px;
+        }
+        button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        button:hover {
+            background: #2563eb;
+        }
+        .results {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f1f5f9;
+            border-radius: 8px;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        .success { color: #059669; font-weight: bold; }
+        .error { color: #dc2626; font-weight: bold; }
+        .warning { color: #d97706; font-weight: bold; }
+        .info { color: #0284c7; font-weight: bold; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            background: white;
+        }
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border: 1px solid #e2e8f0;
+        }
+        th {
+            background: #f1f5f9;
+            font-weight: 600;
+            color: #475569;
+        }
+        tr:hover {
+            background: #f8fafc;
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .badge-alumni {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        .badge-active {
+            background: #d1fae5;
+            color: #065f46;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Debug Alumni SMA</h1>
+        <p class="subtitle">Periksa data alumni SMA di localStorage dan Supabase</p>
+
+        <button onclick="checkLocalStorage()">1. Cek localStorage</button>
+        <button onclick="checkSupabase()">2. Cek Supabase</button>
+        <button onclick="checkAlumniLogic()">3. Test Alumni Logic</button>
+        <button onclick="compareData()">4. Bandingkan Data</button>
+
+        <div id="results" class="results"></div>
+    </div>
+
+    <script>
+        // Supabase configuration
+        const SUPABASE_URL = 'https://klhegwunosmryqozuahc.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtsaGVnd3Vub3Ntcnlxb3p1YWhjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3Mjg3NDcsImV4cCI6MjA4NjMwNDc0N30.0X54jxpMZI9eilDxfJ7FYUGImuN-TEH9qGQkdRTtRXw';
+        
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const results = document.getElementById('results');
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type;
+            results.innerHTML += `<span class="${className}">[${timestamp}] ${message}</span>\n`;
+        }
+
+        function checkLocalStorage() {
+            results.innerHTML = '';
+            log('=== CEK LOCALSTORAGE ===', 'info');
+
+            const data = localStorage.getItem('halaqahData');
+            if (!data) {
+                log('❌ Tidak ada data di localStorage', 'error');
+                return;
+            }
+
+            const parsed = JSON.parse(data);
+            log(`✅ Total students: ${parsed.students.length}`, 'success');
+
+            // Filter alumni SMA
+            const alumniSMA = parsed.students.filter(s => {
+                const lembaga = (s.lembaga || '').toUpperCase();
+                const kategori = (s.kategori || '').toLowerCase();
+                const status = (s.status || '').toLowerCase();
+                
+                const isSMA = lembaga === 'SMA';
+                const isAlumni = s.is_alumni === true || 
+                    kategori.includes('alumni') || 
+                    status.includes('alumni');
+                
+                return isSMA && isAlumni;
+            });
+
+            log(`\n📊 Alumni SMA ditemukan: ${alumniSMA.length}`, alumniSMA.length > 0 ? 'success' : 'warning');
+
+            if (alumniSMA.length > 0) {
+                log('\n=== DAFTAR ALUMNI SMA ===', 'info');
+                let table = '<table><tr><th>Nama</th><th>Halaqah</th><th>Lembaga</th><th>Kategori</th><th>is_alumni</th><th>Status</th></tr>';
+                alumniSMA.forEach(s => {
+                    table += `<tr>
+                        <td>${s.name}</td>
+                        <td>${s.halaqah || '-'}</td>
+                        <td>${s.lembaga || '-'}</td>
+                        <td>${s.kategori || '-'}</td>
+                        <td>${s.is_alumni ? '✅' : '❌'}</td>
+                        <td>${s.status || '-'}</td>
+                    </tr>`;
+                });
+                table += '</table>';
+                results.innerHTML += table;
+            } else {
+                log('⚠️ Tidak ada alumni SMA di localStorage!', 'warning');
+                
+                // Check all SMA students
+                const allSMA = parsed.students.filter(s => (s.lembaga || '').toUpperCase() === 'SMA');
+                log(`\n📋 Total santri SMA (termasuk aktif): ${allSMA.length}`, 'info');
+                
+                if (allSMA.length > 0) {
+                    log('\n=== SEMUA SANTRI SMA ===', 'info');
+                    let table = '<table><tr><th>Nama</th><th>Halaqah</th><th>Kategori</th><th>is_alumni</th><th>Status</th></tr>';
+                    allSMA.forEach(s => {
+                        const badge = s.is_alumni || (s.kategori || '').toLowerCase().includes('alumni') ? 
+                            '<span class="badge badge-alumni">Alumni</span>' : 
+                            '<span class="badge badge-active">Aktif</span>';
+                        table += `<tr>
+                            <td>${s.name}</td>
+                            <td>${s.halaqah || '-'}</td>
+                            <td>${s.kategori || '-'}</td>
+                            <td>${s.is_alumni ? '✅' : '❌'}</td>
+                            <td>${badge}</td>
+                        </tr>`;
+                    });
+                    table += '</table>';
+                    results.innerHTML += table;
+                }
+            }
+        }
+
+        async function checkSupabase() {
+            results.innerHTML = '';
+            log('=== CEK SUPABASE ===', 'info');
+
+            try {
+                // Query all SMA students first
+                const { data: allSMA, error: smaError } = await supabaseClient
+                    .from('students')
+                    .select('*')
+                    .ilike('lembaga', 'SMA');
+
+                if (smaError) throw smaError;
+
+                // Filter alumni manually
+                const alumniSMA = allSMA.filter(s => {
+                    const isAlumni = s.is_alumni === true || 
+                        (s.kategori || '').toLowerCase().includes('alumni') || 
+                        (s.status || '').toLowerCase().includes('alumni');
+                    return isAlumni;
+                });
+
+                const error = null;
+
+                log(`✅ Alumni SMA di Supabase: ${alumniSMA.length}`, alumniSMA.length > 0 ? 'success' : 'warning');
+
+                if (alumniSMA.length > 0) {
+                    log('\n=== DAFTAR ALUMNI SMA (SUPABASE) ===', 'info');
+                    let table = '<table><tr><th>Nama</th><th>Halaqah</th><th>Lembaga</th><th>Kategori</th><th>is_alumni</th><th>Status</th></tr>';
+                    alumniSMA.forEach(s => {
+                        table += `<tr>
+                            <td>${s.name}</td>
+                            <td>${s.halaqah || '-'}</td>
+                            <td>${s.lembaga || '-'}</td>
+                            <td>${s.kategori || '-'}</td>
+                            <td>${s.is_alumni ? '✅' : '❌'}</td>
+                            <td>${s.status || '-'}</td>
+                        </tr>`;
+                    });
+                    table += '</table>';
+                    results.innerHTML += table;
+                } else {
+                    log('⚠️ Tidak ada alumni SMA di Supabase!', 'warning');
+                    
+                    log(`\n📋 Total santri SMA di Supabase: ${allSMA?.length || 0}`, 'info');
+                    
+                    if (allSMA && allSMA.length > 0) {
+                        log('\n=== SEMUA SANTRI SMA (SUPABASE) ===', 'info');
+                        let table = '<table><tr><th>Nama</th><th>Halaqah</th><th>Kategori</th><th>is_alumni</th><th>Status</th></tr>';
+                        allSMA.forEach(s => {
+                            const badge = s.is_alumni || (s.kategori || '').toLowerCase().includes('alumni') ? 
+                                '<span class="badge badge-alumni">Alumni</span>' : 
+                                '<span class="badge badge-active">Aktif</span>';
+                            table += `<tr>
+                                <td>${s.name}</td>
+                                <td>${s.halaqah || '-'}</td>
+                                <td>${s.kategori || '-'}</td>
+                                <td>${s.is_alumni ? '✅' : '❌'}</td>
+                                <td>${badge}</td>
+                            </tr>`;
+                        });
+                        table += '</table>';
+                        results.innerHTML += table;
+                    }
+                }
+
+            } catch (err) {
+                log(`❌ Error: ${err.message}`, 'error');
+            }
+        }
+
+        function checkAlumniLogic() {
+            results.innerHTML = '';
+            log('=== TEST ALUMNI DETECTION LOGIC ===', 'info');
+
+            const testCases = [
+                { name: 'Test 1', is_alumni: true, kategori: '', status: '', expected: true },
+                { name: 'Test 2', is_alumni: false, kategori: 'Alumni SMA', status: '', expected: true },
+                { name: 'Test 3', is_alumni: false, kategori: '', status: 'Alumni', expected: true },
+                { name: 'Test 4', is_alumni: false, kategori: 'Non Alumni', status: '', expected: false },
+                { name: 'Test 5', is_alumni: false, kategori: 'Bukan Alumni', status: '', expected: false },
+                { name: 'Test 6', is_alumni: false, kategori: 'Santri Aktif', status: '', expected: false },
+                { name: 'Test 7', is_alumni: true, kategori: 'Non Alumni', status: '', expected: true },
+            ];
+
+            log('\nMenguji logika deteksi alumni...\n', 'info');
+
+            testCases.forEach(test => {
+                const kategoriStr = String(test.kategori || '').toLowerCase();
+                const statusStr = String(test.status || '').toLowerCase();
+                const kategoriHasAlumni = kategoriStr.includes('alumni');
+                const kategoriHasNon = kategoriStr.includes('non') || kategoriStr.includes('bukan');
+                const statusHasAlumni = statusStr.includes('alumni');
+                const statusHasNon = statusStr.includes('non') || statusStr.includes('bukan');
+                
+                const isAlumni = test.is_alumni === true ||
+                    ((kategoriHasAlumni || statusHasAlumni) && !(kategoriHasNon || statusHasNon));
+
+                const result = isAlumni === test.expected ? '✅ PASS' : '❌ FAIL';
+                const color = isAlumni === test.expected ? 'success' : 'error';
+                
+                log(`${result} ${test.name}: is_alumni=${test.is_alumni}, kategori="${test.kategori}", status="${test.status}" → ${isAlumni} (expected: ${test.expected})`, color);
+            });
+        }
+
+        async function compareData() {
+            results.innerHTML = '';
+            log('=== BANDINGKAN LOCALSTORAGE VS SUPABASE ===', 'info');
+
+            // Get localStorage data
+            const localData = localStorage.getItem('halaqahData');
+            if (!localData) {
+                log('❌ Tidak ada data di localStorage', 'error');
+                return;
+            }
+
+            const parsed = JSON.parse(localData);
+            const localAlumniSMA = parsed.students.filter(s => {
+                const lembaga = (s.lembaga || '').toUpperCase();
+                const isAlumni = s.is_alumni === true || 
+                    (s.kategori || '').toLowerCase().includes('alumni') || 
+                    (s.status || '').toLowerCase().includes('alumni');
+                return lembaga === 'SMA' && isAlumni;
+            });
+
+            log(`📦 localStorage: ${localAlumniSMA.length} alumni SMA`, 'info');
+
+            // Get Supabase data
+            try {
+                const { data: allSMA, error } = await supabaseClient
+                    .from('students')
+                    .select('*')
+                    .ilike('lembaga', 'SMA');
+
+                if (error) throw error;
+
+                // Filter alumni manually
+                const supabaseAlumniSMA = allSMA.filter(s => {
+                    const isAlumni = s.is_alumni === true || 
+                        (s.kategori || '').toLowerCase().includes('alumni') || 
+                        (s.status || '').toLowerCase().includes('alumni');
+                    return isAlumni;
+                });
+
+                log(`☁️  Supabase: ${supabaseAlumniSMA.length} alumni SMA`, 'info');
+
+                // Compare
+                if (localAlumniSMA.length === 0 && supabaseAlumniSMA.length > 0) {
+                    log('\n⚠️ MASALAH DITEMUKAN:', 'warning');
+                    log('Data alumni SMA ada di Supabase tapi tidak ada di localStorage!', 'warning');
+                    log('Solusi: Refresh data dari Supabase ke localStorage', 'info');
+                } else if (localAlumniSMA.length > 0 && supabaseAlumniSMA.length === 0) {
+                    log('\n⚠️ MASALAH DITEMUKAN:', 'warning');
+                    log('Data alumni SMA ada di localStorage tapi tidak ada di Supabase!', 'warning');
+                    log('Solusi: Sync data dari localStorage ke Supabase', 'info');
+                } else if (localAlumniSMA.length === supabaseAlumniSMA.length) {
+                    log('\n✅ Data sinkron! Jumlah alumni SMA sama di localStorage dan Supabase', 'success');
+                } else {
+                    log(`\n⚠️ Jumlah tidak sama: localStorage (${localAlumniSMA.length}) vs Supabase (${supabaseAlumniSMA.length})`, 'warning');
+                }
+
+            } catch (err) {
+                log(`❌ Error: ${err.message}`, 'error');
+            }
+        }
+
+        // Auto-run on load
+        window.addEventListener('load', () => {
+            log('🚀 Debug tool siap. Klik tombol untuk mulai debugging.', 'info');
+        });
+    </script>
+</body>
+</html>

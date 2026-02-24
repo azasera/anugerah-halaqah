@@ -209,6 +209,9 @@ async function syncStudentsToSupabase() {
                 nama_ayah: s.nama_ayah || '',
                 nama_ibu: s.nama_ibu || '',
                 sekolah_asal: s.sekolah_asal || '',
+                // Alumni fields
+                is_alumni: s.is_alumni === true,
+                kategori: s.kategori || '',
 
                 total_points: parseInt(s.total_points) || 0,
                 daily_ranking: parseInt(s.daily_ranking) || 0,
@@ -421,6 +424,15 @@ async function loadStudentsFromSupabase() {
                     totalHafalan = localHafalan;
                 }
 
+                const localIsAlumni = existing ? existing.is_alumni === true : null;
+                const remoteIsAlumni = s.is_alumni === true;
+                const finalIsAlumni = localIsAlumni !== null ? localIsAlumni : remoteIsAlumni;
+
+                const localKategori = existing && existing.kategori !== undefined && existing.kategori !== null && existing.kategori !== ''
+                    ? existing.kategori
+                    : null;
+                const finalKategori = localKategori !== null ? localKategori : getField('kategori');
+
                 const mapped = {
                     id: s.id,
                     name: s.name,
@@ -439,6 +451,8 @@ async function loadStudentsFromSupabase() {
                     nama_ibu: getField('nama_ibu'),
                     sekolah_asal: getField('sekolah_asal'),
 
+                    is_alumni: finalIsAlumni,
+                    kategori: finalKategori,
                     total_points: s.total_points,
                     daily_ranking: s.daily_ranking,
                     overall_ranking: s.overall_ranking,
@@ -624,7 +638,9 @@ function handleRealtimeUpdate(payload) {
             achievements: typeof record.achievements === 'string' ? JSON.parse(record.achievements || '[]') : record.achievements,
             setoran: typeof record.setoran === 'string' ? JSON.parse(record.setoran || '[]') : record.setoran,
             lastSetoranDate: record.last_setoran_date,
-            total_hafalan: record.total_hafalan || 0
+            total_hafalan: record.total_hafalan || 0,
+            is_alumni: record.is_alumni === true,
+            kategori: getField('kategori')
         };
     };
 
