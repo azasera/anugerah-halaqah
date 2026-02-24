@@ -86,7 +86,7 @@
     <script>
         const SUPABASE_URL = 'https://klhegwunosmryqozuahc.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtsaGVnd3Vub3Ntcnlxb3p1YWhjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3Mjg3NDcsImV4cCI6MjA4NjMwNDc0N30.0X54jxpMZI9eilDxfJ7FYUGImuN-TEH9qGQkdRTtRXw';
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         function log(message, type = 'info') {
             const logEl = document.getElementById('log');
@@ -222,7 +222,7 @@
                 const comparison = [];
                 
                 for (const student of sampleLocal) {
-                    const { data, error } = await supabase
+                    const { data, error } = await supabaseClient
                         .from('students')
                         .select('id, name, total_hafalan')
                         .eq('id', student.id)
@@ -291,7 +291,7 @@
                     
                     for (const student of batch) {
                         try {
-                            const { data, error } = await supabase
+                            const { data, error } = await supabaseClient
                                 .from('students')
                                 .update({ 
                                     total_hafalan: student.total_hafalan || 0,
@@ -347,7 +347,7 @@
 
                 let allMatch = true;
                 for (const student of samples) {
-                    const { data, error } = await supabase
+                    const { data, error } = await supabaseClient
                         .from('students')
                         .select('id, name, total_hafalan')
                         .eq('id', student.id)
