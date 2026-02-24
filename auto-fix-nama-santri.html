@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auto Fix Nama Santri</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 1400px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 { color: #333; }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        button:hover { background: #45a049; }
+        button.danger {
+            background: #f44336;
+        }
+        button.danger:hover {
+            background: #da190b;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            font-size: 12px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background: #4CAF50;
+            color: white;
+            position: sticky;
+            top: 0;
+        }
+        tr:nth-child(even) { background: #f9f9f9; }
+        .will-fix { background: #fff3cd !important; }
+        .success { color: green; font-weight: bold; }
+        .warning { color: orange; font-weight: bold; }
+        .error { color: red; font-weight: bold; }
+        .info { color: blue; }
+        pre {
+            background: #f4f4f4;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-size: 11px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .checkbox {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Auto Fix Nama Santri</h1>
+        <p>Tool untuk otomatis memperbaiki nama santri yang typo agar sesuai dengan API</p>
+
+        <div class="section">
+            <h3>Step 1: Pilih Jenjang & Analisis</h3>
+            <select id="jenjang" style="padding: 8px; font-size: 14px;">
+                <option value="sd">SD</option>
+                <option value="smp">SMP</option>
+                <option value="sma">SMA</option>
+                <option value="mta" selected>MTA</option>
+            </select>
+            <button onclick="analyzeMismatches()">Analisis Nama yang Salah</button>
+        </div>
+
+        <div class="section">
+            <h3>Step 2: Review Perubahan</h3>
+            <div id="summary"></div>
+            <div id="changes"></div>
+        </div>
+
+        <div class="section">
+            <h3>Step 3: Apply Fix</h3>
+            <button onclick="applyFixes()" id="applyBtn" disabled class="danger">
+                🔧 Perbaiki Nama Sekarang
+            </button>
+            <button onclick="downloadBackup()" id="backupBtn" disabled>
+                💾 Download Backup Dulu
+            </button>
+            <p class="warning">⚠️ PENTING: Download backup dulu sebelum apply fix!</p>
+        </div>
+
+        <div class="section">
+            <h3>Log</h3>
+            <pre id="log"></pre>
+        </div>
+    </div>
+
+    <script>
+        let fixList = [];
+        let dashboardData = null;
+
+        const normalizeName = (name) => {
+            if (!name) return '';
+            return String(name).toLowerCase().replace(/[\s\u00A0]+/g, ' ').trim();
+        };
+
+        const levenshteinDistance = (str1, str2) => {
+            const matrix = [];
+            for (let i = 0; i <= str2.length; i++) {
+                matrix[i] = [i];
+            }
+            for (let j = 0; j <= str1.length; j++) {
+                matrix[0][j] = j;
+            }
+            for (let i = 1; i <= str2.length; i++) {
+                for (let j = 1; j <= str1.length; j++) {
+                    if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
+                        matrix[i][j] = matrix[i - 1][j - 1];
+                    } else {
+                        matrix[i][j] = Math.min(
+                            matrix[i - 1][j - 1] + 1,
+                            matrix[i][j - 1] + 1,
+                            matrix[i - 1][j] + 1
+                        );
+                    }
+                }
+            }
+            return matrix[str2.length][str1.length];
+        };
+
+        const calculateSimilarity = (str1, str2) => {
+            const longer = str1.length > str2.length ? str1 : str2;
+            const shorter = str1.length > str2.length ? str2 : str1;
+            if (longer.length === 0) return 100;
+            const editDistance = levenshteinDistance(longer, shorter);
+            return ((longer.length - editDistance) / longer.length) * 100;
+        };
+
+        function log(message) {
+            const logEl = document.getElementById('log');
+            logEl.textContent += message + '\n';
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+
+        async function analyzeMismatches() {
+            const jenjang = document.getElementById('jenjang').value;
+            const summary = document.getElementById('summary');
+            const changes = document.getElementById('changes');
+            
+            summary.innerHTML = 'Loading...';
+            changes.innerHTML = '';
+            document.getElementById('log').textContent = '';
+            fixList = [];
+
+            log(`[INFO] Analyzing ${jenjang.toUpperCase()}...`);
+
+            try {
+                // Fetch API data
+                const url = `https://asia-southeast1-mootabaah.cloudfunctions.net/api/totalHafalan2025/${jenjang}`;
+                const res = await fetch(url);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                
+                const json = await res.json();
+                const allGuruData = json?.data || {};
+                log(`[API] Fetched data from ${url}`);
+
+                // Get local data
+                const saved = localStorage.getItem('halaqahData');
+                if (!saved) {
+                    summary.innerHTML = '<span class="error">❌ Tidak ada data di localStorage</span>';
+                    return;
+                }
+
+                dashboardData = JSON.parse(saved);
+                const lembagaMap = {
+                    'sd': 'SDITA',
+                    'smp': 'SMPITA',
+                    'sma': 'SMAITA',
+                    'mta': 'MTA'
+                };
+                const lembagaKey = lembagaMap[jenjang];
+                const students = dashboardData.students.filter(s => s.lembaga === lembagaKey);
+                log(`[LOCAL] Found ${students.length} students in localStorage`);
+
+                // Find mismatches
+                Object.entries(allGuruData).forEach(([guruName, guruStudents]) => {
+                    Object.entries(guruStudents).forEach(([studentKey, studentData]) => {
+                        const apiName = String(studentData.namaSiswa || studentData.nama || studentKey).trim();
+                        const targetNorm = normalizeName(apiName);
+                        
+                        // Try exact match
+                        let match = students.find(s => normalizeName(s.name) === targetNorm);
+                        
+                        // If not exact match, try fuzzy
+                        if (!match) {
+                            const fuzzyMatches = students.map(s => ({
+                                student: s,
+                                similarity: calculateSimilarity(targetNorm, normalizeName(s.name))
+                            })).filter(m => m.similarity > 70 && m.similarity < 100);
+
+                            if (fuzzyMatches.length > 0) {
+                                fuzzyMatches.sort((a, b) => b.similarity - a.similarity);
+                                const bestMatch = fuzzyMatches[0];
+                                
+                                // Only fix if similarity is high enough (75%+)
+                                if (bestMatch.similarity >= 75) {
+                                    fixList.push({
+                                        studentId: bestMatch.student.id,
+                                        oldName: bestMatch.student.name,
+                                        newName: apiName,
+                                        similarity: bestMatch.similarity,
+                                        guru: guruName,
+                                        selected: true
+                                    });
+                                    
+                                    log(`[FOUND] "${bestMatch.student.name}" → "${apiName}" (${bestMatch.similarity.toFixed(1)}%)`);
+                                }
+                            }
+                        }
+                    });
+                });
+
+                // Display results
+                if (fixList.length === 0) {
+                    summary.innerHTML = '<span class="success">✅ Tidak ada nama yang perlu diperbaiki!</span>';
+                    log('[DONE] No fixes needed');
+                    return;
+                }
+
+                summary.innerHTML = `
+                    <p class="warning">⚠️ Ditemukan ${fixList.length} nama yang perlu diperbaiki</p>
+                    <p class="info">Review perubahan di bawah, lalu klik "Perbaiki Nama Sekarang"</p>
+                `;
+
+                let html = '<table>';
+                html += '<tr><th><input type="checkbox" id="selectAll" onchange="toggleAll(this)" checked></th><th>Guru</th><th>Nama Lama (Salah)</th><th>→</th><th>Nama Baru (Benar)</th><th>Similarity</th></tr>';
+                
+                fixList.forEach((fix, index) => {
+                    html += `<tr class="will-fix">`;
+                    html += `<td><input type="checkbox" class="checkbox" data-index="${index}" ${fix.selected ? 'checked' : ''} onchange="toggleFix(${index}, this.checked)"></td>`;
+                    html += `<td>${fix.guru}</td>`;
+                    html += `<td style="color: red;">${fix.oldName}</td>`;
+                    html += `<td>→</td>`;
+                    html += `<td style="color: green; font-weight: bold;">${fix.newName}</td>`;
+                    html += `<td>${fix.similarity.toFixed(1)}%</td>`;
+                    html += '</tr>';
+                });
+                
+                html += '</table>';
+                changes.innerHTML = html;
+
+                // Enable buttons
+                document.getElementById('applyBtn').disabled = false;
+                document.getElementById('backupBtn').disabled = false;
+
+                log(`[READY] ${fixList.length} fixes ready to apply`);
+
+            } catch (error) {
+                summary.innerHTML = `<span class="error">❌ Error: ${error.message}</span>`;
+                log(`[ERROR] ${error.message}`);
+            }
+        }
+
+        function toggleAll(checkbox) {
+            fixList.forEach(fix => fix.selected = checkbox.checked);
+            document.querySelectorAll('.checkbox').forEach(cb => cb.checked = checkbox.checked);
+        }
+
+        function toggleFix(index, checked) {
+            fixList[index].selected = checked;
+        }
+
+        function downloadBackup() {
+            const dataStr = JSON.stringify(dashboardData, null, 2);
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `backup-halaqah-${new Date().toISOString().slice(0,10)}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            log('[BACKUP] Backup downloaded');
+            alert('✅ Backup berhasil didownload!');
+        }
+
+        function applyFixes() {
+            if (!dashboardData) {
+                alert('❌ Data tidak ditemukan. Jalankan analisis dulu.');
+                return;
+            }
+
+            const selectedFixes = fixList.filter(f => f.selected);
+            if (selectedFixes.length === 0) {
+                alert('❌ Tidak ada perubahan yang dipilih.');
+                return;
+            }
+
+            if (!confirm(`⚠️ Anda akan memperbaiki ${selectedFixes.length} nama santri.\n\nSudah download backup? Lanjutkan?`)) {
+                return;
+            }
+
+            log(`[APPLY] Applying ${selectedFixes.length} fixes...`);
+
+            let successCount = 0;
+            let failCount = 0;
+
+            selectedFixes.forEach(fix => {
+                const student = dashboardData.students.find(s => s.id === fix.studentId);
+                if (student) {
+                    log(`[FIX] "${student.name}" → "${fix.newName}"`);
+                    student.name = fix.newName;
+                    successCount++;
+                } else {
+                    log(`[ERROR] Student ID ${fix.studentId} not found`);
+                    failCount++;
+                }
+            });
+
+            // Save to localStorage
+            try {
+                localStorage.setItem('halaqahData', JSON.stringify(dashboardData));
+                log(`[SAVE] Data saved to localStorage`);
+                log(`[DONE] Success: ${successCount}, Failed: ${failCount}`);
+                
+                alert(`✅ Berhasil memperbaiki ${successCount} nama!\n\nSilakan refresh dashboard untuk melihat perubahan.`);
+                
+                // Disable buttons
+                document.getElementById('applyBtn').disabled = true;
+                
+                // Clear fix list
+                fixList = [];
+                document.getElementById('changes').innerHTML = '<p class="success">✅ Perubahan sudah diterapkan! Refresh dashboard untuk melihat hasil.</p>';
+                
+            } catch (error) {
+                log(`[ERROR] Failed to save: ${error.message}`);
+                alert(`❌ Gagal menyimpan: ${error.message}`);
+            }
+        }
+    </script>
+</body>
+</html>

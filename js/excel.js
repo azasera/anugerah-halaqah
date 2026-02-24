@@ -152,47 +152,35 @@ function showImportExcel() {
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7h18M3 12h10m-4 5h8"></path>
                         </svg>
-                        Sinkron Total Hafalan 2025 (per Ustadz)
+                        Sinkron Total Hafalan 2025
                     </h3>
                     <p class="text-sm text-purple-800 mb-4">
-                        Pilih jenjang lalu masukkan nama ustadz persis seperti di Mutaba&apos;ah
-                        (contoh: <span class="font-mono text-xs bg-white/60 px-1 py-0.5 rounded">USTADZ BASRIAL</span> untuk SD).
-                        Sistem akan mengupdate kolom <span class="font-semibold">Total Hafalan</span> untuk santri yang namanya cocok.
+                        Pilih jenjang (SD/SMP/SMA/MTA) lalu klik tombol sinkron. 
+                        Sistem akan otomatis mengambil data total hafalan dari <span class="font-semibold">semua guru</span> untuk jenjang yang dipilih 
+                        dan mengupdate kolom <span class="font-semibold">Total Hafalan</span> untuk santri yang namanya cocok.
                     </p>
-                <div class="grid grid-cols-1 md:grid-cols-[1.1fr_1.6fr_1fr] gap-3">
+                <div class="grid grid-cols-1 md:grid-cols-[1fr_1fr] gap-3">
                         <select id="hafalan-jenjang"
                             class="w-full px-4 py-3 rounded-xl border border-purple-200 focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none text-sm">
-                            <option value="SDITA" selected>SD (SDITA)</option>
-                            <option value="SMPITA">SMP (SMPITA)</option>
-                            <option value="SMAITA">SMA (SMAITA)</option>
+                            <option value="SDITA" selected>SD</option>
+                            <option value="SMPITA">SMP</option>
+                            <option value="SMAITA">SMA</option>
                             <option value="MTA">MTA</option>
                         </select>
-                        <input id="hafalan-ustadz-name" type="text" placeholder="Contoh: USTADZ BASRIAL"
-                            class="w-full px-4 py-3 rounded-xl border border-purple-200 focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none text-sm" />
                         <button onclick="importTotalHafalanSdFromGuru()"
                             class="w-full bg-purple-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-purple-700 transition-colors flex items-center justify-center gap-2">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8M3 7h4a2 2 0 012 2v8"></path>
                             </svg>
-                            Ambil Total Hafalan
+                            Sinkron Total Hafalan
                         </button>
                     </div>
                     <p class="mt-2 text-xs text-purple-700">
                         Catatan: Hanya mengubah <span class="font-semibold">total_hafalan</span>, tidak mengubah poin atau riwayat setoran.
                     </p>
                     <p class="mt-1 text-[11px] text-purple-600">
-                        Saran nama ustadz otomatis saat ini hanya tersedia untuk SD 2025.
+                        Data diambil dari semua guru untuk jenjang yang dipilih secara otomatis.
                     </p>
-                    <div class="mt-3 border-t border-purple-100 pt-3">
-                        <p class="text-[11px] text-purple-700 mb-2">
-                            Khusus MTA 2025, gunakan tombol berikut untuk sinkron total hafalan seluruh santri MTA
-                            (ustadz: Alim, Naufal, Harziki).
-                        </p>
-                        <button onclick="importTotalHafalanMta()" 
-                            class="w-full bg-purple-50 text-purple-700 border border-purple-300 px-4 py-2 rounded-lg text-xs font-semibold hover:bg-purple-100 transition-colors">
-                            Sinkron Total Hafalan MTA 2025
-                        </button>
-                    </div>
                 </div>
                 
                 <!-- Upload Area -->
@@ -548,19 +536,6 @@ async function importTotalHafalanSdFromGuru() {
         const jenjangSelect = document.getElementById('hafalan-jenjang');
         const lembagaKey = jenjangSelect ? jenjangSelect.value : 'SDITA';
 
-        const input = document.getElementById('hafalan-ustadz-name');
-        if (!input) {
-            showNotification('❌ Input nama ustadz tidak ditemukan.', 'error');
-            return;
-        }
-        const rawGuru = input.value || '';
-        const guruName = String(rawGuru).trim();
-        if (!guruName) {
-            showNotification('❌ Masukkan nama ustadz terlebih dahulu.', 'error');
-            input.focus();
-            return;
-        }
-
         let jenjangSlug = 'sd';
         if (lembagaKey === 'SMPITA') {
             jenjangSlug = 'smp';
@@ -570,45 +545,14 @@ async function importTotalHafalanSdFromGuru() {
             jenjangSlug = 'mta';
         }
 
-        let normalizedGuru = guruName.toUpperCase().trim().replace(/\s+/g, ' ');
-
-        // Normalisasi prefix: USTADZAH / USTADZ / UST / UST.
-        const parts = normalizedGuru.split(' ');
-        const first = parts[0] || '';
-        const rest = parts.slice(1).join(' ').trim();
-
-        if (first === 'USTADZAH') {
-            normalizedGuru = 'USTADZAH ' + rest;
-        } else if (first === 'USTADZ') {
-            normalizedGuru = 'USTADZ ' + rest;
-        } else if (first === 'UST' || first === 'UST.') {
-            normalizedGuru = 'USTADZ ' + rest;
-        } else {
-            normalizedGuru = 'USTADZ ' + normalizedGuru;
-        }
-
-        // Untuk API, hanya gunakan nama depan (kata pertama setelah prefix)
-        const namaParts = normalizedGuru.split(' ');
-        let namaDepan = namaParts[0];
-        if (namaParts.length > 1 && (namaParts[0] === 'USTADZ' || namaParts[0] === 'USTADZAH')) {
-            namaDepan = namaParts[1] || namaParts[0];
-        }
-        
-        // Convert to Title Case for API (Naufal, not NAUFAL)
-        namaDepan = namaDepan.charAt(0).toUpperCase() + namaDepan.slice(1).toLowerCase();
-
-        const encodedGuru = encodeURIComponent(namaDepan);
-        const url = `https://asia-southeast1-mootabaah.cloudfunctions.net/api/totalHafalan2025/${jenjangSlug}/${encodedGuru}`;
+        const url = `https://asia-southeast1-mootabaah.cloudfunctions.net/api/totalHafalan2025/${jenjangSlug}`;
 
         console.log('[DEBUG] Import Total Hafalan:');
         console.log('  - Lembaga:', lembagaKey);
         console.log('  - Jenjang Slug:', jenjangSlug);
-        console.log('  - Input Guru:', guruName);
-        console.log('  - Normalized Guru:', normalizedGuru);
-        console.log('  - Nama Depan:', namaDepan);
         console.log('  - URL:', url);
 
-        showNotification(`☁️ Mengambil total hafalan 2025 untuk ${guruName} (${lembagaKey})...`, 'info');
+        showNotification(`☁️ Mengambil total hafalan ${lembagaKey} 2025...`, 'info');
 
         const res = await fetch(url);
         console.log('[DEBUG] Response status:', res.status, res.statusText);
@@ -622,14 +566,11 @@ async function importTotalHafalanSdFromGuru() {
         const json = await res.json();
         console.log('[DEBUG] Response JSON:', json);
         
-        const payload = json && typeof json === 'object' ? json : {};
-        const data = payload.data && typeof payload.data === 'object' ? payload.data : null;
+        const allGuruData = json?.data || {};
+        console.log('[DEBUG] Guru found:', Object.keys(allGuruData));
 
-        console.log('[DEBUG] Data extracted:', data);
-        console.log('[DEBUG] Data keys count:', data ? Object.keys(data).length : 0);
-
-        if (!data || Object.keys(data).length === 0) {
-            showNotification('ℹ️ Tidak ada data hafalan yang diterima untuk ustadz tersebut.', 'info');
+        if (Object.keys(allGuruData).length === 0) {
+            showNotification('ℹ️ Tidak ada data hafalan yang diterima.', 'info');
             return;
         }
 
@@ -639,256 +580,144 @@ async function importTotalHafalanSdFromGuru() {
 
         const normalizeName = (name) => {
             if (!name) return '';
-            return String(name).toLowerCase().replace(/[\s\u00A0]+/g, ' ').trim();
+            // Remove dots after single letters (M. → M, A. → A)
+            let normalized = String(name).replace(/\b([A-Z])\.\s*/g, '$1 ');
+            // Normalize whitespace
+            normalized = normalized.toLowerCase().replace(/[\s\u00A0]+/g, ' ').trim();
+            return normalized;
+        };
+
+        const levenshteinDistance = (str1, str2) => {
+            const matrix = [];
+            for (let i = 0; i <= str2.length; i++) {
+                matrix[i] = [i];
+            }
+            for (let j = 0; j <= str1.length; j++) {
+                matrix[0][j] = j;
+            }
+            for (let i = 1; i <= str2.length; i++) {
+                for (let j = 1; j <= str1.length; j++) {
+                    if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
+                        matrix[i][j] = matrix[i - 1][j - 1];
+                    } else {
+                        matrix[i][j] = Math.min(
+                            matrix[i - 1][j - 1] + 1,
+                            matrix[i][j - 1] + 1,
+                            matrix[i - 1][j] + 1
+                        );
+                    }
+                }
+            }
+            return matrix[str2.length][str1.length];
+        };
+
+        const calculateSimilarity = (str1, str2) => {
+            const longer = str1.length > str2.length ? str1 : str2;
+            const shorter = str1.length > str2.length ? str2 : str1;
+            if (longer.length === 0) return 100;
+            const editDistance = levenshteinDistance(longer, shorter);
+            return ((longer.length - editDistance) / longer.length) * 100;
         };
 
         const students = Array.isArray(dashboardData.students)
             ? dashboardData.students.filter(s => s && s.lembaga === lembagaKey)
             : [];
 
-        Object.entries(data).forEach(([key, value]) => {
-            if (!value || typeof value !== 'object') {
-                invalidCount++;
-                return;
-            }
-
-            const rawName = value.namaSiswa || value.nama || key;
-            const name = String(rawName).trim();
-            if (!name) {
-                invalidCount++;
-                return;
-            }
-
-            const rawTotal = value.totalHafalan;
-            if (rawTotal === undefined || rawTotal === null || rawTotal === '') {
-                invalidCount++;
-                return;
-            }
-
-            let total = 0;
-            if (typeof rawTotal === 'string') {
-                const normalized = rawTotal.replace(',', '.');
-                const parsed = parseFloat(normalized);
-                if (Number.isNaN(parsed)) {
+        // Process each guru's data
+        Object.entries(allGuruData).forEach(([guruName, guruStudents]) => {
+            console.log(`[${jenjangSlug.toUpperCase()}] Processing guru: ${guruName}, students:`, Object.keys(guruStudents).length);
+            
+            Object.entries(guruStudents).forEach(([studentKey, studentData]) => {
+                if (!studentData || typeof studentData !== 'object') {
                     invalidCount++;
                     return;
                 }
-                total = parsed;
-            } else {
-                const parsed = Number(rawTotal);
-                if (Number.isNaN(parsed)) {
+
+                // Get student name (use key as primary, fallback to namaSiswa/nama)
+                const name = String(studentData.namaSiswa || studentData.nama || studentKey).trim();
+                if (!name) {
                     invalidCount++;
                     return;
                 }
-                total = parsed;
-            }
 
-            const targetNorm = normalizeName(name);
-            const match = students.find(s => normalizeName(s.name) === targetNorm);
+                // Get total hafalan
+                const rawTotal = studentData.totalHafalan;
+                if (rawTotal === undefined || rawTotal === null || rawTotal === '') {
+                    invalidCount++;
+                    return;
+                }
 
-            if (!match) {
-                notFoundCount++;
-                return;
-            }
+                // Parse total hafalan (handle both number and string)
+                let total = 0;
+                if (typeof rawTotal === 'number') {
+                    total = rawTotal;
+                } else if (typeof rawTotal === 'string') {
+                    const parsed = parseFloat(rawTotal);
+                    if (isNaN(parsed)) {
+                        invalidCount++;
+                        console.log(`[${jenjangSlug.toUpperCase()}] Cannot parse totalHafalan for "${name}": "${rawTotal}"`);
+                        return;
+                    }
+                    total = parsed;
+                }
 
-            match.total_hafalan = total;
-            updatedCount++;
+                const targetNorm = normalizeName(name);
+
+                // Try exact match first
+                let match = students.find(s => normalizeName(s.name) === targetNorm);
+
+                // If not found, try fuzzy match
+                if (!match) {
+                    const fuzzyMatches = students.map(s => ({
+                        student: s,
+                        similarity: calculateSimilarity(targetNorm, normalizeName(s.name))
+                    })).filter(m => m.similarity > 75); // Lowered from 80 to 75 for better matching
+
+                    if (fuzzyMatches.length > 0) {
+                        fuzzyMatches.sort((a, b) => b.similarity - a.similarity);
+                        match = fuzzyMatches[0].student;
+                        console.log(`[${jenjangSlug.toUpperCase()}] Fuzzy match: "${name}" → "${match.name}" (${fuzzyMatches[0].similarity.toFixed(1)}%)`);
+                    }
+                }
+
+                if (!match) {
+                    notFoundCount++;
+                    console.log(`[${jenjangSlug.toUpperCase()}] Not found: "${name}"`);
+                    return;
+                }
+
+                // Update total hafalan
+                const oldValue = match.total_hafalan || 0;
+                match.total_hafalan = total;
+                updatedCount++;
+                
+                // Log update for debugging
+                if (oldValue !== total) {
+                    console.log(`[${jenjangSlug.toUpperCase()}] Updated: "${match.name}" from ${oldValue} to ${total} juz`);
+                } else {
+                    console.log(`[${jenjangSlug.toUpperCase()}] No change: "${match.name}" = ${total} juz`);
+                }
+            });
         });
 
         if (updatedCount === 0) {
-            showNotification('ℹ️ Tidak ada santri yang cocok namanya untuk diupdate total hafalan.', 'info');
+            showNotification('ℹ️ Tidak ada santri yang berhasil diupdate.', 'info');
             return;
         }
 
+        // Save to localStorage and refresh
         StorageManager.save();
         refreshAllData();
 
-        lastHafalanImportSummary = {
-            guru: guruName,
-            lembaga: lembagaKey,
-            updatedCount,
-            notFoundCount,
-            invalidCount,
-            timestamp: new Date().toISOString()
-        };
-
-        let message = `✅ Berhasil mengupdate total hafalan ${updatedCount} santri untuk ${guruName}.`;
+        let message = `✅ Berhasil mengupdate total hafalan ${updatedCount} santri ${lembagaKey}.`;
         if (notFoundCount > 0 || invalidCount > 0) {
-            message += ` (${notFoundCount} nama tidak ditemukan di sistem, ${invalidCount} data hafalan tidak valid/dikosongkan.)`;
+            message += ` (${notFoundCount} tidak ditemukan, ${invalidCount} data invalid)`;
         }
         showNotification(message, 'success');
-    } catch (error) {
-        console.error('Error importTotalHafalanSdFromGuru', error);
-        showNotification('❌ Terjadi kesalahan saat sinkron total hafalan SD.', 'error');
-    }
-}
 
-async function importTotalHafalanMta() {
-    try {
-        const guruList = ['Alim', 'Naufal', 'Harziki'];
-        
-        showNotification('☁️ Mengambil total hafalan MTA 2025 untuk semua ustadz...', 'info');
-        
-        let totalUpdated = 0;
-        let totalNotFound = 0;
-        let totalInvalid = 0;
-        const errors = [];
-        
-        for (const guru of guruList) {
-            try {
-                const url = `https://asia-southeast1-mootabaah.cloudfunctions.net/api/totalHafalan2025/mta/${guru}`;
-                console.log(`[MTA] Fetching data for ${guru}:`, url);
-                
-                const res = await fetch(url);
-                if (!res.ok) {
-                    console.warn(`[MTA] Failed to fetch ${guru}: ${res.status}`);
-                    errors.push(`${guru}: HTTP ${res.status}`);
-                    continue;
-                }
-                
-                const json = await res.json();
-                const data = json?.data || {};
-                
-                if (Object.keys(data).length === 0) {
-                    console.log(`[MTA] No data for ${guru}`);
-                    continue;
-                }
-                
-                console.log(`[MTA] Processing ${Object.keys(data).length} students for ${guru}`);
-                
-                // Process each student
-                const normalizeName = (name) => {
-                    if (!name) return '';
-                    return String(name).toLowerCase().replace(/[\s\u00A0]+/g, ' ').trim();
-                };
-                
-                const levenshteinDistance = (str1, str2) => {
-                    const matrix = [];
-                    for (let i = 0; i <= str2.length; i++) {
-                        matrix[i] = [i];
-                    }
-                    for (let j = 0; j <= str1.length; j++) {
-                        matrix[0][j] = j;
-                    }
-                    for (let i = 1; i <= str2.length; i++) {
-                        for (let j = 1; j <= str1.length; j++) {
-                            if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
-                                matrix[i][j] = matrix[i - 1][j - 1];
-                            } else {
-                                matrix[i][j] = Math.min(
-                                    matrix[i - 1][j - 1] + 1,
-                                    matrix[i][j - 1] + 1,
-                                    matrix[i - 1][j] + 1
-                                );
-                            }
-                        }
-                    }
-                    return matrix[str2.length][str1.length];
-                };
-                
-                const calculateSimilarity = (str1, str2) => {
-                    const longer = str1.length > str2.length ? str1 : str2;
-                    const shorter = str1.length > str2.length ? str2 : str1;
-                    if (longer.length === 0) return 100;
-                    const editDistance = levenshteinDistance(longer, shorter);
-                    return ((longer.length - editDistance) / longer.length) * 100;
-                };
-                
-                const students = Array.isArray(dashboardData.students)
-                    ? dashboardData.students.filter(s => s && s.lembaga === 'MTA')
-                    : [];
-                
-                Object.entries(data).forEach(([key, value]) => {
-                    if (!value || typeof value !== 'object') {
-                        totalInvalid++;
-                        return;
-                    }
-                    
-                    const rawName = value.namaSiswa || value.nama || key;
-                    const name = String(rawName).trim();
-                    if (!name) {
-                        totalInvalid++;
-                        return;
-                    }
-                    
-                    const rawTotal = value.totalHafalan;
-                    if (rawTotal === undefined || rawTotal === null || rawTotal === '') {
-                        totalInvalid++;
-                        return;
-                    }
-                    
-                    let total = 0;
-                    if (typeof rawTotal === 'number') {
-                        total = rawTotal;
-                    } else if (typeof rawTotal === 'string') {
-                        const parsed = parseFloat(rawTotal);
-                        if (isNaN(parsed)) {
-                            totalInvalid++;
-                            return;
-                        }
-                        total = parsed;
-                    }
-                    
-                    const targetNorm = normalizeName(name);
-                    
-                    // Try exact match first
-                    let match = students.find(s => normalizeName(s.name) === targetNorm);
-                    
-                    // If not found, try fuzzy match (for typos like Khairi vs Khoiri, Alfathir vs Al Fathir)
-                    if (!match) {
-                        const fuzzyMatches = students.map(s => ({
-                            student: s,
-                            similarity: calculateSimilarity(targetNorm, normalizeName(s.name))
-                        })).filter(m => m.similarity > 80); // 80% similarity threshold (lowered from 85)
-                        
-                        if (fuzzyMatches.length > 0) {
-                            // Sort by similarity and take the best match
-                            fuzzyMatches.sort((a, b) => b.similarity - a.similarity);
-                            match = fuzzyMatches[0].student;
-                            console.log(`[MTA] Fuzzy match: "${name}" → "${match.name}" (${fuzzyMatches[0].similarity.toFixed(1)}%)`);
-                        }
-                    }
-                    
-                    if (!match) {
-                        totalNotFound++;
-                        console.log(`[MTA] Not found: "${name}"`);
-                        return;
-                    }
-                    
-                    match.total_hafalan = total;
-                    totalUpdated++;
-                });
-                
-            } catch (err) {
-                console.error(`[MTA] Error processing ${guru}:`, err);
-                errors.push(`${guru}: ${err.message}`);
-            }
-        }
-        
-        if (totalUpdated === 0) {
-            let message = 'ℹ️ Tidak ada santri MTA yang berhasil diupdate.';
-            if (errors.length > 0) {
-                message += ` Errors: ${errors.join(', ')}`;
-            }
-            showNotification(message, 'info');
-            return;
-        }
-        
-        StorageManager.save();
-        refreshAllData();
-        
-        let message = `✅ Berhasil mengupdate total hafalan ${totalUpdated} santri MTA.`;
-        if (totalNotFound > 0 || totalInvalid > 0) {
-            message += ` (${totalNotFound} nama tidak ditemukan, ${totalInvalid} data tidak valid.)`;
-        }
-        if (errors.length > 0) {
-            message += ` Errors: ${errors.join(', ')}`;
-        }
-        showNotification(message, 'success');
-        
     } catch (error) {
-        console.error('Error importTotalHafalanMta', error);
-        showNotification('❌ Terjadi kesalahan internal saat menjalankan sinkron total hafalan MTA.', 'error');
+        console.error('Error importTotalHafalanSdFromGuru:', error);
+        showNotification(`❌ Gagal sinkron total hafalan: ${error.message}`, 'error');
     }
 }
 
@@ -2015,4 +1844,3 @@ window.importFromSdApi = importFromSdApi;
 window.importFromSmpApi = importFromSmpApi;
 window.importFromSmaApi = importFromSmaApi;
 window.importFromMtaApi = importFromMtaApi;
-window.importTotalHafalanMta = importTotalHafalanMta;

@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Sync Total Hafalan MTA</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 { color: #333; }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        button:hover { background: #45a049; }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        pre {
+            background: #f4f4f4;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            max-height: 400px;
+            overflow-y: auto;
+            font-size: 12px;
+        }
+        .success { color: green; font-weight: bold; }
+        .warning { color: orange; font-weight: bold; }
+        .error { color: red; font-weight: bold; }
+        .info { color: blue; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background: #4CAF50;
+            color: white;
+        }
+        tr:nth-child(even) { background: #f9f9f9; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔄 Test Sync Total Hafalan MTA</h1>
+        <p>Tool untuk test endpoint API dan sync total hafalan MTA ke localStorage</p>
+
+        <div class="section">
+            <h3>Step 1: Cek API Endpoint</h3>
+            <button onclick="checkApiEndpoint()">Cek API</button>
+            <pre id="apiResult">Klik tombol untuk cek API...</pre>
+        </div>
+
+        <div class="section">
+            <h3>Step 2: Cek Data Lokal MTA</h3>
+            <button onclick="checkLocalData()">Cek Data Lokal</button>
+            <pre id="localResult">Klik tombol untuk cek data lokal...</pre>
+        </div>
+
+        <div class="section">
+            <h3>Step 3: Sync Total Hafalan</h3>
+            <button onclick="syncTotalHafalan()" id="syncBtn">Sync Sekarang</button>
+            <pre id="syncResult">Klik tombol untuk mulai sync...</pre>
+        </div>
+
+        <div class="section">
+            <h3>Step 4: Verifikasi Hasil</h3>
+            <button onclick="verifyResults()">Verifikasi</button>
+            <div id="verifyResult"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'https://asia-southeast1-mootabaah.cloudfunctions.net/api/totalHafalan2025/mta';
+        let apiData = null;
+        let localData = null;
+
+        async function checkApiEndpoint() {
+            const result = document.getElementById('apiResult');
+            result.innerHTML = 'Loading...';
+            
+            try {
+                const res = await fetch(API_URL);
+                if (!res.ok) {
+                    throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+                }
+                
+                const json = await res.json();
+                apiData = json?.data || {};
+                
+                let totalStudents = 0;
+                const guruList = Object.keys(apiData);
+                
+                guruList.forEach(guru => {
+                    totalStudents += Object.keys(apiData[guru]).length;
+                });
+                
+                result.innerHTML = `<span class="success">✅ API Endpoint OK!</span>\n\n`;
+                result.innerHTML += `Guru ditemukan: ${guruList.join(', ')}\n`;
+                result.innerHTML += `Total santri: ${totalStudents}\n\n`;
+                result.innerHTML += `Sample data:\n`;
+                result.innerHTML += JSON.stringify(apiData, null, 2);
+            } catch (error) {
+                result.innerHTML = `<span class="error">❌ Error: ${error.message}</span>`;
+            }
+        }
+
+        function checkLocalData() {
+            const result = document.getElementById('localResult');
+            
+            try {
+                const saved = localStorage.getItem('halaqahData');
+                if (!saved) {
+                    result.innerHTML = '<span class="error">❌ Tidak ada data di localStorage</span>\n\n';
+                    result.innerHTML += 'Silakan buka dashboard utama terlebih dahulu untuk load data.';
+                    return;
+                }
+                
+                const data = JSON.parse(saved);
+                const mtaStudents = data.students.filter(s => s.lembaga === 'MTA');
+                localData = mtaStudents;
+                
+                result.innerHTML = `<span class="success">✅ Data lokal ditemukan!</span>\n\n`;
+                result.innerHTML += `Total santri MTA: ${mtaStudents.length}\n`;
+                result.innerHTML += `Santri dengan hafalan > 0: ${mtaStudents.filter(s => s.total_hafalan > 0).length}\n\n`;
+                result.innerHTML += `Sample (5 santri pertama):\n`;
+                result.innerHTML += JSON.stringify(
+                    mtaStudents.slice(0, 5).map(s => ({
+                        name: s.name,
+                        halaqah: s.halaqah,
+                        total_hafalan: s.total_hafalan || 0
+                    })),
+                    null,
+                    2
+                );
+            } catch (error) {
+                result.innerHTML = `<span class="error">❌ Error: ${error.message}</span>`;
+            }
+        }
+
+        async function syncTotalHafalan() {
+            const result = document.getElementById('syncResult');
+            const btn = document.getElementById('syncBtn');
+            
+            btn.disabled = true;
+            result.innerHTML = 'Syncing...';
+            
+            try {
+                // Fetch API data
+                const res = await fetch(API_URL);
+                if (!res.ok) {
+                    throw new Error(`HTTP ${res.status}`);
+                }
+                
+                const json = await res.json();
+                const allGuruData = json?.data || {};
+                
+                // Load local data
+                const saved = localStorage.getItem('halaqahData');
+                if (!saved) {
+                    throw new Error('Tidak ada data lokal. Buka dashboard dulu.');
+                }
+                
+                const dashboardData = JSON.parse(saved);
+                const students = dashboardData.students.filter(s => s.lembaga === 'MTA');
+                
+                let totalUpdated = 0;
+                let totalNotFound = 0;
+                let totalInvalid = 0;
+                const updates = [];
+                
+                // Helper functions
+                const normalizeName = (name) => {
+                    if (!name) return '';
+                    return String(name).toLowerCase().replace(/[\s\u00A0]+/g, ' ').trim();
+                };
+                
+                // Process each guru's data
+                Object.entries(allGuruData).forEach(([guruName, guruStudents]) => {
+                    Object.entries(guruStudents).forEach(([studentKey, studentData]) => {
+                        if (!studentData || typeof studentData !== 'object') {
+                            totalInvalid++;
+                            return;
+                        }
+                        
+                        const name = String(studentKey).trim();
+                        if (!name) {
+                            totalInvalid++;
+                            return;
+                        }
+                        
+                        const rawTotal = studentData.totalHafalan;
+                        if (rawTotal === undefined || rawTotal === null || rawTotal === '') {
+                            totalInvalid++;
+                            return;
+                        }
+                        
+                        let total = 0;
+                        if (typeof rawTotal === 'number') {
+                            total = rawTotal;
+                        } else if (typeof rawTotal === 'string') {
+                            const parsed = parseFloat(rawTotal);
+                            if (isNaN(parsed)) {
+                                totalInvalid++;
+                                return;
+                            }
+                            total = parsed;
+                        }
+                        
+                        const targetNorm = normalizeName(name);
+                        const match = students.find(s => normalizeName(s.name) === targetNorm);
+                        
+                        if (!match) {
+                            totalNotFound++;
+                            return;
+                        }
+                        
+                        const oldValue = match.total_hafalan || 0;
+                        match.total_hafalan = total;
+                        totalUpdated++;
+                        
+                        updates.push({
+                            name: match.name,
+                            guru: guruName,
+                            old: oldValue,
+                            new: total,
+                            changed: oldValue !== total
+                        });
+                    });
+                });
+                
+                // Save back to localStorage
+                localStorage.setItem('halaqahData', JSON.stringify(dashboardData));
+                
+                result.innerHTML = `<span class="success">✅ Sync berhasil!</span>\n\n`;
+                result.innerHTML += `Updated: ${totalUpdated} santri\n`;
+                result.innerHTML += `Not found: ${totalNotFound}\n`;
+                result.innerHTML += `Invalid: ${totalInvalid}\n\n`;
+                result.innerHTML += `Changes:\n`;
+                result.innerHTML += JSON.stringify(
+                    updates.filter(u => u.changed).slice(0, 10),
+                    null,
+                    2
+                );
+                
+            } catch (error) {
+                result.innerHTML = `<span class="error">❌ Error: ${error.message}</span>`;
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        function verifyResults() {
+            const result = document.getElementById('verifyResult');
+            
+            try {
+                const saved = localStorage.getItem('halaqahData');
+                if (!saved) {
+                    result.innerHTML = '<span class="error">❌ Tidak ada data</span>';
+                    return;
+                }
+                
+                const data = JSON.parse(saved);
+                const mtaStudents = data.students.filter(s => s.lembaga === 'MTA');
+                
+                let html = '<table>';
+                html += '<tr><th>Nama</th><th>Halaqah</th><th>Total Hafalan</th></tr>';
+                
+                mtaStudents.forEach(s => {
+                    const hafalan = s.total_hafalan || 0;
+                    const rowClass = hafalan > 0 ? 'success' : '';
+                    html += `<tr class="${rowClass}">`;
+                    html += `<td>${s.name}</td>`;
+                    html += `<td>${s.halaqah}</td>`;
+                    html += `<td>${hafalan} juz</td>`;
+                    html += '</tr>';
+                });
+                
+                html += '</table>';
+                result.innerHTML = html;
+                
+            } catch (error) {
+                result.innerHTML = `<span class="error">❌ Error: ${error.message}</span>`;
+            }
+        }
+    </script>
+</body>
+</html>

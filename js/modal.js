@@ -802,6 +802,10 @@ window.setTidakSetor = setTidakSetor;
 // Keep existing showHalaqahDetail
 function showHalaqahDetail(halaqah) {
     const members = getStudentsByHalaqah(halaqah.name.replace('Halaqah ', ''));
+    
+    // Calculate total hafalan for halaqah
+    const totalHafalan = members.reduce((sum, m) => sum + (parseFloat(m.total_hafalan) || 0), 0);
+    const avgHafalan = members.length > 0 ? (totalHafalan / members.length).toFixed(1) : 0;
 
     const content = `
         <div class="p-8">
@@ -817,7 +821,7 @@ function showHalaqahDetail(halaqah) {
                 </button>
             </div>
             
-            <div class="grid grid-cols-3 gap-4 mb-6">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                 <div class="bg-primary-50 rounded-2xl p-4 text-center">
                     <div class="text-primary-600 text-sm font-bold mb-1">Total Poin</div>
                     <div class="text-2xl font-bold text-primary-700">${halaqah.points}</div>
@@ -826,9 +830,13 @@ function showHalaqahDetail(halaqah) {
                     <div class="text-accent-teal text-sm font-bold mb-1">Rata-rata</div>
                     <div class="text-2xl font-bold text-accent-teal">${halaqah.avgPoints}</div>
                 </div>
+                <div class="bg-purple-50 rounded-2xl p-4 text-center">
+                    <div class="text-purple-600 text-sm font-bold mb-1">Total Hafalan</div>
+                    <div class="text-2xl font-bold text-purple-700">${totalHafalan.toFixed(1)} Juz</div>
+                </div>
                 <div class="bg-slate-50 rounded-2xl p-4 text-center">
-                    <div class="text-slate-600 text-sm font-bold mb-1">Status</div>
-                    <div class="text-lg font-bold text-slate-700">${halaqah.status}</div>
+                    <div class="text-slate-600 text-sm font-bold mb-1">Rata Hafalan</div>
+                    <div class="text-2xl font-bold text-slate-700">${avgHafalan} Juz</div>
                 </div>
             </div>
             
@@ -837,13 +845,19 @@ function showHalaqahDetail(halaqah) {
                 <div class="space-y-2">
                     ${members.map(m => `
                         <div class="flex items-center justify-between p-3 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors">
-                            <div>
+                            <div class="flex-1">
                                 <div class="font-semibold text-slate-800">${m.name}</div>
                                 <div class="text-xs text-slate-500">Rank #${m.overall_ranking}</div>
                             </div>
-                            <div class="text-right">
-                                <div class="font-bold text-primary-600">${m.total_points} pts</div>
-                                <div class="text-xs text-slate-500">🔥 ${m.streak} hari</div>
+                            <div class="flex items-center gap-4">
+                                <div class="text-center">
+                                    <div class="text-xs text-purple-600 font-semibold">Hafalan</div>
+                                    <div class="font-bold text-purple-700">${(parseFloat(m.total_hafalan) || 0).toFixed(1)} Juz</div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="font-bold text-primary-600">${m.total_points} pts</div>
+                                    <div class="text-xs text-slate-500">🔥 ${m.streak} hari</div>
+                                </div>
                             </div>
                         </div>
                     `).join('')}

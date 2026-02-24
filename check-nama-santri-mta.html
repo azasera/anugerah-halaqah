@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cek Nama Santri MTA</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background: #4CAF50;
+            color: white;
+        }
+        tr:nth-child(even) { background: #f9f9f9; }
+        .zero { background: #f8d7da !important; }
+        input {
+            padding: 8px;
+            width: 300px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Cek Nama Santri MTA di LocalStorage</h1>
+        
+        <input type="text" id="search" placeholder="Cari nama..." onkeyup="filterTable()">
+        
+        <div id="result"></div>
+    </div>
+
+    <script>
+        let allStudents = [];
+
+        function loadData() {
+            const saved = localStorage.getItem('halaqahData');
+            if (!saved) {
+                document.getElementById('result').innerHTML = '<p style="color: red;">Tidak ada data di localStorage</p>';
+                return;
+            }
+
+            const data = JSON.parse(saved);
+            allStudents = data.students.filter(s => s.lembaga === 'MTA');
+            
+            displayTable(allStudents);
+        }
+
+        function displayTable(students) {
+            let html = `<p><strong>Total Santri MTA:</strong> ${students.length}</p>`;
+            html += '<table id="studentTable">';
+            html += '<tr><th>No</th><th>Nama</th><th>Halaqah</th><th>Total Hafalan</th><th>Nama (normalized)</th></tr>';
+            
+            students.forEach((s, i) => {
+                const normalized = s.name.toLowerCase().replace(/[\s\u00A0]+/g, ' ').trim();
+                const rowClass = (s.total_hafalan || 0) === 0 ? 'zero' : '';
+                
+                html += `<tr class="${rowClass}">`;
+                html += `<td>${i + 1}</td>`;
+                html += `<td>${s.name}</td>`;
+                html += `<td>${s.halaqah}</td>`;
+                html += `<td>${s.total_hafalan || 0}</td>`;
+                html += `<td style="font-family: monospace; font-size: 11px;">${normalized}</td>`;
+                html += '</tr>';
+            });
+            
+            html += '</table>';
+            document.getElementById('result').innerHTML = html;
+        }
+
+        function filterTable() {
+            const search = document.getElementById('search').value.toLowerCase();
+            const filtered = allStudents.filter(s => 
+                s.name.toLowerCase().includes(search) ||
+                s.halaqah.toLowerCase().includes(search)
+            );
+            displayTable(filtered);
+        }
+
+        window.addEventListener('load', loadData);
+    </script>
+</body>
+</html>

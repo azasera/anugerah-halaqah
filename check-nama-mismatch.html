@@ -36,8 +36,7 @@
     </div>
 
     <script>
-        const API_BASE = 'https://asia-southeast1-mootabaah.cloudfunctions.net/api/totalHafalan2025/mta';
-        const GURU_LIST = ['Alim', 'Naufal', 'Harziki'];
+        const API_URL = 'https://asia-southeast1-mootabaah.cloudfunctions.net/api/totalHafalan2025/mta';
         
         let apiData = {};
         let localData = [];
@@ -47,18 +46,21 @@
             const result = document.getElementById('result');
             result.innerHTML = '<p>⏳ Fetching data...</p>';
             
-            // Fetch API data
+            // Fetch API data (single endpoint for all gurus)
             apiData = {};
-            for (const guru of GURU_LIST) {
-                try {
-                    const res = await fetch(`${API_BASE}/${guru}`);
-                    if (res.ok) {
-                        const json = await res.json();
-                        Object.assign(apiData, json.data || {});
-                    }
-                } catch (err) {
-                    console.error(`Error fetching ${guru}:`, err);
+            try {
+                const res = await fetch(API_URL);
+                if (res.ok) {
+                    const json = await res.json();
+                    const allGuruData = json.data || {};
+                    
+                    // Flatten all guru data into single object
+                    Object.values(allGuruData).forEach(guruStudents => {
+                        Object.assign(apiData, guruStudents);
+                    });
                 }
+            } catch (err) {
+                console.error('Error fetching API:', err);
             }
             
             // Get local data (from localStorage)
@@ -73,7 +75,7 @@
             }
             
             // Compare
-            const apiNames = Object.keys(apiData).map(k => apiData[k].namaSiswa || apiData[k].nama || k);
+            const apiNames = Object.keys(apiData); // Use keys directly as names
             const localNames = localData.map(s => s.name);
             
             let html = '<h2>📊 Comparison Results:</h2>';

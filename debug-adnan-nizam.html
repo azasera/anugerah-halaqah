@@ -38,24 +38,28 @@
             const result = document.getElementById('result');
             result.innerHTML = '<p>⏳ Fetching API data...</p>';
             
-            const guruList = ['Alim', 'Naufal', 'Harziki'];
+            // Use the correct endpoint that returns all guru data at once
+            const url = 'https://asia-southeast1-mootabaah.cloudfunctions.net/api/totalHafalan2025/mta';
             apiData = {};
             
-            for (const guru of guruList) {
-                try {
-                    const res = await fetch(`https://asia-southeast1-mootabaah.cloudfunctions.net/api/totalHafalan2025/mta/${guru}`);
-                    if (res.ok) {
-                        const json = await res.json();
-                        Object.assign(apiData, json.data || {});
-                    }
-                } catch (err) {
-                    console.error(err);
+            try {
+                const res = await fetch(url);
+                if (res.ok) {
+                    const json = await res.json();
+                    const allGuruData = json.data || {};
+                    
+                    // Flatten all guru data into single object
+                    Object.values(allGuruData).forEach(guruStudents => {
+                        Object.assign(apiData, guruStudents);
+                    });
                 }
+            } catch (err) {
+                console.error('Error fetching API:', err);
             }
             
             const apiNames = Object.keys(apiData).map(k => ({
                 key: k,
-                name: apiData[k].namaSiswa || apiData[k].nama || k,
+                name: k, // Use key as name directly
                 total: apiData[k].totalHafalan
             }));
             
@@ -141,7 +145,7 @@
             }
             
             const apiNames = Object.keys(apiData).map(k => ({
-                name: apiData[k].namaSiswa || apiData[k].nama || k,
+                name: k, // Use key as name directly
                 total: apiData[k].totalHafalan
             })).filter(n => 
                 n.name.toLowerCase().includes('adnan') || 
