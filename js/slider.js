@@ -140,8 +140,9 @@ function renderTopSantri(container) {
 function renderBestHalaqahToday(container) {
     const today = new Date().toDateString();
     const halaqahTodayPoints = dashboardData.halaqahs.map(halaqah => {
-        const halaqahName = halaqah.name.replace('Halaqah ', '');
-        const studentsInHalaqah = dashboardData.students.filter(s => s.halaqah === halaqahName);
+        const studentsInHalaqah = typeof getStudentsByHalaqah === 'function'
+            ? getStudentsByHalaqah(halaqah.name)
+            : dashboardData.students.filter(s => s.halaqah === halaqah.name.replace('Halaqah ', ''));
         let todayPoints = 0;
         let todaySubmissions = 0;
 
@@ -158,6 +159,7 @@ function renderBestHalaqahToday(container) {
 
         return {
             ...halaqah,
+            members: studentsInHalaqah.length,
             todayPoints,
             todaySubmissions,
             todayAverage: studentsInHalaqah.length > 0 ? (todayPoints / studentsInHalaqah.length).toFixed(1) : 0
@@ -171,7 +173,8 @@ function renderBestHalaqahToday(container) {
     if (!topHalaqah) return;
 
     const isLoggedIn = typeof currentProfile !== 'undefined' && currentProfile;
-    const membersTodayText = isLoggedIn ? `${topHalaqah.members} Anggota • ` : '';
+    const memberCount = typeof topHalaqah.members === 'number' ? topHalaqah.members : 0;
+    const membersTodayText = isLoggedIn ? `${memberCount} Anggota • ` : '';
 
     container.innerHTML = `
         <div class="flex flex-col items-center justify-center h-full px-2">
@@ -222,6 +225,9 @@ function renderTopHalaqah(container) {
     if (!topHalaqah) return;
 
     const isLoggedIn = typeof currentProfile !== 'undefined' && currentProfile;
+    const liveTop = typeof getLiveHalaqahStats === 'function' ? getLiveHalaqahStats(topHalaqah) : { members: topHalaqah.members };
+    const liveSecond = second && typeof getLiveHalaqahStats === 'function' ? getLiveHalaqahStats(second) : { members: second?.members };
+    const liveThird = third && typeof getLiveHalaqahStats === 'function' ? getLiveHalaqahStats(third) : { members: third?.members };
 
     container.innerHTML = `
         <div class="flex flex-col items-center justify-center h-full px-2">
@@ -232,9 +238,9 @@ function renderTopHalaqah(container) {
                 </div>
                 <div class="text-white/80 text-xs mb-1">HALAQAH TERBAIK</div>
                 <div class="text-2xl md:text-3xl font-bold text-white mb-1">${topHalaqah.name}</div>
-                <div class="text-sm text-white/90 mb-2">${isLoggedIn ? `${topHalaqah.members} Anggota • ` : ''}${topHalaqah.status || ''}</div>
+                <div class="text-sm text-white/90 mb-2">${isLoggedIn ? `${liveTop.members} Anggota • ` : ''}${topHalaqah.status || ''}</div>
                 <div class="inline-block px-4 py-2 bg-white/20 backdrop-blur-sm rounded-xl border border-white/30">
-                    <div class="text-3xl font-bold text-white">${topHalaqah.points}</div>
+                    <div class="text-3xl font-bold text-white">${liveTop.points != null ? liveTop.points : topHalaqah.points}</div>
                     <div class="text-white/80 text-xs">Total Poin</div>
                 </div>
             </div>
@@ -245,8 +251,8 @@ function renderTopHalaqah(container) {
                 <div class="bg-white/10 backdrop-blur-sm rounded-xl p-2 border border-white/20 text-center">
                     <div class="text-xl mb-1">🥈</div>
                     <div class="text-sm font-bold text-white mb-1">${second.name}</div>
-                    <div class="text-white/80 text-xs mb-1">${isLoggedIn ? `${second.members} anggota` : ''}</div>
-                    <div class="text-lg font-bold text-white">${second.points}</div>
+                    <div class="text-white/80 text-xs mb-1">${isLoggedIn ? `${liveSecond.members} anggota` : ''}</div>
+                    <div class="text-lg font-bold text-white">${liveSecond.points != null ? liveSecond.points : second.points}</div>
                     <div class="text-white/70 text-xs">poin</div>
                 </div>
                 ` : ''}
@@ -254,8 +260,8 @@ function renderTopHalaqah(container) {
                 <div class="bg-white/10 backdrop-blur-sm rounded-xl p-2 border border-white/20 text-center">
                     <div class="text-xl mb-1">🥉</div>
                     <div class="text-sm font-bold text-white mb-1">${third.name}</div>
-                    <div class="text-white/80 text-xs mb-1">${isLoggedIn ? `${third.members} anggota` : ''}</div>
-                    <div class="text-lg font-bold text-white">${third.points}</div>
+                    <div class="text-white/80 text-xs mb-1">${isLoggedIn ? `${liveThird.members} anggota` : ''}</div>
+                    <div class="text-lg font-bold text-white">${liveThird.points != null ? liveThird.points : third.points}</div>
                     <div class="text-white/70 text-xs">poin</div>
                 </div>
                 ` : ''}

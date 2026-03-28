@@ -231,20 +231,27 @@ function handleEditHalaqah(event, halaqahId) {
         halaqah.guru = formData.get('guru');
         halaqah.kelas = formData.get('kelas');
         
-        // IMPORTANT: Update halaqah name in all students
-        if (oldName !== newName) {
+        // IMPORTANT: Update halaqah name in all students (match singkat/panjang/case)
+        if (oldName !== newName && typeof normalizeHalaqahLabel === 'function') {
             console.log('📝 Updating student halaqah references...');
             let updatedCount = 0;
-            
+            const oldKey = normalizeHalaqahLabel(oldName);
+
             dashboardData.students.forEach(student => {
-                if (student.halaqah === oldName) {
+                if (normalizeHalaqahLabel(student.halaqah) === oldKey) {
                     student.halaqah = newName;
                     updatedCount++;
                     console.log(`  ✅ Updated: ${student.name} → ${newName}`);
                 }
             });
-            
+
             console.log(`✅ Updated ${updatedCount} students`);
+        } else if (oldName !== newName) {
+            dashboardData.students.forEach(student => {
+                if (student.halaqah === oldName || student.halaqah === `Halaqah ${oldName}`) {
+                    student.halaqah = newName;
+                }
+            });
         }
         
         // Recalculate rankings to update halaqah stats

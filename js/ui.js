@@ -116,9 +116,12 @@ function renderBestHalaqah() {
     }
 
     const isLoggedIn = typeof currentProfile !== 'undefined' && currentProfile;
+    const live = typeof getLiveHalaqahStats === 'function'
+        ? getLiveHalaqahStats(bestHalaqah)
+        : { members: bestHalaqah.members, points: bestHalaqah.points, avgPoints: bestHalaqah.avgPoints };
     const membersChip = isLoggedIn
         ? `<span class="bg-emerald-800/30 border border-emerald-700/30 px-3 py-1 rounded-full">
-                        ${bestHalaqah.members} Anggota
+                        ${live.members} Anggota
                     </span>`
         : '';
 
@@ -139,11 +142,11 @@ function renderBestHalaqah() {
                 </div>
                 <div class="flex items-center gap-4 text-sm text-emerald-100">
                     <span class="bg-emerald-800/30 border border-emerald-700/30 px-3 py-1 rounded-full">
-                        ${bestHalaqah.points} Poin
+                        ${live.points} Poin
                     </span>
                     ${membersChip}
                     <span class="bg-emerald-800/30 border border-emerald-700/30 px-3 py-1 rounded-full">
-                        Rata-rata: ${bestHalaqah.avgPoints} poin
+                        Rata-rata: ${live.avgPoints} poin
                     </span>
                 </div>
             </div>
@@ -175,6 +178,10 @@ function renderHalaqahRankings() {
     const halaqahsToShow = isLoggedIn ? dashboardData.halaqahs : dashboardData.halaqahs.slice(0, 3);
 
     halaqahsToShow.forEach((halaqah) => {
+        const live = typeof getLiveHalaqahStats === 'function'
+            ? getLiveHalaqahStats(halaqah)
+            : { members: halaqah.members, points: halaqah.points, avgPoints: halaqah.avgPoints };
+
         const isTop = halaqah.rank === 1;
         const borderColor = isTop ? 'border-accent-gold' : 'border-slate-300';
         const bgColor = isTop ? 'bg-accent-gold/10' : 'bg-slate-100';
@@ -198,7 +205,7 @@ function renderHalaqahRankings() {
                 </div>
                 <div class="flex-1 relative z-10">
                     <h4 class="font-bold text-slate-800">${halaqah.name}</h4>
-                    <p class="text-sm text-slate-500">${halaqah.points} Poin${isLoggedIn ? ` • ${halaqah.members} Anggota` : ''}</p>
+                    <p class="text-sm text-slate-500">${live.points} Poin${isLoggedIn ? ` • ${live.members} Anggota` : ''}</p>
                 </div>
                 <div class="text-right relative z-10">
                     <span class="inline-block px-2 py-1 rounded-md ${statusClass} text-[10px] font-bold">${halaqah.status}</span>
@@ -207,7 +214,7 @@ function renderHalaqahRankings() {
             <div class="mt-3 pt-3 border-t border-slate-200 relative z-10">
                 <div class="flex items-center justify-between text-xs">
                     <span class="text-slate-500">Rata-rata per santri</span>
-                    <span class="font-bold text-primary-600">${halaqah.avgPoints} poin</span>
+                    <span class="font-bold text-primary-600">${live.avgPoints} poin</span>
                 </div>
             </div>
         `;

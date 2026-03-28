@@ -882,7 +882,7 @@ async function refreshUserChildLink(retryCount = 0, maxRetries = 10) {
         }
     }
 
-    if (!student && window.supabaseClient) {
+    if (!student && window.supabaseClient && !localStorage.getItem('_deleteJustDone')) {
         console.log('🔍 Student not found locally, querying Supabase...');
         try {
             const nikInput = nikOrNisn;

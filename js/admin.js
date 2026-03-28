@@ -1,5 +1,102 @@
 // Admin Settings Module - Part 1
 
+function getSchoolBreakPanelHtml() {
+    const sb = appSettings.schoolBreak;
+    const active = sb && sb.start && sb.end;
+    const inRange = typeof isSchoolBreakActive === 'function' && isSchoolBreakActive();
+    return `
+        <div class="bg-gradient-to-br from-sky-50 to-indigo-50 border border-sky-200 rounded-xl p-4 mb-4">
+            <h4 class="font-bold text-slate-800 mb-1">📅 Libur sekolah (semua lembaga)</h4>
+            <p class="text-xs text-slate-600 mb-3">Atur rentang tanggal libur (misalnya libur semester). Selama periode ini, tracking absensi dan penalty tidak berlaku.</p>
+            <div class="flex flex-wrap gap-3 items-end">
+                <div>
+                    <label class="text-xs font-bold text-slate-600 block mb-1">Mulai</label>
+                    <input type="date" data-school-break="start" value="${active ? sb.start : ''}"
+                        class="school-break-input px-3 py-2 rounded-lg border border-slate-200 text-sm">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-600 block mb-1">Selesai</label>
+                    <input type="date" data-school-break="end" value="${active ? sb.end : ''}"
+                        class="school-break-input px-3 py-2 rounded-lg border border-slate-200 text-sm">
+                </div>
+                <button type="button" onclick="applySchoolBreak()"
+                    class="px-4 py-2 bg-sky-600 text-white rounded-lg font-bold text-sm hover:bg-sky-700 transition-colors">
+                    Simpan
+                </button>
+                <button type="button" onclick="clearSchoolBreak()"
+                    class="px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg font-bold text-sm hover:bg-slate-50 transition-colors">
+                    Hapus
+                </button>
+            </div>
+            ${active ? `<p class="text-xs mt-3 ${inRange ? 'text-sky-800 font-bold' : 'text-slate-500'}">Terjadwal: ${sb.start} s/d ${sb.end}${inRange ? ' — hari ini termasuk libur' : ''}</p>` : '<p class="text-xs mt-2 text-slate-500">Belum ada jadwal libur sekolah.</p>'}
+        </div>
+    `;
+}
+
+function refreshAdminSettingsUi() {
+    if (document.getElementById('settingsContainer')) {
+        renderAdminSettings(true);
+    } else if (document.getElementById('detailModal') && typeof showAdminSettings === 'function') {
+        closeModal();
+        showAdminSettings();
+    }
+}
+
+/** Modal admin + panel Pengaturan di dashboard bisa ada bersamaan; getElementById ambil input salah (kosong). */
+function getSchoolBreakInputElements() {
+    const modal = document.getElementById('detailModal');
+    if (modal) {
+        const start = modal.querySelector('[data-school-break="start"]');
+        const end = modal.querySelector('[data-school-break="end"]');
+        if (start && end) return { start, end };
+    }
+    const settingsWrap = document.getElementById('settingsContainer');
+    if (settingsWrap) {
+        const start = settingsWrap.querySelector('[data-school-break="start"]');
+        const end = settingsWrap.querySelector('[data-school-break="end"]');
+        if (start && end) return { start, end };
+    }
+    const start = document.querySelector('[data-school-break="start"]');
+    const end = document.querySelector('[data-school-break="end"]');
+    return { start, end };
+}
+
+function applySchoolBreak() {
+    const { start: startEl, end: endEl } = getSchoolBreakInputElements();
+    const start = startEl?.value?.trim();
+    const end = endEl?.value?.trim();
+    if (!start || !end) {
+        showNotification('Isi tanggal mulai dan tanggal selesai', 'warning');
+        return;
+    }
+    if (start > end) {
+        showNotification('Tanggal mulai harus sebelum atau sama dengan tanggal selesai', 'warning');
+        return;
+    }
+    appSettings.schoolBreak = { start, end };
+    saveSettings();
+    showNotification('Libur sekolah disimpan. Semua lembaga dianggap libur pada rentang ini.', 'success');
+    refreshAdminSettingsUi();
+    if (typeof refreshAllData === 'function') refreshAllData();
+}
+
+function clearSchoolBreak() {
+    if (!appSettings.schoolBreak) {
+        showNotification('Tidak ada jadwal libur sekolah', 'info');
+        return;
+    }
+    if (!confirm('Hapus jadwal libur sekolah? Absensi akan normal lagi setelah tanggal hari ini di luar rentang (atau segera jika dihapus).')) return;
+    appSettings.schoolBreak = null;
+    saveSettings();
+    showNotification('Jadwal libur sekolah dihapus', 'info');
+    refreshAdminSettingsUi();
+    if (typeof refreshAllData === 'function') refreshAllData();
+}
+
+window.getSchoolBreakPanelHtml = getSchoolBreakPanelHtml;
+window.applySchoolBreak = applySchoolBreak;
+window.clearSchoolBreak = clearSchoolBreak;
+
 function showAdminSettings() {
     if (typeof currentProfile === 'undefined' || !currentProfile || currentProfile.role !== 'admin') {
         if (typeof showNotification === 'function') {
@@ -458,6 +555,7 @@ function showAdminSettings() {
                 
                 <div id="content-lembaga" class="admin-tab-content hidden">
                     <h3 class="font-bold text-xl text-slate-800 mb-4">Pengaturan Lembaga</h3>
+                    ${getSchoolBreakPanelHtml()}
                     <div class="space-y-2 max-h-96 overflow-y-auto custom-scrollbar">
                         ${lembagaList}
                     </div>
@@ -734,7 +832,7 @@ function generateAdminSettingsContent() {
                                 <span class="text-2xl">🗑️</span>
                                 <div class="text-left">
                                     <div class="text-base">Hapus Semua Data</div>
-                                    <div class="text-xs font-normal opacity-80">Reset total database</div>
+                                    <div class="text-xs font-normal opacity-80">Santri + halaqah (lokal & Supabase). Lalu: Excel → Import file baru.</div>
                                 </div>
                             </button>
                         </div>
@@ -947,6 +1045,7 @@ function generateAdminSettingsContent() {
                 
                 <div id="content-inline-lembaga" class="admin-tab-inline-content hidden">
                     <h4 class="font-bold text-xl text-slate-800 mb-4">Pengaturan Lembaga</h4>
+                    ${getSchoolBreakPanelHtml()}
                     <div class="space-y-2 max-h-96 overflow-y-auto custom-scrollbar">
                         ${lembagaList}
                     </div>
@@ -1018,7 +1117,7 @@ function switchAdminTabInline(tab) {
                                 <span class="text-2xl">🗑️</span>
                                 <div class="text-left">
                                     <div class="text-base">Hapus Semua Data</div>
-                                    <div class="text-xs font-normal opacity-80">Reset total database</div>
+                                    <div class="text-xs font-normal opacity-80">Santri + halaqah (lokal & Supabase). Lalu: Excel → Import file baru.</div>
                                 </div>
                             </button>
                         </div>
@@ -1243,9 +1342,9 @@ function confirmDeleteHalaqah(halaqahId) {
 
     console.log('Halaqah found:', halaqah);
 
-    const membersCount = dashboardData.students.filter(s =>
-        s.halaqah === halaqah.name.replace('Halaqah ', '')
-    ).length;
+    const membersCount = typeof getStudentsByHalaqah === 'function'
+        ? getStudentsByHalaqah(halaqah.name).length
+        : dashboardData.students.filter(s => s.halaqah === halaqah.name.replace('Halaqah ', '')).length;
 
     console.log('Members count:', membersCount);
 
@@ -1269,13 +1368,20 @@ function confirmDeleteHalaqah(halaqahId) {
     // Delete from Supabase first
     if (window.deleteHalaqahFromSupabase) {
         console.log('Calling deleteHalaqahFromSupabase...');
-        deleteHalaqahFromSupabase(halaqahId).then(() => {
+        deleteHalaqahFromSupabase(halaqahId).then((result) => {
             // After Supabase delete completes, delete locally
-            performLocalHalaqahDelete(halaqahId, halaqah);
+            // Note: result might be true (success) or we might have thrown an error
+            if (result === true) {
+                performLocalHalaqahDelete(halaqahId, halaqah);
+            }
         }).catch((error) => {
             console.error('Supabase delete failed:', error);
             window.deleteOperationInProgress = false;
-            // Do NOT delete locally if Supabase fails
+            if (typeof showNotification === 'function') {
+                showNotification(`❌ Gagal menghapus: ${error.message || 'Kesalahan server'}`);
+            } else {
+                alert(`❌ Gagal menghapus: ${error.message || 'Kesalahan server'}`);
+            }
         });
     } else {
         // If Supabase not available, just delete locally
@@ -1286,14 +1392,21 @@ function confirmDeleteHalaqah(halaqahId) {
 function performLocalHalaqahDelete(halaqahId, halaqah) {
     console.log('Performing local delete...');
 
+    // Set guard flag to prevent loadHalaqahsFromSupabase from overwriting local changes
+    localStorage.setItem('_deleteJustDone', Date.now().toString());
+
     // Delete from local data
     dashboardData.halaqahs = dashboardData.halaqahs.filter(h => h.id !== halaqahId);
 
-    const halaqahName = halaqah.name.replace('Halaqah ', '');
     dashboardData.students.forEach(student => {
-        if (student.halaqah === halaqahName) {
-            student.halaqah = 'Tidak Ada';
+        let match = false;
+        if (typeof normalizeHalaqahLabel === 'function') {
+            match = normalizeHalaqahLabel(student.halaqah) === normalizeHalaqahLabel(halaqah.name);
+        } else {
+            const shortName = halaqah.name.replace('Halaqah ', '');
+            match = student.halaqah === shortName || student.halaqah === halaqah.name;
         }
+        if (match) student.halaqah = 'Tidak Ada';
     });
 
     console.log('Recalculating rankings...');
@@ -1339,7 +1452,8 @@ async function confirmDeleteAllData() {
     if (confirmation === 'HAPUS SEMUA') {
         console.log('=== DELETE ALL DATA ===');
 
-        // Set flag to prevent realtime listener from reloading
+        // Set guard dulu (sync) sebelum await — supaya reload/parallel load tidak tarik data lama dari server
+        localStorage.setItem('_deleteJustDone', Date.now().toString());
         window.deleteOperationInProgress = true;
 
         // Delete from Supabase first
@@ -1347,7 +1461,7 @@ async function confirmDeleteAllData() {
         if (window.deleteAllStudentsFromSupabase && window.deleteAllHalaqahsFromSupabase) {
             console.log('Deleting all data from Supabase...');
 
-            // Delete students first
+            // Delete students first (hindari FK / orphan jika ada aturan)
             const studentsDeleted = await deleteAllStudentsFromSupabase();
             // Delete halaqahs
             const halaqahsDeleted = await deleteAllHalaqahsFromSupabase();
@@ -1358,11 +1472,20 @@ async function confirmDeleteAllData() {
                 console.log('✅ All data deleted from Supabase');
             } else {
                 console.warn('⚠️ Some Supabase deletes failed, continuing with local delete');
+                if (typeof showNotification === 'function') {
+                    showNotification('⚠️ Sebagian data mungkin masih di server (izin/RLS). Data lokal tetap dikosongkan.', 'warning');
+                }
             }
         }
 
         // Delete from local storage
         console.log('Deleting local data...');
+
+        localStorage.removeItem('lastSync');
+
+        // Perbarui timestamp guard (sudah diset di awal; tetap segarkan)
+        localStorage.setItem('_deleteJustDone', Date.now().toString());
+
         dashboardData.students = [];
         dashboardData.halaqahs = [];
         dashboardData.stats = {
@@ -1371,6 +1494,14 @@ async function confirmDeleteAllData() {
             totalPoints: 0,
             avgPointsPerStudent: 0
         };
+
+        if (Array.isArray(dashboardData.tilawah)) {
+            dashboardData.tilawah = [];
+        }
+
+        if (typeof recalculateRankings === 'function') {
+            recalculateRankings();
+        }
 
         StorageManager.save();
 
@@ -1392,6 +1523,23 @@ async function confirmDeleteAllData() {
         if (typeof updateAdminHalaqahListInline === 'function') {
             updateAdminHalaqahListInline();
         }
+
+        if (typeof showNotification === 'function') {
+            showNotification(
+                '✅ Data dikosongkan. Halaman akan dimuat ulang. Berikutnya: buka jendela Import Data Excel dari menu/dashboard, unggah file, lalu konfirmasi — data baru tersimpan ke Supabase.',
+                'success'
+            );
+        }
+
+        setTimeout(() => {
+            try {
+                const url = new URL(window.location.href);
+                url.searchParams.set('_cb', String(Date.now()));
+                window.location.href = url.toString();
+            } catch (e) {
+                window.location.reload();
+            }
+        }, 900);
 
         // Clear the delete flag after a delay
         setTimeout(() => {
@@ -1553,24 +1701,41 @@ function updateAdminHalaqahList() {
     const container = document.getElementById('halaqahAdminList');
     if (!container) return;
 
+    // Ensure selection state
+    if (!window._selectedHalaqahIds) window._selectedHalaqahIds = new Set();
+
+    // Toolbar hapus multi (injected before container)
+    const toolbarId = 'halaqahMultiToolbar';
+    let toolbar = document.getElementById(toolbarId);
+    if (!toolbar) {
+        toolbar = document.createElement('div');
+        toolbar.id = toolbarId;
+        container.parentElement.insertBefore(toolbar, container);
+    }
+    toolbar.innerHTML = _buildHalaqahMultiToolbar('modal');
+
     const halaqahList = dashboardData.halaqahs.map(halaqah => {
         const halaqahJson = JSON.stringify(halaqah).replace(/"/g, '&quot;');
+        const isChecked = window._selectedHalaqahIds.has(halaqah.id);
         return `
-            <div class="halaqah-admin-item flex items-center justify-between p-3 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors" data-name="${halaqah.name.toLowerCase()}">
-                <div class="flex-1">
-                    <div class="font-semibold text-slate-800">${halaqah.name}</div>
+            <div class="halaqah-admin-item flex items-center gap-2 p-3 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors ${isChecked ? 'ring-2 ring-red-300 bg-red-50' : ''}" data-name="${halaqah.name.toLowerCase()}" data-id="${halaqah.id}">
+                <input type="checkbox" class="halaqah-cb w-4 h-4 accent-red-500 cursor-pointer flex-shrink-0"
+                    ${isChecked ? 'checked' : ''}
+                    onchange="toggleHalaqahSelection(${halaqah.id}, 'modal')">
+                <div class="flex-1 min-w-0">
+                    <div class="font-semibold text-slate-800 truncate">${halaqah.name}</div>
                     <div class="text-xs text-slate-500">${halaqah.members} anggota • ${halaqah.points} poin • Rank #${halaqah.rank}</div>
                 </div>
-                <div class="flex gap-2">
-                    <button onclick='closeModal(); showEditHalaqahForm(${halaqahJson})' 
+                <div class="flex gap-1 flex-shrink-0">
+                    <button onclick='closeModal(); showEditHalaqahForm(${halaqahJson})'
                         class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Edit">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
                         </svg>
                     </button>
-                    <button onclick="confirmDeleteHalaqah(${halaqah.id})" 
+                    <button onclick="confirmDeleteHalaqah(${halaqah.id})"
                         class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Hapus">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
                         </svg>
                     </button>
@@ -1579,7 +1744,7 @@ function updateAdminHalaqahList() {
         `;
     }).join('');
 
-    container.innerHTML = halaqahList;
+    container.innerHTML = halaqahList || '<p class="text-slate-400 text-sm text-center py-4">Belum ada halaqah</p>';
 
     // Update total count
     const totalEl = container.previousElementSibling?.querySelector('.font-bold');
@@ -1632,24 +1797,41 @@ function updateAdminHalaqahListInline() {
     const container = document.getElementById('halaqahAdminListInline');
     if (!container) return;
 
+    // Ensure selection state
+    if (!window._selectedHalaqahIds) window._selectedHalaqahIds = new Set();
+
+    // Toolbar hapus multi
+    const toolbarId = 'halaqahMultiToolbarInline';
+    let toolbar = document.getElementById(toolbarId);
+    if (!toolbar) {
+        toolbar = document.createElement('div');
+        toolbar.id = toolbarId;
+        container.parentElement.insertBefore(toolbar, container);
+    }
+    toolbar.innerHTML = _buildHalaqahMultiToolbar('inline');
+
     const halaqahList = dashboardData.halaqahs.map(halaqah => {
         const halaqahJson = JSON.stringify(halaqah).replace(/"/g, '&quot;');
+        const isChecked = window._selectedHalaqahIds.has(halaqah.id);
         return `
-            <div class="halaqah-admin-item flex items-center justify-between p-3 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors" data-name="${halaqah.name.toLowerCase()}">
-                <div class="flex-1">
-                    <div class="font-semibold text-slate-800">${halaqah.name}</div>
+            <div class="halaqah-admin-item flex items-center gap-2 p-3 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors ${isChecked ? 'ring-2 ring-red-300 bg-red-50' : ''}" data-name="${halaqah.name.toLowerCase()}" data-id="${halaqah.id}">
+                <input type="checkbox" class="halaqah-cb w-4 h-4 accent-red-500 cursor-pointer flex-shrink-0"
+                    ${isChecked ? 'checked' : ''}
+                    onchange="toggleHalaqahSelection(${halaqah.id}, 'inline')">
+                <div class="flex-1 min-w-0">
+                    <div class="font-semibold text-slate-800 truncate">${halaqah.name}</div>
                     <div class="text-xs text-slate-500">${halaqah.members} anggota • ${halaqah.points} poin • Rank #${halaqah.rank}</div>
                 </div>
-                <div class="flex gap-2">
-                    <button onclick='showEditHalaqahForm(${halaqahJson})' 
+                <div class="flex gap-1 flex-shrink-0">
+                    <button onclick='showEditHalaqahForm(${halaqahJson})'
                         class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Edit">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
                         </svg>
                     </button>
-                    <button onclick="confirmDeleteHalaqah(${halaqah.id})" 
+                    <button onclick="confirmDeleteHalaqah(${halaqah.id})"
                         class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Hapus">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
                         </svg>
                     </button>
@@ -1658,13 +1840,137 @@ function updateAdminHalaqahListInline() {
         `;
     }).join('');
 
-    container.innerHTML = halaqahList;
+    container.innerHTML = halaqahList || '<p class="text-slate-400 text-sm text-center py-4">Belum ada halaqah</p>';
 }
 
 window.updateAdminSantriListInline = updateAdminSantriListInline;
 window.updateAdminHalaqahListInline = updateAdminHalaqahListInline;
 
+// ============================================================
+// MULTI-HALAQAH SELECT & DELETE
+// ============================================================
 
+// State: selected halaqah IDs (shared antara modal & inline)
+window._selectedHalaqahIds = new Set();
+
+// Build toolbar HTML
+function _buildHalaqahMultiToolbar(view) {
+    const count = (window._selectedHalaqahIds || new Set()).size;
+    const total = dashboardData.halaqahs.length;
+    if (total === 0) return '';
+
+    const allSelected = count === total && total > 0;
+    return `
+        <div class="flex items-center gap-2 mb-3 p-2 rounded-xl border ${count > 0 ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-slate-200'} transition-all">
+            <input type="checkbox" id="halaqahSelectAll_${view}" class="w-4 h-4 accent-red-500 cursor-pointer"
+                ${allSelected ? 'checked' : ''}
+                onchange="toggleAllHalaqahSelection('${view}', this.checked)">
+            <label for="halaqahSelectAll_${view}" class="text-sm font-semibold cursor-pointer select-none ${count > 0 ? 'text-red-700' : 'text-slate-600'}">
+                ${count > 0 ? `${count} dipilih dari ${total}` : 'Pilih Semua'}
+            </label>
+            ${count > 0 ? `
+            <div class="flex-1"></div>
+            <button onclick="deleteSelectedHalaqahs('${view}')"
+                class="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700 transition-colors shadow-sm">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                </svg>
+                Hapus ${count} Halaqah
+            </button>
+            <button onclick="clearHalaqahSelection('${view}')"
+                class="px-2 py-1.5 text-slate-500 hover:text-slate-700 rounded-lg text-xs font-semibold transition-colors">
+                ✕ Batal
+            </button>
+            ` : ''}
+        </div>
+    `;
+}
+
+// Toggle satu halaqah
+function toggleHalaqahSelection(halaqahId, view) {
+    if (!window._selectedHalaqahIds) window._selectedHalaqahIds = new Set();
+    if (window._selectedHalaqahIds.has(halaqahId)) {
+        window._selectedHalaqahIds.delete(halaqahId);
+    } else {
+        window._selectedHalaqahIds.add(halaqahId);
+    }
+    _refreshHalaqahListUI(view);
+}
+
+// Toggle semua
+function toggleAllHalaqahSelection(view, checked) {
+    if (!window._selectedHalaqahIds) window._selectedHalaqahIds = new Set();
+    if (checked) {
+        dashboardData.halaqahs.forEach(h => window._selectedHalaqahIds.add(h.id));
+    } else {
+        window._selectedHalaqahIds.clear();
+    }
+    _refreshHalaqahListUI(view);
+}
+
+// Bersihkan pilihan
+function clearHalaqahSelection(view) {
+    window._selectedHalaqahIds = new Set();
+    _refreshHalaqahListUI(view);
+}
+
+// Refresh UI tanpa re-query Supabase
+function _refreshHalaqahListUI(view) {
+    if (view === 'modal') updateAdminHalaqahList();
+    else updateAdminHalaqahListInline();
+}
+
+// Hapus semua yang dipilih
+async function deleteSelectedHalaqahs(view) {
+    const selectedIds = [...(window._selectedHalaqahIds || new Set())];
+    if (selectedIds.length === 0) return;
+
+    const selectedHalaqahs = dashboardData.halaqahs.filter(h => selectedIds.includes(h.id));
+    const names = selectedHalaqahs.map(h => h.name).join(', ');
+
+    if (!confirm(`🗑️ Hapus ${selectedIds.length} halaqah:\n${names}\n\nData halaqah akan dihapus permanen dari server.\nLanjutkan?`)) return;
+
+    try {
+        showNotification(`⏳ Menghapus ${selectedIds.length} halaqah...`, 'info');
+        window.deleteOperationInProgress = true;
+
+        // Hapus dari Supabase
+        const { error } = await window.supabaseClient
+            .from('halaqahs')
+            .delete()
+            .in('id', selectedIds);
+
+        if (error) throw error;
+
+        // Set guard flag
+        localStorage.setItem('_deleteJustDone', Date.now().toString());
+
+        // Hapus dari data lokal
+        dashboardData.halaqahs = dashboardData.halaqahs.filter(h => !selectedIds.includes(h.id));
+        StorageManager.save();
+
+        // Reset selection
+        window._selectedHalaqahIds = new Set();
+        window.deleteOperationInProgress = false;
+
+        showNotification(`✅ ${selectedIds.length} halaqah berhasil dihapus!`, 'success');
+
+        // Refresh UI
+        _refreshHalaqahListUI(view);
+        if (typeof recalculateRankings === 'function') recalculateRankings();
+        if (typeof refreshAllData === 'function') refreshAllData();
+
+    } catch (error) {
+        console.error('Delete selected halaqahs error:', error);
+        window.deleteOperationInProgress = false;
+        showNotification('❌ Gagal hapus: ' + error.message, 'error');
+    }
+}
+
+window.toggleHalaqahSelection = toggleHalaqahSelection;
+window.toggleAllHalaqahSelection = toggleAllHalaqahSelection;
+window.clearHalaqahSelection = clearHalaqahSelection;
+window.deleteSelectedHalaqahs = deleteSelectedHalaqahs;
 
 
 // Update Auto Poin Stats
@@ -1731,7 +2037,7 @@ function toggleHoliday(lembagaKey) {
     const btn = document.getElementById(`btn-holiday-${lembagaKey}`);
     const btnInline = document.getElementById(`btn-holiday-inline-${lembagaKey}`);
 
-    const isLibur = holidayCheck(lembagaKey); // Use helper
+    const isLibur = isHoliday(lembagaKey);
 
     [btn, btnInline].forEach(b => {
         if (b) {
@@ -1742,12 +2048,6 @@ function toggleHoliday(lembagaKey) {
 
     // Refresh dashboard if visible
     if (typeof refreshAllData === 'function') refreshAllData();
-}
-
-// Helper for local toggle check to avoid re-reading state before UI update
-function holidayCheck(key) {
-    const today = new Date().toISOString().split('T')[0];
-    return appSettings.lembaga[key].holidays.includes(today);
 }
 
 window.toggleHoliday = toggleHoliday;

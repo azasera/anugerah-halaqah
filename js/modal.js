@@ -533,7 +533,9 @@ async function handleQuickSetoranDetail(event, studentId) {
         if (!student) throw new Error('Santri not found');
 
         // 1. Update Points & Streak (via SetoranHarian API if available)
-        const halaqah = dashboardData.halaqahs.find(h => h.name === student.halaqah);
+        const halaqah = typeof findHalaqahForStudent === 'function'
+            ? findHalaqahForStudent(student)
+            : dashboardData.halaqahs.find(h => h.name === student.halaqah);
 
         if (window.SetoranHarian && halaqah) {
             await SetoranHarian.create(studentId, halaqah.id, poin, keterangan);
@@ -801,14 +803,17 @@ window.setTidakSetor = setTidakSetor;
 
 // Keep existing showHalaqahDetail
 function showHalaqahDetail(halaqah) {
-    const members = getStudentsByHalaqah(halaqah.name.replace('Halaqah ', ''));
+    const members = getStudentsByHalaqah(halaqah.name);
+    const live = typeof getLiveHalaqahStats === 'function'
+        ? getLiveHalaqahStats(halaqah)
+        : { members: halaqah.members, points: halaqah.points, avgPoints: halaqah.avgPoints };
 
     const content = `
         <div class="p-8">
             <div class="flex items-start justify-between mb-6">
                 <div>
                     <h2 class="font-display font-bold text-3xl text-slate-800 mb-2">${halaqah.name}</h2>
-                    <p class="text-slate-500">Ranking #${halaqah.rank} • ${halaqah.members} Anggota</p>
+                    <p class="text-slate-500">Ranking #${halaqah.rank} • ${live.members} Anggota</p>
                 </div>
                 <button onclick="closeModal()" class="p-2 hover:bg-slate-100 rounded-lg transition-colors">
                     <svg class="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -820,11 +825,11 @@ function showHalaqahDetail(halaqah) {
             <div class="grid grid-cols-2 gap-4 mb-6">
                 <div class="bg-primary-50 rounded-2xl p-4 text-center">
                     <div class="text-primary-600 text-sm font-bold mb-1">Total Poin</div>
-                    <div class="text-2xl font-bold text-primary-700">${halaqah.points}</div>
+                    <div class="text-2xl font-bold text-primary-700">${live.points}</div>
                 </div>
                 <div class="bg-accent-teal/10 rounded-2xl p-4 text-center">
                     <div class="text-accent-teal text-sm font-bold mb-1">Rata-rata</div>
-                    <div class="text-2xl font-bold text-accent-teal">${halaqah.avgPoints}</div>
+                    <div class="text-2xl font-bold text-accent-teal">${live.avgPoints}</div>
                 </div>
             </div>
             

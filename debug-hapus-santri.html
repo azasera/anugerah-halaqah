@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Hapus Santri</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="bg-gray-50 p-8">
+    <div class="max-w-6xl mx-auto">
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+            <h1 class="text-2xl font-bold text-gray-800 mb-4">🔍 Debug Hapus Santri</h1>
+            <p class="text-gray-600 mb-4">Tool untuk debug kenapa santri yang dihapus masih tampil</p>
+        </div>
+
+        <!-- Control Panel -->
+        <div class="grid grid-cols-2 gap-6 mb-6">
+            <!-- Hapus Santri -->
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <h2 class="text-xl font-bold text-gray-800 mb-4">Hapus Santri</h2>
+                
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">ID Santri:</label>
+                    <input type="number" id="deleteStudentId" 
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                        placeholder="Masukkan ID santri">
+                </div>
+
+                <button onclick="debugDeleteStudent()" 
+                    class="w-full bg-red-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-red-700 transition-colors mb-2">
+                    🗑️ Hapus Santri (dengan Debug)
+                </button>
+
+                <button onclick="forceRefreshUI()" 
+                    class="w-full bg-blue-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-blue-700 transition-colors">
+                    🔄 Force Refresh UI
+                </button>
+            </div>
+
+            <!-- Check Data -->
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <h2 class="text-xl font-bold text-gray-800 mb-4">Check Data</h2>
+                
+                <button onclick="checkLocalData()" 
+                    class="w-full bg-green-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-green-700 transition-colors mb-2">
+                    📦 Check Local Data
+                </button>
+
+                <button onclick="checkSupabaseData()" 
+                    class="w-full bg-purple-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-purple-700 transition-colors mb-2">
+                    ☁️ Check Supabase Data
+                </button>
+
+                <button onclick="checkFlags()" 
+                    class="w-full bg-yellow-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-yellow-700 transition-colors">
+                    🚩 Check Flags
+                </button>
+            </div>
+        </div>
+
+        <!-- Data Display -->
+        <div class="grid grid-cols-2 gap-6 mb-6">
+            <!-- Local Data -->
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <h2 class="text-xl font-bold text-gray-800 mb-4">📦 Local Data</h2>
+                <div id="localDataDisplay" class="bg-gray-100 p-4 rounded font-mono text-xs h-96 overflow-y-auto">
+                    <div class="text-gray-500">Klik "Check Local Data" untuk melihat</div>
+                </div>
+            </div>
+
+            <!-- Supabase Data -->
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <h2 class="text-xl font-bold text-gray-800 mb-4">☁️ Supabase Data</h2>
+                <div id="supabaseDataDisplay" class="bg-gray-100 p-4 rounded font-mono text-xs h-96 overflow-y-auto">
+                    <div class="text-gray-500">Klik "Check Supabase Data" untuk melihat</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Log Output -->
+        <div class="bg-gray-900 rounded-lg shadow-lg p-6">
+            <h2 class="text-xl font-bold text-white mb-4">📋 Log Output</h2>
+            <div id="logOutput" class="bg-black text-green-400 p-4 rounded font-mono text-sm h-96 overflow-y-auto">
+                <div>Menunggu aksi...</div>
+            </div>
+            <button onclick="clearLog()" 
+                class="mt-4 bg-gray-700 text-white px-4 py-2 rounded hover:bg-gray-600 transition-colors">
+                Clear Log
+            </button>
+        </div>
+    </div>
+
+    <script src="js/settings.js"></script>
+    <script src="js/data.js"></script>
+    <script src="js/supabase.js"></script>
+    
+    <script>
+        // Override console.log
+        const originalLog = console.log;
+        const originalError = console.error;
+        
+        function addLog(message, type = 'info') {
+            const logDiv = document.getElementById('logOutput');
+            const timestamp = new Date().toLocaleTimeString();
+            const color = type === 'error' ? 'text-red-400' : type === 'success' ? 'text-green-400' : type === 'warning' ? 'text-yellow-400' : 'text-blue-400';
+            logDiv.innerHTML += `<div class="${color}">[${timestamp}] ${message}</div>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            addLog(args.join(' '), 'info');
+        };
+
+        console.error = function(...args) {
+            originalError.apply(console, args);
+            addLog('ERROR: ' + args.join(' '), 'error');
+        };
+
+        // Initialize
+        async function init() {
+            try {
+                if (!window.supabaseClient) {
+                    addLog('Initializing Supabase...', 'info');
+                    await initializeSupabase();
+                    addLog('✅ Supabase initialized', 'success');
+                }
+                
+                // Load data
+                if (typeof loadStudentsFromSupabase === 'function') {
+                    addLog('Loading students from Supabase...', 'info');
+                    await loadStudentsFromSupabase();
+                    addLog('✅ Students loaded', 'success');
+                }
+            } catch (error) {
+                addLog('❌ Init failed: ' + error.message, 'error');
+            }
+        }
+
+        // Check Local Data
+        function checkLocalData() {
+            addLog('='.repeat(50), 'info');
+            addLog('📦 CHECKING LOCAL DATA', 'info');
+            
+            const display = document.getElementById('localDataDisplay');
+            
+            if (!dashboardData || !dashboardData.students) {
+                display.innerHTML = '<div class="text-red-600">❌ dashboardData.students tidak ada!</div>';
+                addLog('❌ dashboardData.students tidak ada!', 'error');
+                return;
+            }
+
+            const students = dashboardData.students;
+            addLog('Total students in local: ' + students.length, 'info');
+            
+            let html = `<div class="mb-4 font-bold">Total: ${students.length} santri</div>`;
+            
+            students.forEach((s, idx) => {
+                html += `<div class="mb-2 p-2 bg-white rounded border">
+                    <div><strong>#${idx + 1}</strong></div>
+                    <div>ID: ${s.id} (${typeof s.id})</div>
+                    <div>Nama: ${s.name}</div>
+                    <div>Halaqah: ${s.halaqah}</div>
+                </div>`;
+                
+                addLog(`Student #${idx + 1}: ID=${s.id} (${typeof s.id}), Name=${s.name}`, 'info');
+            });
+            
+            display.innerHTML = html;
+        }
+
+        // Check Supabase Data
+        async function checkSupabaseData() {
+            addLog('='.repeat(50), 'info');
+            addLog('☁️ CHECKING SUPABASE DATA', 'info');
+            
+            const display = document.getElementById('supabaseDataDisplay');
+            
+            try {
+                if (!window.supabaseClient) {
+                    await init();
+                }
+
+                const { data, error } = await window.supabaseClient
+                    .from('students')
+                    .select('*')
+                    .order('id', { ascending: true });
+
+                if (error) throw error;
+
+                addLog('Total students in Supabase: ' + data.length, 'info');
+                
+                let html = `<div class="mb-4 font-bold">Total: ${data.length} santri</div>`;
+                
+                data.forEach((s, idx) => {
+                    html += `<div class="mb-2 p-2 bg-white rounded border">
+                        <div><strong>#${idx + 1}</strong></div>
+                        <div>ID: ${s.id} (${typeof s.id})</div>
+                        <div>Nama: ${s.name}</div>
+                        <div>Halaqah: ${s.halaqah}</div>
+                    </div>`;
+                    
+                    addLog(`Supabase Student #${idx + 1}: ID=${s.id} (${typeof s.id}), Name=${s.name}`, 'info');
+                });
+                
+                display.innerHTML = html;
+            } catch (error) {
+                display.innerHTML = `<div class="text-red-600">❌ Error: ${error.message}</div>`;
+                addLog('❌ Error checking Supabase: ' + error.message, 'error');
+            }
+        }
+
+        // Check Flags
+        function checkFlags() {
+            addLog('='.repeat(50), 'info');
+            addLog('🚩 CHECKING FLAGS', 'info');
+            
+            const deleteJustDone = localStorage.getItem('_deleteJustDone');
+            const deleteInProgress = window.deleteOperationInProgress;
+            const hasPendingChanges = window.hasPendingLocalChanges;
+            const syncInProgress = window.syncInProgress;
+            
+            addLog('_deleteJustDone: ' + deleteJustDone, 'info');
+            if (deleteJustDone) {
+                const elapsed = Date.now() - parseInt(deleteJustDone);
+                addLog('  Elapsed: ' + Math.round(elapsed / 1000) + 's', 'info');
+                addLog('  Remaining: ' + Math.round((60000 - elapsed) / 1000) + 's', 'info');
+            }
+            
+            addLog('deleteOperationInProgress: ' + deleteInProgress, 'info');
+            addLog('hasPendingLocalChanges: ' + hasPendingChanges, 'info');
+            addLog('syncInProgress: ' + syncInProgress, 'info');
+        }
+
+        // Debug Delete Student
+        async function debugDeleteStudent() {
+            const studentId = document.getElementById('deleteStudentId').value;
+            
+            if (!studentId) {
+                addLog('❌ Masukkan ID santri terlebih dahulu', 'error');
+                return;
+            }
+
+            addLog('='.repeat(50), 'info');
+            addLog('🗑️ DEBUG DELETE STUDENT', 'warning');
+            addLog('ID: ' + studentId + ' (Type: ' + typeof studentId + ')', 'info');
+            addLog('='.repeat(50), 'info');
+
+            // Step 1: Check if student exists locally
+            const student = dashboardData.students.find(s => parseInt(s.id) === parseInt(studentId));
+            if (!student) {
+                addLog('❌ Student tidak ditemukan di local data!', 'error');
+                return;
+            }
+            addLog('✅ Student found: ' + student.name, 'success');
+
+            // Step 2: Delete from Supabase
+            try {
+                addLog('Step 1: Deleting from Supabase...', 'info');
+                const result = await deleteStudentFromSupabase(studentId);
+                
+                if (result) {
+                    addLog('✅ Deleted from Supabase successfully', 'success');
+                } else {
+                    addLog('❌ Delete from Supabase failed', 'error');
+                    return;
+                }
+            } catch (error) {
+                addLog('❌ Exception during Supabase delete: ' + error.message, 'error');
+                return;
+            }
+
+            // Step 3: Delete from local
+            addLog('Step 2: Deleting from local data...', 'info');
+            const beforeCount = dashboardData.students.length;
+            addLog('Students before delete: ' + beforeCount, 'info');
+            
+            const numericId = parseInt(studentId);
+            dashboardData.students = dashboardData.students.filter(s => {
+                const studentNumericId = parseInt(s.id);
+                const shouldKeep = studentNumericId !== numericId;
+                if (!shouldKeep) {
+                    addLog('  Removing: ' + s.name + ' (ID: ' + s.id + ')', 'warning');
+                }
+                return shouldKeep;
+            });
+            
+            const afterCount = dashboardData.students.length;
+            addLog('Students after delete: ' + afterCount, 'info');
+            addLog('Deleted count: ' + (beforeCount - afterCount), 'success');
+
+            // Step 4: Save and refresh
+            addLog('Step 3: Saving and refreshing...', 'info');
+            if (typeof StorageManager !== 'undefined') {
+                StorageManager.save();
+                addLog('✅ Saved to localStorage', 'success');
+            }
+            
+            if (typeof recalculateRankings === 'function') {
+                recalculateRankings();
+                addLog('✅ Rankings recalculated', 'success');
+            }
+            
+            if (typeof refreshAllData === 'function') {
+                refreshAllData();
+                addLog('✅ UI refreshed', 'success');
+            }
+
+            addLog('='.repeat(50), 'info');
+            addLog('✅ DELETE COMPLETED!', 'success');
+            addLog('='.repeat(50), 'info');
+
+            // Auto check data
+            setTimeout(() => {
+                checkLocalData();
+                checkSupabaseData();
+            }, 1000);
+        }
+
+        // Force Refresh UI
+        function forceRefreshUI() {
+            addLog('🔄 Force refreshing UI...', 'info');
+            
+            if (typeof refreshAllData === 'function') {
+                refreshAllData();
+                addLog('✅ refreshAllData() called', 'success');
+            }
+            
+            if (typeof recalculateRankings === 'function') {
+                recalculateRankings();
+                addLog('✅ recalculateRankings() called', 'success');
+            }
+            
+            // Force reload from localStorage
+            const stored = localStorage.getItem('dashboardData');
+            if (stored) {
+                const parsed = JSON.parse(stored);
+                addLog('Students in localStorage: ' + (parsed.students ? parsed.students.length : 0), 'info');
+            }
+        }
+
+        function clearLog() {
+            document.getElementById('logOutput').innerHTML = '<div>Log cleared...</div>';
+        }
+
+        // Auto-init
+        window.addEventListener('load', () => {
+            addLog('🚀 Debug page loaded', 'info');
+            init();
+        });
+    </script>
+</body>
+</html>

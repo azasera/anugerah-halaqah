@@ -256,7 +256,7 @@ function showEditStudentForm(student, fromAdmin = false) {
                     <select name="halaqah" required 
                         class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all">
                         ${dashboardData.halaqahs.map(h => `
-                            <option value="${h.name.replace('Halaqah ', '')}" ${student.halaqah === h.name.replace('Halaqah ', '') ? 'selected' : ''}>
+                            <option value="${h.name.replace('Halaqah ', '')}" ${(typeof normalizeHalaqahLabel === 'function' ? normalizeHalaqahLabel(student.halaqah) === normalizeHalaqahLabel(h.name) : student.halaqah === h.name.replace('Halaqah ', '')) ? 'selected' : ''}>
                                 ${h.name}
                             </option>
                         `).join('')}
@@ -497,6 +497,7 @@ function handleAddStudent(event) {
     };
 
     dashboardData.students.push(newStudent);
+    localStorage.removeItem('_deleteJustDone');
     recalculateRankings();
     StorageManager.save();
     if (window.autoSync) autoSync();
@@ -597,13 +598,16 @@ function confirmDeleteStudent(studentId, keepModalOpen = false) {
         // Hapus dari database Supabase (jika online)
         console.log('Calling deleteStudentFromSupabase for ID:', studentId);
         if (window.deleteStudentFromSupabase) {
-            deleteStudentFromSupabase(studentId).then(() => {
+            deleteStudentFromSupabase(studentId).then((result) => {
                 // After Supabase delete completes, delete locally
-                performLocalStudentDelete(studentId, keepModalOpen);
+                // Note: result might be true (success) or we might have thrown an error
+                if (result === true) {
+                    performLocalStudentDelete(studentId, keepModalOpen);
+                }
             }).catch((error) => {
                 console.error('Supabase delete failed:', error);
                 window.deleteOperationInProgress = false;
-                // Do NOT delete locally if Supabase fails
+                showNotification(`❌ Gagal menghapus: ${error.message || 'Kesalahan server'}`);
             });
         } else {
             // If Supabase not available, just delete locally
@@ -614,9 +618,31 @@ function confirmDeleteStudent(studentId, keepModalOpen = false) {
 
 function performLocalStudentDelete(studentId, keepModalOpen) {
     console.log('Performing local student delete...');
+    console.log('Student ID to delete:', studentId, 'Type:', typeof studentId);
 
-    // Hapus dari array lokal
-    dashboardData.students = dashboardData.students.filter(s => s.id !== studentId);
+    // Set guard flag to prevent loadStudentsFromSupabase from overwriting local changes
+    // This prevents race conditions where deleted data reappears after refresh
+    localStorage.setItem('_deleteJustDone', Date.now().toString());
+
+    // Convert to number for consistent comparison
+    const numericId = parseInt(studentId);
+    console.log('Numeric ID:', numericId);
+    console.log('Students before delete:', dashboardData.students.length);
+
+    // Log all student IDs for debugging
+    console.log('All student IDs:', dashboardData.students.map(s => ({ id: s.id, type: typeof s.id, name: s.name })));
+
+    // Hapus dari array lokal - compare both as numbers
+    dashboardData.students = dashboardData.students.filter(s => {
+        const studentNumericId = parseInt(s.id);
+        const shouldKeep = studentNumericId !== numericId;
+        if (!shouldKeep) {
+            console.log('Removing student:', s.name, 'ID:', s.id);
+        }
+        return shouldKeep;
+    });
+
+    console.log('Students after delete:', dashboardData.students.length);
 
     recalculateRankings();
     StorageManager.save();
@@ -644,6 +670,7 @@ function performLocalStudentDelete(studentId, keepModalOpen) {
 
     showNotification('✅ Data santri berhasil dihapus');
 }
+
 
 // Make globally accessible
 // Note: confirmDeleteHalaqah is defined in admin.js (more complete version)

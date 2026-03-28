@@ -369,8 +369,10 @@ async function submitSetoranV2(event, studentId) {
             throw new Error('Student not found');
         }
         
-        // Get halaqah ID
-        const halaqah = dashboardData.halaqahs.find(h => h.name === student.halaqah);
+        // Get halaqah ID (santri bisa simpan "5A" atau "Halaqah 5A")
+        const halaqah = typeof findHalaqahForStudent === 'function'
+            ? findHalaqahForStudent(student)
+            : dashboardData.halaqahs.find(h => h.name === student.halaqah);
         if (!halaqah) {
             throw new Error('Halaqah not found');
         }

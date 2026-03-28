@@ -15,6 +15,19 @@ function renderAbsenceWidget() {
         return;
     }
 
+    if (typeof isSchoolBreakActive === 'function' && isSchoolBreakActive()) {
+        container.innerHTML = `
+            <div class="glass rounded-2xl p-4 border border-blue-200 bg-blue-50/50 flex items-center gap-3">
+                <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-xl">🎉</div>
+                <div>
+                    <div class="font-bold text-blue-800">Masa libur sekolah</div>
+                    <div class="text-xs text-blue-600">Absensi & penalty tidak berlaku sampai libur selesai.</div>
+                </div>
+            </div>
+        `;
+        return;
+    }
+
     const today = new Date().toDateString();
 
     // Count students by status
@@ -36,6 +49,9 @@ function renderAbsenceWidget() {
         }
     }
 
+    const hadStudentsBeforeHoliday = studentsToProcess.length > 0;
+    studentsToProcess = studentsToProcess.filter(s => !isHoliday(s.lembaga));
+
     studentsToProcess.forEach(student => {
         const hasSetoranToday = student.setoran?.some(s =>
             new Date(s.date).toDateString() === today
@@ -54,16 +70,26 @@ function renderAbsenceWidget() {
     const totalStudents = studentsToProcess.length;
     const percentage = totalStudents > 0 ? Math.round((submittedCount / totalStudents) * 100) : 0;
 
-    // Only show widget if there are students who haven't submitted
-    // AND it's not a holiday (if filtered by a single lembaga that is on holiday)
     const userLembaga = (typeof getUserLembaga === 'function') ? getUserLembaga() : null;
-    if (userLembaga && isHoliday(userLembaga)) {
+    if (userLembaga && userLembaga !== 'RESTRICTED_NO_CHILD' && isHoliday(userLembaga)) {
         container.innerHTML = `
             <div class="glass rounded-2xl p-4 border border-blue-200 bg-blue-50/50 flex items-center gap-3">
                 <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-xl">🎉</div>
                 <div>
                     <div class="font-bold text-blue-800">Hari ini Libur Halaqah</div>
                     <div class="text-xs text-blue-600">Selamat beristirahat!</div>
+                </div>
+            </div>
+        `;
+        return;
+    }
+    if (hadStudentsBeforeHoliday && studentsToProcess.length === 0) {
+        container.innerHTML = `
+            <div class="glass rounded-2xl p-4 border border-blue-200 bg-blue-50/50 flex items-center gap-3">
+                <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-xl">🎉</div>
+                <div>
+                    <div class="font-bold text-blue-800">Semua lembaga libur hari ini</div>
+                    <div class="text-xs text-blue-600">Tidak ada tracking absensi.</div>
                 </div>
             </div>
         `;
@@ -148,6 +174,17 @@ function renderAbsenceTracker(force = false) {
         return;
     }
     lastAbsenceRender = now;
+
+    if (typeof isSchoolBreakActive === 'function' && isSchoolBreakActive()) {
+        container.innerHTML = `
+            <div class="glass rounded-3xl p-8 md:p-12 border border-blue-200 bg-blue-50/80 text-center">
+                <div class="text-5xl mb-4">🎉</div>
+                <h3 class="font-display font-bold text-xl text-blue-900 mb-2">Masa libur sekolah</h3>
+                <p class="text-sm text-blue-700 max-w-md mx-auto">Tidak ada tracking absensi atau pengurangan poin selama rentang libur yang diatur di Admin → Lembaga.</p>
+            </div>
+        `;
+        return;
+    }
 
     const today = new Date().toDateString();
 
@@ -395,6 +432,11 @@ function showAbsenceTracker() {
 }
 
 function applyAbsencePenalty() {
+    if (typeof isSchoolBreakActive === 'function' && isSchoolBreakActive()) {
+        showNotification('Sedang masa libur sekolah — penalty tidak diterapkan', 'warning');
+        return;
+    }
+
     const checkboxes = document.querySelectorAll('[id^="absent_"]:checked, [id^="absent_all_"]:checked');
     let count = 0;
 

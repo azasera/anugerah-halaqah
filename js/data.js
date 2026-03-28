@@ -19,9 +19,24 @@ const StorageManager = {
 
     load() {
         const saved = localStorage.getItem('halaqahData');
-        if (saved) {
+        if (!saved) return;
+        try {
             const data = JSON.parse(saved);
-            Object.assign(dashboardData, data);
+            // Jangan Object.assign — jika key `students`/`halaqahs` tidak ada di JSON lama,
+            // array lama di memori tidak pernah terhapus dan "hapus semua" tampak gagal.
+            dashboardData.students = Array.isArray(data.students) ? data.students : [];
+            dashboardData.halaqahs = Array.isArray(data.halaqahs) ? data.halaqahs : [];
+            dashboardData.tilawah = Array.isArray(data.tilawah) ? data.tilawah : [];
+            if (data.stats && typeof data.stats === 'object') {
+                dashboardData.stats = {
+                    totalStudents: Number(data.stats.totalStudents) || 0,
+                    totalHalaqahs: Number(data.stats.totalHalaqahs) || 0,
+                    totalPoints: Number(data.stats.totalPoints) || 0,
+                    avgPointsPerStudent: data.stats.avgPointsPerStudent ?? '0'
+                };
+            }
+        } catch (e) {
+            console.error('StorageManager.load failed:', e);
         }
     },
 
@@ -29,6 +44,33 @@ const StorageManager = {
         localStorage.removeItem('halaqahData');
     }
 };
+
+/**
+ * Baru hapus semua data: load() kadang masih membaca halaqahData lama dari disk (race/tab lain),
+ * lalu initSupabase melewati fetch — data lama tetap di memori. Paksa kosong selama flag aktif.
+ */
+/** Selama flag ini ada, muat ulang dari Supabase diblokir (hindari data "muncul lagi" setelah hapus). Hapus flag saat tambah/import santri. */
+function enforcePostDeleteLocalState() {
+    if (!localStorage.getItem('_deleteJustDone')) return;
+
+    dashboardData.students = [];
+    dashboardData.halaqahs = [];
+    dashboardData.tilawah = [];
+    dashboardData.stats = {
+        totalStudents: 0,
+        totalHalaqahs: 0,
+        totalPoints: 0,
+        avgPointsPerStudent: '0'
+    };
+    try {
+        localStorage.setItem('halaqahData', JSON.stringify(dashboardData));
+    } catch (e) {
+        console.warn('enforcePostDeleteLocalState: gagal simpan', e);
+    }
+    if (typeof window !== 'undefined') {
+        window.hasPendingLocalChanges = false;
+    }
+}
 
 // Data filtering and sorting functions
 function filterStudents(searchTerm, halaqahFilter = 'all', lembagaFilter = 'all') {
@@ -93,8 +135,72 @@ function getTopHalaqah() {
     return dashboardData.halaqahs[0];
 }
 
+/** Samakan "Halaqah 5A", "5A", "halaqah 5a" untuk hitung anggota & filter. */
+function normalizeHalaqahLabel(name) {
+    return String(name || '').replace(/^Halaqah\s+/i, '').trim().toLowerCase();
+}
+
 function getStudentsByHalaqah(halaqahName) {
-    return dashboardData.students.filter(s => s.halaqah === halaqahName);
+    const key = normalizeHalaqahLabel(halaqahName);
+    return dashboardData.students.filter(s => normalizeHalaqahLabel(s.halaqah) === key);
+}
+
+/** Anggota/poin/rata-rata dari santri aktual — jangan percaya halaqah.members dari DB jika tidak sinkron. */
+function getLiveHalaqahStats(halaqah) {
+    if (!halaqah) return { members: 0, points: 0, avgPoints: '0' };
+    const members = typeof getStudentsByHalaqah === 'function'
+        ? getStudentsByHalaqah(halaqah.name)
+        : [];
+    const points = members.reduce((sum, m) => sum + (Number(m.total_points) || 0), 0);
+    const n = members.length;
+    return {
+        members: n,
+        points,
+        avgPoints: n > 0 ? (points / n).toFixed(1) : '0'
+    };
+}
+
+/** Nama singkat seperti di form: "5A" dari "Halaqah 5A". */
+function shortHalaqahNameFromRecord(h) {
+    return String(h?.name || '').replace(/^Halaqah\s+/i, '').trim();
+}
+
+/** Cari baris halaqah dari nilai santri (singkat/panjang/format bebas). */
+function findHalaqahForStudent(student) {
+    const label = typeof student === 'object' && student != null ? student.halaqah : student;
+    const key = normalizeHalaqahLabel(label);
+    if (!key || key === 'tidak ada') return null;
+    return dashboardData.halaqahs.find(h => normalizeHalaqahLabel(h.name) === key) || null;
+}
+
+/**
+ * Samakan field santri ke nama singkat yang sama dengan opsi form; santri tanpa halaqah valid → "Tidak Ada".
+ * Menghindari anggota 0/1/2 tidak konsisten karena format string berbeda di DB/import.
+ */
+function reconcileStudentHalaqahReferences() {
+    if (!Array.isArray(dashboardData.students)) return;
+
+    if (!dashboardData.halaqahs.length) {
+        dashboardData.students.forEach(s => {
+            const k = normalizeHalaqahLabel(s.halaqah);
+            if (k && k !== 'tidak ada') s.halaqah = 'Tidak Ada';
+        });
+        return;
+    }
+
+    dashboardData.students.forEach(s => {
+        const raw = s.halaqah;
+        const k = normalizeHalaqahLabel(raw);
+        if (!k || k === 'tidak ada') return;
+
+        const h = dashboardData.halaqahs.find(hx => normalizeHalaqahLabel(hx.name) === k);
+        if (h) {
+            const short = shortHalaqahNameFromRecord(h);
+            if (String(raw) !== String(short)) s.halaqah = short;
+        } else {
+            s.halaqah = 'Tidak Ada';
+        }
+    });
 }
 
 function calculateStats() {
@@ -122,10 +228,12 @@ function calculateStats() {
 
 // Initialize data
 StorageManager.load();
-calculateStats();
-
+enforcePostDeleteLocalState();
+recalculateRankings();
 
 function recalculateRankings() {
+    reconcileStudentHalaqahReferences();
+
     // Sort students by points
     dashboardData.students.sort((a, b) => b.total_points - a.total_points);
 
@@ -135,10 +243,9 @@ function recalculateRankings() {
         student.daily_ranking = index + 1;
     });
 
-    // Recalculate halaqah stats
+    // Recalculate halaqah stats (anggota dari santri aktual, bukan kolom members dari DB)
     dashboardData.halaqahs.forEach(halaqah => {
-        const halaqahName = halaqah.name.replace('Halaqah ', '');
-        const members = dashboardData.students.filter(s => s.halaqah === halaqahName);
+        const members = getStudentsByHalaqah(halaqah.name);
 
         halaqah.members = members.length;
         // FIX: Ensure total_points is a number, default to 0 if undefined/null/NaN
@@ -159,13 +266,17 @@ function recalculateRankings() {
 
     calculateStats();
 
-    // Sync to Supabase
-    if (window.autoSync) {
-        autoSync();
-    }
+    // FIX: Jangan panggil autoSync di sini — ini menyebabkan data yang sedang dihapus
+    // ter-upload kembali ke Supabase. autoSync dipanggil via setInterval dan secara
+    // eksplisit oleh fungsi yang memang mau sync.
+    // (Baris autoSync() dihapus dari sini)
 }
 
 function refreshAllData() {
+    if (typeof recalculateRankings === 'function') {
+        recalculateRankings();
+    }
+
     // Guard: Check if render functions exist before calling
     if (typeof renderStats === 'function') {
         renderStats();
@@ -185,6 +296,10 @@ function refreshAllData() {
 
     if (typeof renderSantri === 'function') {
         renderSantri();
+    }
+
+    if (typeof renderSlider === 'function') {
+        renderSlider();
     }
 
     // Refresh Mutaba'ah Dashboard if visible
@@ -223,4 +338,8 @@ function refreshAllData() {
 
 window.recalculateRankings = recalculateRankings;
 window.refreshAllData = refreshAllData;
+window.enforcePostDeleteLocalState = enforcePostDeleteLocalState;
+window.clearPostDeleteRemoteBlock = function () {
+    localStorage.removeItem('_deleteJustDone');
+};
 window.dashboardData = dashboardData; // Export for debugging and external access

@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diagnosa & Fix Bug Delete</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-50 p-8">
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-2xl font-bold text-slate-800 mb-6">🕵️ Diagnosa & Fix Bug Delete</h1>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                <h2 class="font-bold text-lg mb-4 text-slate-700">1. Status Data</h2>
+                <div id="statusData" class="space-y-2 text-sm">
+                    <div class="flex justify-between border-b pb-2">
+                        <span>Lokal (localStorage):</span>
+                        <span id="countLocal" class="font-mono font-bold">Checking...</span>
+                    </div>
+                    <div class="flex justify-between border-b pb-2">
+                        <span>Server (Supabase):</span>
+                        <span id="countServer" class="font-mono font-bold">Checking...</span>
+                    </div>
+                    <div class="flex justify-between pt-2">
+                        <span>Selisih:</span>
+                        <span id="countDiff" class="font-mono font-bold text-red-500">-</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                <h2 class="font-bold text-lg mb-4 text-slate-700">2. Test Delete</h2>
+                <div class="space-y-4">
+                    <button onclick="createTestStudent()" class="w-full py-2 px-4 bg-blue-50 text-blue-600 rounded-lg font-bold hover:bg-blue-100 text-sm">
+                        ➕ Buat Data Dummy
+                    </button>
+                    <button onclick="testDeleteProcess()" class="w-full py-2 px-4 bg-red-50 text-red-600 rounded-lg font-bold hover:bg-red-100 text-sm">
+                        🗑️ Test Hapus & Verifikasi
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 mb-8">
+            <h2 class="font-bold text-lg mb-4 text-slate-700">3. Log Diagnosa</h2>
+            <div id="logs" class="bg-slate-900 text-slate-200 p-4 rounded-lg font-mono text-xs h-64 overflow-y-auto space-y-1">
+                <div class="text-slate-500">// Logs will appear here...</div>
+            </div>
+        </div>
+        
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+            <h2 class="font-bold text-lg mb-4 text-slate-700">4. Solusi Perbaikan</h2>
+            <div class="space-y-3">
+                <p class="text-sm text-slate-600">Jika ditemukan data yang "bandel" (muncul lagi setelah dihapus), jalankan pembersihan mendalam:</p>
+                <button onclick="forceCleanDeletedData()" class="py-2 px-6 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700 text-sm shadow-lg shadow-emerald-200">
+                    🧹 Paksa Bersihkan Data Hantu
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/supabase.js"></script>
+    <script>
+        // Logger helper
+        function log(msg, type = 'info') {
+            const logs = document.getElementById('logs');
+            const div = document.createElement('div');
+            const time = new Date().toLocaleTimeString();
+            
+            let color = 'text-slate-300';
+            if (type === 'success') color = 'text-emerald-400';
+            if (type === 'error') color = 'text-red-400';
+            if (type === 'warning') color = 'text-amber-400';
+            
+            div.className = `${color} border-b border-slate-800 pb-1 mb-1`;
+            div.innerHTML = `<span class="opacity-50">[${time}]</span> ${msg}`;
+            logs.appendChild(div);
+            logs.scrollTop = logs.scrollHeight;
+            console.log(`[${type.toUpperCase()}] ${msg}`);
+        }
+
+        // Initialize
+        async function init() {
+            log('Initializing diagnostics...');
+            
+            // Check Supabase connection
+            if (!window.supabaseClient) {
+                log('❌ Supabase client not found! Make sure js/supabase.js is loaded.', 'error');
+                return;
+            }
+            
+            await refreshCounts();
+        }
+
+        async function refreshCounts() {
+            try {
+                // Count Local
+                const localData = localStorage.getItem('dashboardData');
+                let localCount = 0;
+                if (localData) {
+                    const parsed = JSON.parse(localData);
+                    localCount = parsed.students ? parsed.students.length : 0;
+                }
+                document.getElementById('countLocal').textContent = localCount;
+                
+                // Count Server
+                const { count, error } = await window.supabaseClient
+                    .from('students')
+                    .select('*', { count: 'exact', head: true });
+                
+                if (error) throw error;
+                
+                document.getElementById('countServer').textContent = count;
+                document.getElementById('countDiff').textContent = Math.abs(localCount - count);
+                
+                log(`Counts refreshed: Local=${localCount}, Server=${count}`, 'info');
+                
+            } catch (e) {
+                log('Error refreshing counts: ' + e.message, 'error');
+            }
+        }
+
+        async function createTestStudent() {
+            try {
+                log('Creating dummy student...', 'info');
+                const dummyId = Date.now();
+                const dummy = {
+                    id: dummyId,
+                    name: `TEST_DELETE_${dummyId}`,
+                    lembaga: 'TEST',
+                    total_points: 0,
+                    is_alumni: false
+                };
+                
+                // 1. Insert to Supabase
+                const { error } = await window.supabaseClient
+                    .from('students')
+                    .insert([dummy]);
+                
+                if (error) throw error;
+                
+                // 2. Insert to Local
+                const localData = JSON.parse(localStorage.getItem('dashboardData') || '{"students":[], "halaqahs":[]}');
+                localData.students.push(dummy);
+                localStorage.setItem('dashboardData', JSON.stringify(localData));
+                
+                log(`✅ Created dummy student: ${dummy.name}`, 'success');
+                await refreshCounts();
+                
+            } catch (e) {
+                log('Failed to create dummy: ' + e.message, 'error');
+            }
+        }
+
+        async function testDeleteProcess() {
+            try {
+                // Find test students
+                const { data: students, error } = await window.supabaseClient
+                    .from('students')
+                    .select('id, name')
+                    .ilike('name', 'TEST_DELETE_%');
+                
+                if (error) throw error;
+                
+                if (students.length === 0) {
+                    log('⚠️ No test students found. Create one first.', 'warning');
+                    return;
+                }
+                
+                const target = students[0];
+                log(`Testing delete on: ${target.name} (${target.id})`, 'info');
+                
+                // --- SIMULATE DELETE FLOW ---
+                
+                // 1. Set global flag (simulating UI behavior)
+                window.deleteOperationInProgress = true;
+                log('🔒 Locked: deleteOperationInProgress = true');
+                
+                // 2. Delete from Supabase
+                const { error: delErr } = await window.supabaseClient
+                    .from('students')
+                    .delete()
+                    .eq('id', target.id);
+                
+                if (delErr) throw delErr;
+                log('✅ Deleted from Supabase');
+                
+                // 3. Delete from Local
+                const localData = JSON.parse(localStorage.getItem('dashboardData') || '{"students":[]}');
+                const initialLen = localData.students.length;
+                localData.students = localData.students.filter(s => s.id !== target.id);
+                localStorage.setItem('dashboardData', JSON.stringify(localData));
+                
+                if (localData.students.length < initialLen) {
+                    log('✅ Deleted from LocalStorage');
+                } else {
+                    log('⚠️ ID not found in LocalStorage', 'warning');
+                }
+                
+                // 4. Set Guard Flag (The Fix)
+                localStorage.setItem('_deleteJustDone', Date.now().toString());
+                log('🛡️ Guard flag set: _deleteJustDone');
+                
+                // 5. Unlock
+                setTimeout(() => {
+                    window.deleteOperationInProgress = false;
+                    log('🔓 Unlocked: deleteOperationInProgress = false');
+                }, 2000);
+                
+                // 6. Verify (Wait 3s and check if it comes back)
+                log('⏳ Waiting 3s to verify persistence...', 'warning');
+                
+                setTimeout(async () => {
+                    // Check Supabase
+                    const { data: check } = await window.supabaseClient
+                        .from('students')
+                        .select('id')
+                        .eq('id', target.id)
+                        .single();
+                        
+                    if (check) {
+                        log('❌ FAILED: Data came back in Supabase!', 'error');
+                    } else {
+                        log('✅ PASSED: Data gone from Supabase', 'success');
+                    }
+                    
+                    // Check Local (Simulate reload behavior)
+                    // If logic is correct, autoSync shouldn't have restored it
+                    await refreshCounts();
+                    
+                }, 3000);
+                
+            } catch (e) {
+                log('Delete test failed: ' + e.message, 'error');
+                window.deleteOperationInProgress = false;
+            }
+        }
+        
+        async function forceCleanDeletedData() {
+            if (!confirm('Yakin ingin membersihkan data? Ini akan menghapus data di lokal yang tidak ada di server.')) return;
+            
+            try {
+                log('Starting deep clean...', 'info');
+                
+                // 1. Get all server IDs
+                const { data: serverIds, error } = await window.supabaseClient
+                    .from('students')
+                    .select('id');
+                    
+                if (error) throw error;
+                
+                const validIds = new Set(serverIds.map(s => s.id));
+                log(`Found ${validIds.size} valid IDs on server`);
+                
+                // 2. Filter local data
+                const localData = JSON.parse(localStorage.getItem('dashboardData') || '{"students":[]}');
+                const beforeCount = localData.students.length;
+                
+                const cleanStudents = localData.students.filter(s => validIds.has(s.id));
+                const removedCount = beforeCount - cleanStudents.length;
+                
+                // 3. Save back
+                localData.students = cleanStudents;
+                localStorage.setItem('dashboardData', JSON.stringify(localData));
+                
+                log(`✅ Removed ${removedCount} ghost records from local storage`, 'success');
+                await refreshCounts();
+                
+            } catch (e) {
+                log('Deep clean failed: ' + e.message, 'error');
+            }
+        }
+
+        // Run init
+        setTimeout(init, 1000);
+    </script>
+</body>
+</html>

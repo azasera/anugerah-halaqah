@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Check Arkananta Data</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 1000px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        button:hover { background: #45a049; }
+        button.primary { background: #2196F3; }
+        button.primary:hover { background: #0b7dda; }
+        pre {
+            background: #f4f4f4;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+        .success { color: green; font-weight: bold; }
+        .error { color: red; font-weight: bold; }
+        .warning { color: orange; font-weight: bold; }
+        .info { color: blue; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background: #4CAF50;
+            color: white;
+        }
+        tr:nth-child(even) {
+            background: #f9f9f9;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Check M. Arkananta Ridho Data</h1>
+        <p>Verifikasi data di localStorage, Supabase, dan API</p>
+
+        <button onclick="checkAllSources()" class="primary">Check All Sources</button>
+        <button onclick="fixData()">Fix Data (Sync API → Supabase)</button>
+
+        <h3>Results:</h3>
+        <div id="results"></div>
+
+        <h3>Log:</h3>
+        <pre id="log"></pre>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://klhegwunosmryqozuahc.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtsaGVnd3Vub3Ntcnlxb3p1YWhjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3Mjg3NDcsImV4cCI6MjA4NjMwNDc0N30.0X54jxpMZI9eilDxfJ7FYUGImuN-TEH9qGQkdRTtRXw';
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        function log(message, type = 'info') {
+            const logEl = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type === 'error' ? 'error' : type === 'success' ? 'success' : type === 'warning' ? 'warning' : 'info';
+            logEl.innerHTML += `<span class="${className}">[${timestamp}] ${message}</span>\n`;
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+
+        const normalizeName = (name) => {
+            if (!name) return '';
+            let normalized = String(name).replace(/\b([A-Z])\.\s*/g, '$1 ');
+            normalized = normalized.toLowerCase().replace(/[\s\u00A0]+/g, ' ').trim();
+            return normalized;
+        };
+
+        async function checkAllSources() {
+            document.getElementById('log').textContent = '';
+            document.getElementById('results').innerHTML = '';
+            
+            log('Checking M. Arkananta Ridho data from all sources...', 'info');
+
+            const results = {
+                localStorage: null,
+                supabase: null,
+                api: null
+            };
+
+            try {
+                // 1. Check localStorage
+                log('\n1. Checking localStorage...', 'info');
+                const saved = localStorage.getItem('halaqahData');
+                if (saved) {
+                    const dashboardData = JSON.parse(saved);
+                    const student = dashboardData.students.find(s => 
+                        normalizeName(s.name) === normalizeName('M. Arkananta Ridho') ||
+                        normalizeName(s.name) === normalizeName('M Arkananta Ridho')
+                    );
+                    if (student) {
+                        results.localStorage = {
+                            id: student.id,
+                            name: student.name,
+                            total_hafalan: student.total_hafalan || 0
+                        };
+                        log(`   ✓ Found: ${student.name} = ${student.total_hafalan} Juz`, 'success');
+                    } else {
+                        log('   ✗ Not found in localStorage', 'error');
+                    }
+                } else {
+                    log('   ✗ localStorage is empty', 'error');
+                }
+
+                // 2. Check Supabase
+                log('\n2. Checking Supabase...', 'info');
+                if (results.localStorage && results.localStorage.id) {
+                    const { data, error } = await supabaseClient
+                        .from('students')
+                        .select('id, name, total_hafalan')
+                        .eq('id', results.localStorage.id)
+                        .single();
+
+                    if (error) {
+                        log(`   ✗ Error: ${error.message}`, 'error');
+                    } else {
+                        results.supabase = data;
+                        log(`   ✓ Found: ${data.name} = ${data.total_hafalan} Juz`, 'success');
+                    }
+                }
+
+                // 3. Check API
+                log('\n3. Checking API...', 'info');
+                const apiUrl = 'https://asia-southeast1-mootabaah.cloudfunctions.net/api/totalHafalan2025/mta';
+                const res = await fetch(apiUrl);
+                const json = await res.json();
+                const allGuruData = json?.data || {};
+
+                let found = false;
+                Object.entries(allGuruData).forEach(([guruName, guruStudents]) => {
+                    Object.entries(guruStudents).forEach(([studentKey, studentData]) => {
+                        const apiName = String(studentData.namaSiswa || studentData.nama || studentKey).trim();
+                        if (normalizeName(apiName) === normalizeName('M. Arkananta Ridho') ||
+                            normalizeName(apiName) === normalizeName('M Arkananta Ridho')) {
+                            const total = typeof studentData.totalHafalan === 'number' 
+                                ? studentData.totalHafalan 
+                                : parseFloat(studentData.totalHafalan) || 0;
+                            results.api = {
+                                name: apiName,
+                                total_hafalan: total,
+                                guru: guruName
+                            };
+                            log(`   ✓ Found: ${apiName} = ${total} Juz (Guru: ${guruName})`, 'success');
+                            found = true;
+                        }
+                    });
+                });
+
+                if (!found) {
+                    log('   ✗ Not found in API', 'error');
+                }
+
+                // Display comparison table
+                displayResults(results);
+
+            } catch (error) {
+                log(`\n❌ Error: ${error.message}`, 'error');
+            }
+        }
+
+        function displayResults(results) {
+            const resultsDiv = document.getElementById('results');
+            
+            let html = '<table>';
+            html += '<tr><th>Source</th><th>Name</th><th>Total Hafalan</th><th>Status</th></tr>';
+            
+            // localStorage
+            if (results.localStorage) {
+                html += `<tr>
+                    <td><strong>localStorage</strong></td>
+                    <td>${results.localStorage.name}</td>
+                    <td>${results.localStorage.total_hafalan} Juz</td>
+                    <td class="success">✓ Found</td>
+                </tr>`;
+            } else {
+                html += `<tr>
+                    <td><strong>localStorage</strong></td>
+                    <td colspan="2">-</td>
+                    <td class="error">✗ Not Found</td>
+                </tr>`;
+            }
+
+            // Supabase
+            if (results.supabase) {
+                const match = results.localStorage && 
+                    results.supabase.total_hafalan === results.localStorage.total_hafalan;
+                html += `<tr>
+                    <td><strong>Supabase</strong></td>
+                    <td>${results.supabase.name}</td>
+                    <td>${results.supabase.total_hafalan} Juz</td>
+                    <td class="${match ? 'success' : 'warning'}">${match ? '✓ Match' : '⚠ Different'}</td>
+                </tr>`;
+            } else {
+                html += `<tr>
+                    <td><strong>Supabase</strong></td>
+                    <td colspan="2">-</td>
+                    <td class="error">✗ Not Found</td>
+                </tr>`;
+            }
+
+            // API
+            if (results.api) {
+                const matchLocal = results.localStorage && 
+                    results.api.total_hafalan === results.localStorage.total_hafalan;
+                const matchSupabase = results.supabase && 
+                    results.api.total_hafalan === results.supabase.total_hafalan;
+                const status = matchLocal && matchSupabase ? '✓ All Match' : 
+                               '⚠ Different from ' + (!matchLocal ? 'localStorage' : '') + 
+                               (!matchSupabase ? ' Supabase' : '');
+                html += `<tr>
+                    <td><strong>API (Source of Truth)</strong></td>
+                    <td>${results.api.name}</td>
+                    <td>${results.api.total_hafalan} Juz</td>
+                    <td class="${matchLocal && matchSupabase ? 'success' : 'warning'}">${status}</td>
+                </tr>`;
+            } else {
+                html += `<tr>
+                    <td><strong>API</strong></td>
+                    <td colspan="2">-</td>
+                    <td class="error">✗ Not Found</td>
+                </tr>`;
+            }
+
+            html += '</table>';
+
+            // Add recommendation
+            if (results.api && results.supabase && 
+                results.api.total_hafalan !== results.supabase.total_hafalan) {
+                html += '<div style="background: #fff3cd; padding: 15px; border-radius: 5px; margin-top: 20px;">';
+                html += '<strong>⚠️ Recommendation:</strong> ';
+                html += `API shows ${results.api.total_hafalan} Juz but Supabase has ${results.supabase.total_hafalan} Juz. `;
+                html += 'Click "Fix Data" to sync API value to Supabase.';
+                html += '</div>';
+            } else if (results.api && results.supabase && 
+                       results.api.total_hafalan === results.supabase.total_hafalan) {
+                html += '<div style="background: #d4edda; padding: 15px; border-radius: 5px; margin-top: 20px;">';
+                html += '<strong>✅ All Good!</strong> All sources are in sync.';
+                html += '</div>';
+            }
+
+            resultsDiv.innerHTML = html;
+        }
+
+        async function fixData() {
+            log('\n=== Fixing Data ===', 'info');
+            log('Syncing API value to localStorage and Supabase...', 'info');
+
+            try {
+                // Get API value
+                const apiUrl = 'https://asia-southeast1-mootabaah.cloudfunctions.net/api/totalHafalan2025/mta';
+                const res = await fetch(apiUrl);
+                const json = await res.json();
+                const allGuruData = json?.data || {};
+
+                let apiValue = null;
+                let studentId = null;
+
+                // Find in API
+                Object.entries(allGuruData).forEach(([guruName, guruStudents]) => {
+                    Object.entries(guruStudents).forEach(([studentKey, studentData]) => {
+                        const apiName = String(studentData.namaSiswa || studentData.nama || studentKey).trim();
+                        if (normalizeName(apiName) === normalizeName('M. Arkananta Ridho') ||
+                            normalizeName(apiName) === normalizeName('M Arkananta Ridho')) {
+                            apiValue = typeof studentData.totalHafalan === 'number' 
+                                ? studentData.totalHafalan 
+                                : parseFloat(studentData.totalHafalan) || 0;
+                        }
+                    });
+                });
+
+                if (apiValue === null) {
+                    log('❌ Student not found in API', 'error');
+                    return;
+                }
+
+                log(`✓ API value: ${apiValue} Juz`, 'success');
+
+                // Update localStorage
+                const saved = localStorage.getItem('halaqahData');
+                const dashboardData = JSON.parse(saved);
+                const student = dashboardData.students.find(s => 
+                    normalizeName(s.name) === normalizeName('M. Arkananta Ridho') ||
+                    normalizeName(s.name) === normalizeName('M Arkananta Ridho')
+                );
+
+                if (student) {
+                    studentId = student.id;
+                    const oldValue = student.total_hafalan || 0;
+                    student.total_hafalan = apiValue;
+                    localStorage.setItem('halaqahData', JSON.stringify(dashboardData));
+                    log(`✓ localStorage updated: ${oldValue} → ${apiValue}`, 'success');
+                } else {
+                    log('❌ Student not found in localStorage', 'error');
+                    return;
+                }
+
+                // Update Supabase
+                const { data, error } = await supabaseClient
+                    .from('students')
+                    .update({ 
+                        total_hafalan: apiValue,
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('id', studentId);
+
+                if (error) {
+                    log(`❌ Supabase update failed: ${error.message}`, 'error');
+                } else {
+                    log(`✓ Supabase updated: ${apiValue} Juz`, 'success');
+                }
+
+                log('\n✅ Fix completed! Refresh dashboard to see changes.', 'success');
+
+                // Re-check to verify
+                setTimeout(() => {
+                    checkAllSources();
+                }, 1000);
+
+            } catch (error) {
+                log(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+    </script>
+</body>
+</html>

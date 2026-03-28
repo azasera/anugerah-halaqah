@@ -903,6 +903,7 @@ function confirmSdApiImport() {
 
     if (created > 0) {
         recalculateRankings();
+        localStorage.removeItem('_deleteJustDone');
         StorageManager.save();
 
         // SYNC TO SUPABASE - Critical for persistence
@@ -1614,6 +1615,7 @@ function confirmImport() {
     });
 
     recalculateRankings();
+    localStorage.removeItem('_deleteJustDone');
     StorageManager.save();
 
     // Close modal and show results first (Optimistic UI)

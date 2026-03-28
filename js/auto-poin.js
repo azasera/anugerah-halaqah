@@ -95,9 +95,11 @@ async function applyNoSetoranPenalty() {
         // Sync to Supabase if available
         if (window.supabaseClient) {
             try {
-                const halaqah = dashboardData.halaqahs.find(h =>
-                    h.name === `Halaqah ${student.halaqah}` || h.name === student.halaqah
-                );
+                const halaqah = typeof findHalaqahForStudent === 'function'
+                    ? findHalaqahForStudent(student)
+                    : dashboardData.halaqahs.find(h =>
+                        h.name === `Halaqah ${student.halaqah}` || h.name === student.halaqah
+                    );
 
                 if (halaqah) {
                     await window.SetoranHarian.create(
