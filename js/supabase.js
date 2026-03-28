@@ -253,6 +253,7 @@ async function syncStudentsToSupabase() {
                 nik: s.nik || '', // Add NIK
                 lembaga: s.lembaga || 'MTA', // Add Lembaga
                 kelas: s.kelas || '', // Add Kelas
+                total_hafalan: Number(s.total_hafalan) || 0,
                 total_points: s.total_points || 0,
                 daily_ranking: s.daily_ranking || 0,
                 overall_ranking: s.overall_ranking || 0,

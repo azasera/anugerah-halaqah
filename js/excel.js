@@ -79,7 +79,7 @@ function showImportExcel() {
                         Import Langsung Santri SD 2025
                     </h3>
                     <p class="text-sm text-emerald-800 mb-4">
-                        Ambil data santri SD 2025 langsung dari server tanpa perlu file Excel. Sistem hanya akan menambahkan santri baru yang belum ada.
+                        Ambil data santri SD 2025 langsung dari server tanpa perlu file Excel. Santri baru saja; halaqah yang belum ada akan <strong>dibuat otomatis</strong> dari nama halaqah/guru di API.
                     </p>
                     <button onclick="importFromSdApi()" 
                         class="w-full bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2">
@@ -98,7 +98,7 @@ function showImportExcel() {
                         Import Langsung Santri SMP 2025
                     </h3>
                     <p class="text-sm text-emerald-800 mb-4">
-                        Ambil data santri SMP 2025 langsung dari server tanpa perlu file Excel. Sistem hanya akan menambahkan santri baru yang belum ada.
+                        Ambil data santri SMP 2025 langsung dari server tanpa perlu file Excel. Santri baru saja; halaqah yang belum ada akan <strong>dibuat otomatis</strong> dari nama halaqah/guru di API.
                     </p>
                     <button onclick="importFromSmpApi()" 
                         class="w-full bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2">
@@ -117,7 +117,7 @@ function showImportExcel() {
                         Import Langsung Santri SMA 2025
                     </h3>
                     <p class="text-sm text-emerald-800 mb-4">
-                        Ambil data santri SMA 2025 langsung dari server tanpa perlu file Excel. Sistem hanya akan menambahkan santri baru yang belum ada.
+                        Ambil data santri SMA 2025 langsung dari server tanpa perlu file Excel. Santri baru saja; halaqah yang belum ada akan <strong>dibuat otomatis</strong> dari nama halaqah/guru di API.
                     </p>
                     <button onclick="importFromSmaApi()" 
                         class="w-full bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2">
@@ -136,7 +136,7 @@ function showImportExcel() {
                         Import Langsung Santri MTA 2025
                     </h3>
                     <p class="text-sm text-emerald-800 mb-4">
-                        Ambil data santri MTA 2025 langsung dari server tanpa perlu file Excel. Sistem hanya akan menambahkan santri baru yang belum ada.
+                        Ambil data santri MTA 2025 langsung dari server tanpa perlu file Excel. Santri baru saja; halaqah yang belum ada akan <strong>dibuat otomatis</strong> dari nama halaqah/guru di API.
                     </p>
                     <button onclick="importFromMtaApi()" 
                         class="w-full bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2">
@@ -262,7 +262,70 @@ let importedData = null;
 let sdApiImportData = null;
 let sdApiImportTitle = 'Import Santri SD 2025';
 let sdApiImportSuccessSuffix = 'SD 2025';
+/** Default lembaga untuk import API per jenjang (dipakai sinkron total hafalan + filter). */
+let sdApiDefaultLembaga = 'SDITA';
 let lastHafalanImportSummary = null;
+
+/** Cocokkan santri dengan jenjang sinkron (SD/SDITA, SMP/SMPITA, dll.). */
+function studentBelongsToJenjang(s, lembagaKey) {
+    if (!s) return false;
+    const v = (s.lembaga || '').toString().trim().toUpperCase();
+    const aliases = {
+        SDITA: ['SDITA', 'SD'],
+        SMPITA: ['SMPITA', 'SMP'],
+        SMAITA: ['SMAITA', 'SMA'],
+        MTA: ['MTA']
+    };
+    const list = aliases[lembagaKey] || [String(lembagaKey || '').toUpperCase()];
+    if (v) {
+        if (list.some(k => v === k)) return true;
+        if (lembagaKey === 'MTA' && v.startsWith('MTA')) return true;
+        return false;
+    }
+    // Tanpa kolom lembaga: tetap ikut pencocokan nama (API per jenjang yang menentukan siapa di-update)
+    return true;
+}
+
+function stripUstadzTitle(str) {
+    return String(str || '').replace(/^(Ustadz|Ustadzah|Ust\.?)\s+/i, '').trim();
+}
+
+/** Pastikan ada baris halaqah untuk import API; buat baru jika belum ada. Mengembalikan nama singkat untuk field santri.halaqah. */
+function ensureHalaqahForApiImport(shortName, guru, kelas) {
+    const raw = String(shortName || '').replace(/^Halaqah\s+/i, '').trim();
+    if (!raw) return '';
+
+    const key = typeof normalizeHalaqahLabel === 'function'
+        ? normalizeHalaqahLabel(raw)
+        : raw.toLowerCase();
+
+    const found = dashboardData.halaqahs.find(h => {
+        if (!h || !h.name) return false;
+        const hKey = typeof normalizeHalaqahLabel === 'function'
+            ? normalizeHalaqahLabel(h.name)
+            : String(h.name).replace(/^Halaqah\s+/i, '').trim().toLowerCase();
+        return hKey === key;
+    });
+
+    if (found) {
+        return String(found.name || '').replace(/^Halaqah\s+/i, '').trim();
+    }
+
+    const newHalaqah = {
+        id: Date.now() + Math.floor(Math.random() * 1e6) + dashboardData.halaqahs.length,
+        name: `Halaqah ${raw}`,
+        points: 0,
+        rank: dashboardData.halaqahs.length + 1,
+        status: 'BARU',
+        members: 0,
+        avgPoints: '0',
+        trend: 0,
+        guru: guru || '',
+        kelas: kelas || ''
+    };
+    dashboardData.halaqahs.push(newHalaqah);
+    return raw;
+}
 
 const hafalanGuruSuggestionsCache = {};
 
@@ -389,72 +452,75 @@ async function importFromJenjangApi(config) {
             
             // Remove "Halaqah" prefix if exists
             const halaqahName = halaqahNameRaw.replace(/^Halaqah\s+/i, '').trim();
-            
-            if (!name) {
-                return { index, canImport: false, reason: 'Nama kosong', name, halaqahName, row };
+            let effectiveHalaqahShort = halaqahName;
+            if (!effectiveHalaqahShort && guruHalaqoh) {
+                effectiveHalaqahShort = stripUstadzTitle(guruHalaqoh);
             }
-            
+
+            if (!name) {
+                return { index, canImport: false, reason: 'Nama kosong', name, halaqahName: effectiveHalaqahShort, row };
+            }
+
             // Check if student already exists - by name only (nama santri harus unique)
             const exists = dashboardData.students.some(s => {
                 if (!s) return false;
                 const sName = String(s.name || '').trim().toLowerCase();
                 return sName === name.toLowerCase();
             });
-            
-            // Check if halaqah exists - with flexible matching
-            // Try exact match first, then partial match (for MTA where API returns "Naufal" but system has "Naufal Hudiya")
+
+            // Cocokkan halaqah yang sudah ada (nama halaqah atau nama guru dari API)
             let halaqahExists = false;
             let matchedHalaqah = null;
-            
-            if (halaqahName) {
-                // Try exact match
+
+            if (effectiveHalaqahShort) {
+                const effLower = effectiveHalaqahShort.toLowerCase();
+
                 matchedHalaqah = dashboardData.halaqahs.find(h => {
                     if (!h || !h.name) return false;
                     const base = String(h.name).replace(/^Halaqah\s+/i, '').trim().toLowerCase();
-                    return base === halaqahName.toLowerCase();
+                    return base === effLower;
                 });
-                
-                // If not found, try partial match (halaqah name starts with the API value)
+
                 if (!matchedHalaqah) {
                     matchedHalaqah = dashboardData.halaqahs.find(h => {
                         if (!h || !h.name) return false;
                         const base = String(h.name).replace(/^Halaqah\s+/i, '').trim().toLowerCase();
-                        return base.startsWith(halaqahName.toLowerCase());
+                        return base.startsWith(effLower);
                     });
                 }
-                
-                // If still not found and we have guruHalaqoh, try matching with guru name
+
                 if (!matchedHalaqah && guruHalaqoh) {
-                    // Extract name from "Ustadz Naufal Hudiya" -> "Naufal Hudiya"
-                    const guruNameOnly = guruHalaqoh.replace(/^(Ustadz|Ustadzah|Ust\.?)\s+/i, '').trim();
+                    const guruNameOnly = stripUstadzTitle(guruHalaqoh).toLowerCase();
                     matchedHalaqah = dashboardData.halaqahs.find(h => {
                         if (!h || !h.name) return false;
                         const base = String(h.name).replace(/^Halaqah\s+/i, '').trim().toLowerCase();
-                        return base === guruNameOnly.toLowerCase() || base.startsWith(guruNameOnly.toLowerCase().split(' ')[0]);
+                        return base === guruNameOnly || base.startsWith(guruNameOnly.split(' ')[0] || '');
                     });
                 }
-                
+
                 halaqahExists = !!matchedHalaqah;
             }
-            
+
             let reason = '';
-            let canImport = true;
+            let canImport = false;
             if (exists) {
-                canImport = false;
                 reason = 'Sudah ada di sistem';
-            } else if (!halaqahName && !guruHalaqoh) {
-                canImport = false;
-                reason = 'Halaqah belum ada di sistem';
-            } else if (!halaqahExists) {
-                canImport = false;
-                reason = 'Halaqah belum ada di sistem';
+            } else if (!effectiveHalaqahShort) {
+                reason = 'Nama halaqah / guru kosong di data API';
+            } else {
+                canImport = true;
+                reason = halaqahExists ? 'Siap diimport' : 'Halaqah akan dibuat otomatis saat import';
             }
-            
+
+            const studentHalaqahShort = matchedHalaqah
+                ? matchedHalaqah.name.replace(/^Halaqah\s+/i, '').trim()
+                : effectiveHalaqahShort;
+
             return {
                 index,
                 row,
                 name,
-                halaqahName: matchedHalaqah ? matchedHalaqah.name.replace(/^Halaqah\s+/i, '').trim() : halaqahName,
+                halaqahName: studentHalaqahShort,
                 guruHalaqoh,
                 exists,
                 halaqahExists,
@@ -476,6 +542,7 @@ async function importFromJenjangApi(config) {
 }
 
 async function importFromSdApi() {
+    sdApiDefaultLembaga = 'SDITA';
     return importFromJenjangApi({
         url: 'https://asia-southeast1-mootabaah.cloudfunctions.net/api/listnamasd2025',
         loadingText: '☁️ Mengambil data santri SD 2025...',
@@ -490,6 +557,7 @@ async function importFromSdApi() {
 }
 
 async function importFromSmpApi() {
+    sdApiDefaultLembaga = 'SMPITA';
     return importFromJenjangApi({
         url: 'https://asia-southeast1-mootabaah.cloudfunctions.net/api/listnamasmp2025',
         loadingText: '☁️ Mengambil data santri SMP 2025...',
@@ -504,6 +572,7 @@ async function importFromSmpApi() {
 }
 
 async function importFromSmaApi() {
+    sdApiDefaultLembaga = 'SMAITA';
     return importFromJenjangApi({
         url: 'https://asia-southeast1-mootabaah.cloudfunctions.net/api/listnamasma2025',
         loadingText: '☁️ Mengambil data santri SMA 2025...',
@@ -518,6 +587,7 @@ async function importFromSmaApi() {
 }
 
 async function importFromMtaApi() {
+    sdApiDefaultLembaga = 'MTA';
     return importFromJenjangApi({
         url: 'https://asia-southeast1-mootabaah.cloudfunctions.net/api/listnamamta2025',
         loadingText: '☁️ Mengambil data santri MTA 2025...',
@@ -620,14 +690,34 @@ async function importTotalHafalanSdFromGuru() {
         };
 
         const students = Array.isArray(dashboardData.students)
-            ? dashboardData.students.filter(s => s && s.lembaga === lembagaKey)
+            ? dashboardData.students.filter(s => s && studentBelongsToJenjang(s, lembagaKey))
             : [];
+
+        if (students.length === 0) {
+            showNotification(
+                `ℹ️ Tidak ada santri di aplikasi untuk jenjang ${lembagaKey}. Import santri dulu, atau samakan penulisan Lembaga (SD / SDITA, dll.).`,
+                'warning'
+            );
+            return;
+        }
+
+        const forEachStudentInGuru = (guruStudents, fn) => {
+            if (!guruStudents) return;
+            if (Array.isArray(guruStudents)) {
+                guruStudents.forEach((studentData, i) => fn(`row_${i}`, studentData));
+            } else if (typeof guruStudents === 'object') {
+                Object.entries(guruStudents).forEach(([studentKey, studentData]) => fn(studentKey, studentData));
+            }
+        };
 
         // Process each guru's data
         Object.entries(allGuruData).forEach(([guruName, guruStudents]) => {
-            console.log(`[${jenjangSlug.toUpperCase()}] Processing guru: ${guruName}, students:`, Object.keys(guruStudents).length);
-            
-            Object.entries(guruStudents).forEach(([studentKey, studentData]) => {
+            const count = Array.isArray(guruStudents)
+                ? guruStudents.length
+                : (guruStudents && typeof guruStudents === 'object' ? Object.keys(guruStudents).length : 0);
+            console.log(`[${jenjangSlug.toUpperCase()}] Processing guru: ${guruName}, students:`, count);
+
+            forEachStudentInGuru(guruStudents, (studentKey, studentData) => {
                 if (!studentData || typeof studentData !== 'object') {
                     invalidCount++;
                     return;
@@ -640,8 +730,8 @@ async function importTotalHafalanSdFromGuru() {
                     return;
                 }
 
-                // Get total hafalan
-                const rawTotal = studentData.totalHafalan;
+                // Get total hafalan (beberapa versi API pakai nama field berbeda)
+                const rawTotal = studentData.totalHafalan ?? studentData.total_hafalan ?? studentData.totalJuz ?? studentData.juz;
                 if (rawTotal === undefined || rawTotal === null || rawTotal === '') {
                     invalidCount++;
                     return;
@@ -659,6 +749,10 @@ async function importTotalHafalanSdFromGuru() {
                         return;
                     }
                     total = parsed;
+                } else {
+                    invalidCount++;
+                    console.log(`[${jenjangSlug.toUpperCase()}] Tipe total hafalan tidak dikenal untuk "${name}":`, typeof rawTotal);
+                    return;
                 }
 
                 const targetNorm = normalizeName(name);
@@ -742,16 +836,23 @@ function showSdApiImportPreview() {
     }
     const canImportCount = sdApiImportData.filter(r => r.canImport).length;
     const existingCount = sdApiImportData.filter(r => r.exists).length;
-    const missingHalaqahCount = sdApiImportData.filter(r => !r.halaqahExists && r.name && r.halaqahName).length;
+    const autoCreateHalaqahCount = sdApiImportData.filter(r => r.canImport && !r.halaqahExists).length;
 
     const rowsHtml = sdApiImportData.map((item, idx) => {
         const selectable = item.canImport;
         const disabledAttr = selectable ? '' : 'disabled';
         const checkedAttr = selectable ? 'checked' : '';
-        const status = selectable ? 'Siap diimport' : (item.reason || 'Tidak dapat diimport');
+        const status = item.reason || (selectable ? 'Siap diimport' : 'Tidak dapat diimport');
         const statusColor = selectable ? 'text-emerald-700' : 'text-slate-500';
-        const badge = item.exists ? 'bg-slate-100 text-slate-700' : (!item.halaqahExists ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700');
-        const badgeText = item.exists ? 'Sudah Ada' : (!item.halaqahExists ? 'Halaqah Belum Ada' : 'Baru');
+        let badge = 'bg-emerald-100 text-emerald-700';
+        let badgeText = 'Baru';
+        if (item.exists) {
+            badge = 'bg-slate-100 text-slate-700';
+            badgeText = 'Sudah Ada';
+        } else if (selectable && !item.halaqahExists) {
+            badge = 'bg-amber-100 text-amber-800';
+            badgeText = 'Buat halaqah';
+        }
         return `
             <tr class="border-b border-slate-100">
                 <td class="p-2 align-top">
@@ -787,9 +888,9 @@ function showSdApiImportPreview() {
                     <div class="text-xs text-slate-600">Sudah ada di sistem</div>
                     <div class="text-xl font-bold text-slate-800">${existingCount}</div>
                 </div>
-                <div class="bg-red-50 border border-red-200 rounded-xl p-3">
-                    <div class="text-xs text-red-700">Halaqah belum ada</div>
-                    <div class="text-xl font-bold text-red-800">${missingHalaqahCount}</div>
+                <div class="bg-amber-50 border border-amber-200 rounded-xl p-3">
+                    <div class="text-xs text-amber-800">Halaqah baru (otomatis)</div>
+                    <div class="text-xl font-bold text-amber-900">${autoCreateHalaqahCount}</div>
                 </div>
             </div>
             <div class="flex items-center justify-between mb-2">
@@ -872,14 +973,21 @@ function confirmSdApiImport() {
         if (!item || !item.canImport || !item.row) return;
         const row = item.row;
         const name = item.name;
-        const halaqahName = item.halaqahName;
+        const kelasStr = row.kelas ? String(row.kelas).trim() : '';
+        const santriHalaqah = ensureHalaqahForApiImport(
+            item.halaqahName,
+            item.guruHalaqoh || '',
+            kelasStr
+        );
+        if (!santriHalaqah) return;
+
         dashboardData.students.push({
             id: nextId++,
             name: name,
-            halaqah: halaqahName,
+            halaqah: santriHalaqah,
             nisn: row.nisn ? String(row.nisn).trim() : '',
             nik: row.nik ? String(row.nik).trim() : '',
-            lembaga: row.lembaga ? String(row.lembaga).trim() : undefined,
+            lembaga: (row.lembaga && String(row.lembaga).trim()) || sdApiDefaultLembaga,
             kelas: row.kelas ? String(row.kelas).trim() : '',
             jenis_kelamin: row.jenis_kelamin ? String(row.jenis_kelamin).trim() : '',
             tempat_lahir: row.tempat_lahir ? String(row.tempat_lahir).trim() : '',
