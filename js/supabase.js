@@ -586,7 +586,8 @@ async function loadUsersFromSupabase() {
                         status: u.status || 'active',
                         createdAt: u.created_at,
                         lastLogin: u.last_login || '-',
-                        source: 'local_users' // Mark source
+                        source: 'local_users', // Mark source
+                        password: u.password || '' // untuk fallback login (disimpan di DB)
                     });
                 }
             });

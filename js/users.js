@@ -78,6 +78,49 @@ async function refreshUsersFromServer() {
 }
 window.refreshUsersFromServer = refreshUsersFromServer;
 
+/**
+ * Admin: kirim email reset password ke user (akun Supabase Auth).
+ * Mengatur password langsung hanya bisa lewat Dashboard Supabase (service role).
+ */
+async function sendPasswordResetToUser(userId) {
+    const u = usersData.users.find((x) => x.id === userId || String(x.id) === String(userId));
+    if (!u?.email) {
+        if (typeof showNotification === 'function') showNotification('❌ User tidak ditemukan', 'error');
+        return;
+    }
+    if (!isSupabaseAuthProfileUser(u)) {
+        if (typeof showNotification === 'function') {
+            showNotification('ℹ️ Akun ini bukan Supabase Auth — ubah password di kolom "Password baru" di form edit.', 'info');
+        }
+        return;
+    }
+    if (!window.supabaseClient) {
+        if (typeof showNotification === 'function') showNotification('❌ Supabase tidak tersedia', 'error');
+        return;
+    }
+    try {
+        const redirectTo = new URL('dashboard.html', window.location.href).href;
+        const { error } = await window.supabaseClient.auth.resetPasswordForEmail(u.email, { redirectTo });
+        if (error) throw error;
+        if (typeof showNotification === 'function') {
+            showNotification(`✅ Email reset dikirim ke ${u.email} (cek inbox / spam)`, 'success');
+        }
+    } catch (e) {
+        console.error('[USERS] resetPasswordForEmail:', e);
+        if (typeof showNotification === 'function') {
+            showNotification('❌ Gagal kirim email: ' + (e.message || String(e)), 'error');
+        }
+    }
+}
+window.sendPasswordResetToUser = sendPasswordResetToUser;
+
+/** True jika user berasal dari Supabase Auth (profiles), termasuk jika source tidak terisi tapi id UUID */
+function isSupabaseAuthProfileUser(user) {
+    if (!user) return false;
+    if (user.source === 'profiles') return true;
+    return typeof user.id === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(user.id);
+}
+
 // Render user management UI (mobile-first)
 function renderUserManagement() {
     const container = document.getElementById('userManagementContainer');
@@ -159,7 +202,7 @@ function renderUserManagement() {
                                 class="px-3 py-2 bg-blue-50 text-blue-600 rounded-lg text-sm font-bold hover:bg-blue-100 transition-colors">
                                 ✏️ Edit
                             </button>
-                            <button onclick="confirmDeleteUser(${user.id})" 
+                            <button onclick='confirmDeleteUser(${JSON.stringify(user.id)})' 
                                 class="px-3 py-2 bg-red-50 text-red-600 rounded-lg text-sm font-bold hover:bg-red-100 transition-colors">
                                 🗑️ Hapus
                             </button>
@@ -633,6 +676,7 @@ function handleAddUser(event) {
 
 // Show edit user form
 function showEditUserForm(user) {
+    const authProfile = isSupabaseAuthProfileUser(user);
     const content = `
         <div class="p-4 md:p-8">
             <div class="flex items-start justify-between mb-6">
@@ -680,6 +724,40 @@ function showEditUserForm(user) {
                         <option value="inactive" ${user.status === 'inactive' ? 'selected' : ''}>❌ Nonaktif</option>
                     </select>
                 </div>
+
+                ${authProfile ? `
+                <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-3">
+                    <h4 class="font-bold text-amber-900 text-sm">🔐 Password (Supabase Auth)</h4>
+                    <p class="text-xs text-amber-900/90 leading-relaxed">
+                        Password user lain tidak bisa diubah langsung dari browser (keamanan Supabase).
+                        Kirim tautan reset ke email user, atau atur password di Dashboard Supabase.
+                    </p>
+                    <button type="button" onclick="sendPasswordResetToUser(${JSON.stringify(user.id)})"
+                        class="w-full px-4 py-2.5 bg-amber-600 text-white rounded-xl text-sm font-bold hover:bg-amber-700 transition-colors">
+                        📧 Kirim email reset password
+                    </button>
+                    <p class="text-[11px] text-amber-800/90">
+                        Alternatif: Supabase → <strong>Authentication</strong> → <strong>Users</strong> → pilih user → <strong>Send password recovery</strong> atau set password (menu tergantung versi dashboard).
+                    </p>
+                </div>
+                ` : `
+                <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
+                    <h4 class="font-bold text-slate-800 text-sm">🔐 Password (akun lokal / local_users)</h4>
+                    <p class="text-xs text-slate-600">Isi hanya jika ingin mengganti password login untuk akun ini.</p>
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2">Password baru (opsional)</label>
+                        <input type="password" name="newPassword" minlength="6" autocomplete="new-password"
+                            class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary-500 outline-none"
+                            placeholder="Minimal 6 karakter">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2">Konfirmasi password</label>
+                        <input type="password" name="confirmPassword" minlength="6" autocomplete="new-password"
+                            class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary-500 outline-none"
+                            placeholder="Ulangi password baru">
+                    </div>
+                </div>
+                `}
                 
                 <div class="bg-slate-50 rounded-xl p-4">
                     <div class="text-xs text-slate-500 space-y-1">
@@ -707,21 +785,53 @@ function showEditUserForm(user) {
 }
 
 // Handle edit user
-function handleEditUser(event, userId) {
+async function handleEditUser(event, userId) {
     event.preventDefault();
     const form = event.target;
     const formData = new FormData(form);
 
-    const userIndex = usersData.users.findIndex(u => u.id === userId);
+    const userIndex = usersData.users.findIndex((u) => u.id === userId || String(u.id) === String(userId));
     if (userIndex === -1) return;
 
+    const prev = usersData.users[userIndex];
+    const newPassword = (formData.get('newPassword') || '').trim();
+    const confirmPassword = (formData.get('confirmPassword') || '').trim();
+
+    if (!isSupabaseAuthProfileUser(prev)) {
+        if (newPassword || confirmPassword) {
+            if (newPassword.length < 6) {
+                if (typeof showNotification === 'function') showNotification('❌ Password minimal 6 karakter', 'error');
+                return;
+            }
+            if (newPassword !== confirmPassword) {
+                if (typeof showNotification === 'function') showNotification('❌ Konfirmasi password tidak cocok', 'error');
+                return;
+            }
+            if (window.supabaseClient && (prev.source === 'local_users' || prev.source === 'local')) {
+                try {
+                    const { error } = await window.supabaseClient
+                        .from('local_users')
+                        .update({ password: newPassword, updated_at: new Date().toISOString() })
+                        .eq('id', prev.id);
+                    if (error) throw error;
+                } catch (e) {
+                    console.warn('[USERS] Update password local_users:', e);
+                    if (typeof showNotification === 'function') {
+                        showNotification('⚠️ Data profil tersimpan; password di server gagal: ' + (e.message || String(e)), 'warning');
+                    }
+                }
+            }
+        }
+    }
+
     usersData.users[userIndex] = {
-        ...usersData.users[userIndex],
+        ...prev,
         name: formData.get('name'),
         email: formData.get('email'),
         phone: formData.get('phone'),
         role: formData.get('role'),
-        status: formData.get('status')
+        status: formData.get('status'),
+        ...(newPassword && !isSupabaseAuthProfileUser(prev) ? { password: newPassword } : {})
     };
 
     saveUsers();
@@ -736,22 +846,82 @@ function handleEditUser(event, userId) {
     showNotification('✅ User berhasil diupdate');
 }
 
-// Confirm delete user
-function confirmDeleteUser(userId) {
-    const user = usersData.users.find(u => u.id === userId);
-    if (!user) return;
+/**
+ * Hapus baris user di Supabase agar loadUsersFromSupabase tidak mengisi ulang daftar.
+ * Auth: hapus dari profiles (penghapusan auth.users penuh hanya lewat Dashboard / Admin API).
+ */
+async function deleteUserOnServer(user) {
+    if (!window.supabaseClient || !user) {
+        return { ok: true, skipped: true };
+    }
 
-    if (confirm(`Yakin ingin menghapus user "${user.name}"?\nTindakan ini tidak dapat dibatalkan.`)) {
-        usersData.users = usersData.users.filter(u => u.id !== userId);
-        saveUsers();
-
-        // Sync to Supabase if available
-        if (window.syncUsersToSupabase) {
-            syncUsersToSupabase();
+    try {
+        if (user.source === 'local_users' || user.source === 'local') {
+            const { error } = await window.supabaseClient.from('local_users').delete().eq('id', user.id);
+            if (error) {
+                console.error('[USERS] delete local_users:', error);
+                return { ok: false, error };
+            }
+            return { ok: true };
         }
 
-        renderUserManagement();
-        showNotification('✅ User berhasil dihapus');
+        if (isSupabaseAuthProfileUser(user)) {
+            const { error } = await window.supabaseClient.from('profiles').delete().eq('id', user.id);
+            if (error) {
+                console.error('[USERS] delete profiles:', error);
+                return { ok: false, error };
+            }
+            return { ok: true };
+        }
+
+        return { ok: true, skipped: true };
+    } catch (e) {
+        console.error('[USERS] deleteUserOnServer:', e);
+        return { ok: false, error: e };
+    }
+}
+
+async function confirmDeleteUser(userId) {
+    const user = usersData.users.find((u) => u.id === userId || String(u.id) === String(userId));
+    if (!user) return;
+
+    if (!confirm(`Yakin ingin menghapus user "${user.name}"?\nTindakan ini tidak dapat dibatalkan.`)) {
+        return;
+    }
+
+    if (typeof showNotification === 'function') {
+        showNotification('⏳ Menghapus di server…', 'info');
+    }
+
+    const result = await deleteUserOnServer(user);
+
+    if (!result.ok) {
+        const msg = result.error?.message || String(result.error || 'unknown');
+        if (typeof showNotification === 'function') {
+            showNotification('❌ Gagal menghapus di server: ' + msg, 'error');
+        }
+        return;
+    }
+
+    usersData.users = usersData.users.filter((u) => String(u.id) !== String(userId));
+    saveUsers();
+
+    if (window.loadUsersFromSupabase && navigator.onLine) {
+        try {
+            await window.loadUsersFromSupabase();
+        } catch (e) {
+            console.warn('[USERS] loadUsersFromSupabase after delete:', e);
+        }
+    }
+
+    renderUserManagement();
+
+    let extra = '';
+    if (isSupabaseAuthProfileUser(user)) {
+        extra = ' Jika user masih bisa login, hapus juga di Supabase → Authentication → Users.';
+    }
+    if (typeof showNotification === 'function') {
+        showNotification('✅ User berhasil dihapus.' + extra, 'success');
     }
 }
 

@@ -444,6 +444,44 @@ async function login(rawInput, rawPassword) {
         }
 
         if (!supabaseSuccess) {
+            // Fallback 0: akun local_users — password di tabel, bukan Supabase Auth (Auth akan 400)
+            if (!isIdLogin && window.supabaseClient) {
+                try {
+                    const em = email.toLowerCase();
+                    let row = null;
+                    const r1 = await window.supabaseClient
+                        .from('local_users')
+                        .select('*')
+                        .eq('email', email)
+                        .maybeSingle();
+                    if (!r1.error && r1.data) row = r1.data;
+                    if (!row) {
+                        const r2 = await window.supabaseClient
+                            .from('local_users')
+                            .select('*')
+                            .eq('email', em)
+                            .maybeSingle();
+                        if (!r2.error && r2.data) row = r2.data;
+                    }
+                    const active = !row?.status || row.status === 'active';
+                    if (row && active && row.password && row.password === password) {
+                        loginAsUser({
+                            id: row.id,
+                            name: row.name,
+                            email: row.email,
+                            phone: row.phone || '',
+                            role: row.role,
+                            status: row.status || 'active',
+                            password: row.password,
+                            source: 'local_users'
+                        });
+                        return;
+                    }
+                } catch (luFallbackErr) {
+                    console.warn('local_users login fallback:', luFallbackErr);
+                }
+            }
+
             // Fallback: Check Local Storage Users
             console.log('Checking local users...');
             const savedUsers = localStorage.getItem('usersData');
