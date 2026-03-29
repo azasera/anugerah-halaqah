@@ -36,9 +36,16 @@ function renderAdminProfile() {
                 <div class="flex-1">
                     <h2 class="text-2xl font-bold text-slate-800">${user?.name || 'Admin'}</h2>
                     <p class="text-slate-500">${user?.email || 'admin@halaqah.com'}</p>
-                    <span class="inline-block mt-1 px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-bold">
-                        👑 Administrator
-                    </span>
+                    ${user?.phone ? `<p class="text-slate-500 text-sm mt-1">📱 ${user.phone}</p>` : ''}
+                    ${user?.address ? `<p class="text-slate-500 text-sm mb-2">📍 ${user.address}</p>` : ''}
+                    <div class="mt-2 flex flex-wrap items-center gap-2">
+                        <span class="inline-block px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-bold">
+                            👑 Administrator
+                        </span>
+                        <button onclick="showEditProfileModal()" class="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-full text-xs font-bold transition-colors">
+                            ✏️ Edit Profil
+                        </button>
+                    </div>
                 </div>
             </div>
             
@@ -129,9 +136,16 @@ function renderGuruProfile() {
                 <div class="flex-1">
                     <h2 class="text-2xl font-bold text-slate-800">${user?.name || 'Guru'}</h2>
                     <p class="text-slate-500">${user?.email || 'guru@halaqah.com'}</p>
-                    <span class="inline-block mt-1 px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-bold">
-                        👨‍🏫 Guru
-                    </span>
+                    ${user?.phone ? `<p class="text-slate-500 text-sm mt-1">📱 ${user.phone}</p>` : ''}
+                    ${user?.address ? `<p class="text-slate-500 text-sm mb-2">📍 ${user.address}</p>` : ''}
+                    <div class="mt-2 flex flex-wrap items-center gap-2">
+                        <span class="inline-block px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-bold">
+                            👨‍🏫 Guru
+                        </span>
+                        <button onclick="showEditProfileModal()" class="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-full text-xs font-bold transition-colors">
+                            ✏️ Edit Profil
+                        </button>
+                    </div>
                 </div>
             </div>
             
@@ -199,9 +213,16 @@ function renderParentProfile() {
                 <div class="flex-1">
                     <h2 class="text-2xl font-bold text-slate-800">${user?.name || 'Orang Tua'}</h2>
                     <p class="text-slate-500">${user?.email || 'ortu@halaqah.com'}</p>
-                    <span class="inline-block mt-1 px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-bold">
-                        👨‍👩‍👧 Orang Tua
-                    </span>
+                    ${user?.phone ? `<p class="text-slate-500 text-sm mt-1">📱 ${user.phone}</p>` : ''}
+                    ${user?.address ? `<p class="text-slate-500 text-sm mb-2">📍 ${user.address}</p>` : ''}
+                    <div class="mt-2 flex flex-wrap items-center gap-2">
+                        <span class="inline-block px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-bold">
+                            👨‍👩‍👧 Orang Tua
+                        </span>
+                        <button onclick="showEditProfileModal()" class="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-full text-xs font-bold transition-colors">
+                            ✏️ Edit Profil
+                        </button>
+                    </div>
                 </div>
             </div>
             
@@ -605,6 +626,162 @@ function showImportExportModal() {
 
 
 
+// Show Edit Profile Modal
+function showEditProfileModal() {
+    const user = (typeof currentProfile !== 'undefined' && currentProfile) ? currentProfile : null;
+    if (!user) return;
+
+    const content = `
+        <div class="p-8">
+            <div class="flex items-start justify-between mb-6">
+                <div>
+                    <h2 class="font-display font-bold text-3xl text-slate-800 mb-2">Edit Profil</h2>
+                    <p class="text-slate-500">Lengkapi data profil Anda</p>
+                </div>
+                <button onclick="closeModal()" class="p-2 hover:bg-slate-100 rounded-lg transition-colors">
+                    <svg class="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            
+            <form onsubmit="handleEditProfile(event)" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-2">Nama Lengkap</label>
+                    <input type="text" id="editProfileName" required value="${user.name || ''}"
+                        class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary-500 outline-none transition-all">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-2">No. HP / WhatsApp</label>
+                    <input type="tel" id="editProfilePhone" placeholder="Contoh: 08123456789" value="${user.phone || ''}"
+                        class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary-500 outline-none transition-all">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-2">Alamat Domisili</label>
+                    <textarea id="editProfileAddress" rows="3" placeholder="Masukkan alamat lengkap"
+                        class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary-500 outline-none transition-all resize-none">${user.address || ''}</textarea>
+                </div>
+                
+                <div class="flex justify-end pt-4">
+                    <button type="submit" 
+                        class="w-full sm:w-auto bg-primary-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-primary-700 transition-colors shadow-lg">
+                        Simpan Perubahan
+                    </button>
+                </div>
+            </form>
+        </div>
+    `;
+
+    createModal(content, false);
+}
+
+// Handle Edit Profile Form Submission
+async function handleEditProfile(event) {
+    event.preventDefault();
+    
+    // Get button and set loading state
+    const submitBtn = event.target.querySelector('button[type="submit"]');
+    const originalText = submitBtn.innerHTML;
+    submitBtn.innerHTML = '<span class="animate-spin inline-block mr-2">⏳</span> Menyimpan...';
+    submitBtn.disabled = true;
+
+    try {
+        const user = (typeof currentProfile !== 'undefined' && currentProfile) ? currentProfile : null;
+        if (!user) throw new Error("User belum login");
+
+        const newName = document.getElementById('editProfileName').value.trim();
+        const newPhone = document.getElementById('editProfilePhone').value.trim();
+        const newAddress = document.getElementById('editProfileAddress').value.trim();
+        
+        // Setup updates object
+        const updates = { 
+            name: newName, 
+            phone: newPhone, 
+            address: newAddress 
+        };
+        
+        // 1. Update di tabel profiles Supabase (jika terhubung dan ini akun Supabase)
+        if (window.supabaseClient && !user.id.toString().includes('parent_') && !localStorage.getItem('localCurrentUser')) {
+            const { error } = await window.supabaseClient
+                .from('profiles')
+                .update(updates)
+                .eq('id', user.id);
+                
+            if (error) {
+                console.error("Gagal update profile di Supabase:", error);
+                throw new Error("Gagal menyimpan ke server: " + error.message);
+            }
+        }
+        
+        // 2. Update local data pengguna
+        user.name = newName;
+        user.phone = newPhone;
+        user.address = newAddress;
+        
+        // Menyimpan currentProfile kembali ke localStorage jika masih dipakai
+        localStorage.setItem('currentProfile', JSON.stringify(user));
+        
+        // Update data local currentUser (jika user lokal/parent login)
+        const localSessionStr = localStorage.getItem('localCurrentUser');
+        if (localSessionStr) {
+            const localSession = JSON.parse(localSessionStr);
+            localSession.name = newName;
+            localSession.phone = newPhone;
+            localSession.address = newAddress;
+            localStorage.setItem('localCurrentUser', JSON.stringify(localSession));
+        }
+
+        // 3. Update data usersData jika ada (untuk pengguna lokal)
+        const savedUsers = localStorage.getItem('usersData');
+        if (savedUsers) {
+            const localData = JSON.parse(savedUsers);
+            const users = localData.users || [];
+            // Handle specific logic for array index tracking - best effort match to find user
+            const userIndex = users.findIndex(u => (u.id === user.id) || (u.email && user.email && u.email.toLowerCase() === user.email.toLowerCase()));
+
+            if (userIndex !== -1) {
+                users[userIndex].name = newName;
+                users[userIndex].phone = newPhone;
+                users[userIndex].address = newAddress;
+                localStorage.setItem('usersData', JSON.stringify({ users }));
+            }
+        }
+
+        if (typeof showNotification === 'function') {
+            showNotification('✅ Profil berhasil diperbarui!', 'success');
+        } else {
+            alert('✅ Profil berhasil diperbarui!');
+        }
+        
+        closeModal();
+        
+        // Update sidebar UI jika nama berubah
+        if (typeof updateSidebarProfileUI === 'function') updateSidebarProfileUI();
+        
+        // Update header navbar if exists
+        const headerNameSelectors = document.querySelectorAll('.header-user-name');
+        if (headerNameSelectors) {
+            headerNameSelectors.forEach(el => el.textContent = newName);
+        }
+        
+        // Rerender profile page to show updated info immediately
+        renderProfile();
+        
+    } catch (error) {
+        if (typeof showNotification === 'function') {
+            showNotification('❌ ' + error.message, 'error');
+        } else {
+            alert('❌ ' + error.message);
+        }
+        console.error("Edit profile error:", error);
+    } finally {
+        submitBtn.innerHTML = originalText;
+        submitBtn.disabled = false;
+    }
+}
+
 // Export functions
 window.renderProfile = renderProfile;
 window.showQuickSetoranForm = showQuickSetoranForm;
@@ -614,3 +791,6 @@ window.showChangePasswordModal = showChangePasswordModal;
 window.handleChangePassword = handleChangePassword;
 window.showKelolaDataModal = showKelolaDataModal;
 window.showImportExportModal = showImportExportModal;
+window.showEditProfileModal = showEditProfileModal;
+window.handleEditProfile = handleEditProfile;
+
