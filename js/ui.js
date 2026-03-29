@@ -171,11 +171,35 @@ function renderHalaqahRankings() {
     // Check if user is logged in
     const isLoggedIn = typeof currentProfile !== 'undefined' && currentProfile;
 
-    // REMOVED: Filter by Lembaga for Parents - Now parents can see all halaqahs
-    // Parents can now see full ranking to understand their child's position in context
+    const searchEl = document.getElementById('halaqahSearch');
+    const rawQ = searchEl && searchEl.value ? String(searchEl.value).trim() : '';
+    const q = rawQ.toLowerCase();
 
     // For public view, only show top 3
-    const halaqahsToShow = isLoggedIn ? dashboardData.halaqahs : dashboardData.halaqahs.slice(0, 3);
+    let halaqahsToShow = isLoggedIn ? [...dashboardData.halaqahs] : dashboardData.halaqahs.slice(0, 3);
+
+    if (q) {
+        halaqahsToShow = halaqahsToShow.filter((h) => {
+            const name = (h.name || '').toLowerCase();
+            const guru = (h.guru || '').toLowerCase();
+            const kelas = (h.kelas || '').toLowerCase();
+            return name.includes(q) || guru.includes(q) || kelas.includes(q);
+        });
+    }
+
+    if (halaqahsToShow.length === 0) {
+        container.innerHTML = `
+            <div class="glass rounded-2xl p-10 border border-slate-200 text-center">
+                <svg class="w-14 h-14 mx-auto mb-3 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                </svg>
+                <p class="font-bold text-slate-700">${rawQ ? 'Tidak ada halaqah yang cocok' : 'Belum ada data halaqah'}</p>
+                ${rawQ ? '<p class="text-sm text-slate-500 mt-1">Coba kata kunci lain atau kosongkan pencarian.</p>' : ''}
+            </div>
+        `;
+        return;
+    }
 
     halaqahsToShow.forEach((halaqah) => {
         const live = typeof getLiveHalaqahStats === 'function'
@@ -222,8 +246,8 @@ function renderHalaqahRankings() {
         container.appendChild(card);
     });
 
-    // Add "View All" button for public users
-    if (!isLoggedIn && dashboardData.halaqahs.length > 3) {
+    // Add "View All" button for public users (hide saat sedang filter)
+    if (!isLoggedIn && dashboardData.halaqahs.length > 3 && !rawQ) {
         const viewAllCard = document.createElement('div');
         viewAllCard.className = 'glass rounded-2xl p-5 border-2 border-dashed border-primary-300 hover:border-primary-500 transition-colors cursor-pointer';
         viewAllCard.onclick = () => {
@@ -241,6 +265,15 @@ function renderHalaqahRankings() {
         `;
         container.appendChild(viewAllCard);
     }
+}
+
+function initHalaqahSearchHandler() {
+    const el = document.getElementById('halaqahSearch');
+    if (!el || el.dataset.bound === '1') return;
+    el.dataset.bound = '1';
+    const run = () => renderHalaqahRankings();
+    el.addEventListener('input', run);
+    el.addEventListener('search', run);
 }
 
 function renderSantri(searchTerm = "") {
@@ -484,22 +517,150 @@ function initAnimations() {
 
 
 
+function escapeSelectOptionAttr(val) {
+    return String(val).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+}
+
+/** Santri yang nama halaqah-nya setara (normalisasi label). */
+function getStudentsInSameHalaqahName(halaqahRaw) {
+    const key = typeof normalizeHalaqahLabel === 'function'
+        ? normalizeHalaqahLabel(halaqahRaw)
+        : String(halaqahRaw || '').trim().toLowerCase();
+    return dashboardData.students.filter((s) => {
+        const sk = typeof normalizeHalaqahLabel === 'function'
+            ? normalizeHalaqahLabel(s.halaqah)
+            : String(s.halaqah || '').trim().toLowerCase();
+        return sk === key;
+    });
+}
+
+/**
+ * Opsi dropdown Halaqah: jika lembaga = Semua → semua halaqah dari data master (seperti sebelumnya).
+ * Jika lembaga dipilih → hanya kelompok halaqah yang seluruh santri-nya di lembaga itu
+ * (menghindari nama halaqah dipakai bersama lembaga lain — guru "nyasar").
+ */
+function getHalaqahFilterDropdownRows() {
+    const user = (typeof window.currentProfile !== 'undefined' && window.currentProfile) ? window.currentProfile : null;
+    const isGuru = user && user.role === 'guru';
+    let guruName = '';
+
+    if (isGuru) {
+        guruName = (user.full_name || user.name || '')
+            .toLowerCase()
+            .replace(/^(ustadz|ust|u\.)\s*/i, '')
+            .trim();
+    }
+
+    // 1. Jika lembaga = 'all', gunakan semua halaqah (tapi tetap filter jika role = guru)
+    if (currentLembagaFilter === 'all') {
+        let list = [...dashboardData.halaqahs];
+        if (isGuru && guruName) {
+            list = list.filter(h => {
+                if (!h || !h.guru) return false;
+                const hGuru = String(h.guru).toLowerCase().replace(/^(ustadz|ust|u\.)\s*/i, '').trim();
+                return hGuru === guruName || hGuru.includes(guruName) || guruName.includes(hGuru);
+            });
+        }
+        return list.map((h) => {
+            const shortName = h.name.replace(/^Halaqah\s+/i, '').trim();
+            const guruLabel = h.guru ? ` — ${h.guru}` : '';
+            return { value: shortName, label: `${shortName}${guruLabel}` };
+        }).sort((a, b) => a.label.localeCompare(b.label, 'id'));
+    }
+
+    // 2. Jika lembaga dipilih, gunakan filter ketat (Strict Filter)
+    // Hanya tampilkan halaqah yang SELURUH santrinya berada di lembaga tersebut
+    const studentsInLem = filterStudents('', 'all', currentLembagaFilter);
+    const inLemIds = new Set(studentsInLem.map((s) => String(s.id)));
+    
+    const halaqahMap = new Map();
+    const seenNorm = new Set();
+
+    // Loop santri yang ada di lembaga terpilih
+    for (const s of studentsInLem) {
+        const rawHalaqah = (s.halaqah || '').trim();
+        if (!rawHalaqah) continue;
+
+        const normKey = typeof normalizeHalaqahLabel === 'function'
+            ? normalizeHalaqahLabel(rawHalaqah)
+            : rawHalaqah.toLowerCase();
+            
+        if (seenNorm.has(normKey)) continue;
+
+        // Cek apakah SELURUH santri di halaqah ini (berdasarkan nama) ada di lembaga ini
+        const allStudentsInHalaqah = typeof getStudentsInSameHalaqahName === 'function'
+            ? getStudentsInSameHalaqahName(rawHalaqah)
+            : dashboardData.students.filter(st => (st.halaqah || '').trim().toLowerCase() === rawHalaqah.toLowerCase());
+            
+        const isStrictlyInLembaga = allStudentsInHalaqah.length > 0 && 
+                                   allStudentsInHalaqah.every(st => inLemIds.has(String(st.id)));
+
+        if (!isStrictlyInLembaga) continue;
+
+        // Jika user adalah GURU, cek apakah ini halaqah miliknya
+        if (isGuru && guruName) {
+            const hRec = dashboardData.halaqahs.find(h => 
+                (typeof normalizeHalaqahLabel === 'function' ? normalizeHalaqahLabel(h.name) : h.name.toLowerCase()) === normKey
+            );
+            if (hRec && hRec.guru) {
+                const hGuru = String(hRec.guru).toLowerCase().replace(/^(ustadz|ust|u\.)\s*/i, '').trim();
+                const isMyHalaqah = hGuru === guruName || hGuru.includes(guruName) || guruName.includes(hGuru);
+                if (!isMyHalaqah) continue;
+            } else {
+                continue;
+            }
+        }
+
+        seenNorm.add(normKey);
+        const shortLabel = rawHalaqah.replace(/^Halaqah\s+/i, '').trim() || rawHalaqah;
+        
+        // Cari data guru untuk label
+        const hRec = dashboardData.halaqahs.find(h => 
+            (typeof normalizeHalaqahLabel === 'function' ? normalizeHalaqahLabel(h.name) : h.name.toLowerCase()) === normKey
+        );
+        const guruLabel = hRec && hRec.guru ? ` — ${hRec.guru}` : '';
+        
+        halaqahMap.set(rawHalaqah, {
+            value: shortLabel,
+            label: `${shortLabel}${guruLabel}`
+        });
+    }
+
+    return [...halaqahMap.values()].sort((a, b) => a.label.localeCompare(b.label, 'id'));
+}
+
+function sanitizeHalaqahFilterAfterLembagaChange() {
+    if (currentHalaqahFilter === 'all') return;
+    const rows = getHalaqahFilterDropdownRows();
+    const valid = new Set(rows.map((r) => r.value));
+    if (!valid.has(currentHalaqahFilter)) {
+        currentHalaqahFilter = 'all';
+    }
+}
+
 function renderFilters() {
     const container = document.getElementById('filterContainer');
     if (!container) return;
 
-    const halaqahs = ['Semua Halaqah', ...dashboardData.halaqahs.map(h => h.name.replace('Halaqah ', ''))];
+    sanitizeHalaqahFilterAfterLembagaChange();
+
+    const halaqahRows = getHalaqahFilterDropdownRows();
     const lembagas = ['Semua Lembaga', ...Object.keys(appSettings.lembaga).map(key => appSettings.lembaga[key].name)];
+
+    const halaqahOptionsHtml = [
+        `<option value="all" ${currentHalaqahFilter === 'all' ? 'selected' : ''}>Semua Halaqah</option>`,
+        ...halaqahRows.map((r) => {
+            const sel = currentHalaqahFilter === r.value ? 'selected' : '';
+            return `<option value="${escapeSelectOptionAttr(r.value)}" ${sel}>${r.label.replace(/</g, '&lt;')}</option>`;
+        })
+    ].join('');
 
     container.innerHTML = `
         <div class="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
             <div class="relative flex-shrink-0">
                 <select onchange="setFilter('halaqah', this.value)" 
                     class="appearance-none bg-white border border-slate-200 text-slate-700 py-2 pl-4 pr-10 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent font-medium shadow-sm hover:border-primary-300 transition-colors cursor-pointer text-sm">
-                    ${halaqahs.map(h => {
-        const value = h === 'Semua Halaqah' ? 'all' : h;
-        return `<option value="${value}" ${currentHalaqahFilter === value ? 'selected' : ''}>${h}</option>`;
-    }).join('')}
+                    ${halaqahOptionsHtml}
                 </select>
                 <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-500">
                     <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -566,6 +727,7 @@ function setFilter(type, value) {
         currentHalaqahFilter = value;
     } else if (type === 'lembaga') {
         currentLembagaFilter = value;
+        sanitizeHalaqahFilterAfterLembagaChange();
     }
 
     renderFilters();
@@ -584,6 +746,7 @@ function setSort(sort) {
 window.setFilter = setFilter;
 window.setSort = setSort;
 window.generateStatsHTML = generateStatsHTML;
+window.initHalaqahSearchHandler = initHalaqahSearchHandler;
 
 // Fungsi untuk menampilkan notifikasi
 function showNotification(message, type = 'success') {

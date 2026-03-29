@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>⚡ Sync Setoran Harian MTA</title>
+    <!-- Dependencies -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/data.js"></script>
+    <script src="js/supabase.js"></script>
+    <script src="js/setoran-harian.js"></script>
+    <script src="js/mta-setoran-sync.js?v=2"></script>
+    
+    <style>
+        :root {
+            --primary: #059669;
+            --primary-dark: #047857;
+            --bg: #f8fafc;
+            --card-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+        
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg);
+            color: #1e293b;
+            margin: 0;
+            padding: 2rem;
+            display: flex;
+            justify-content: center;
+        }
+        
+        .card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 1.5rem;
+            box-shadow: var(--card-shadow);
+            max-width: 600px;
+            width: 100%;
+        }
+        
+        h1 {
+            font-size: 1.75rem;
+            font-weight: 800;
+            margin-bottom: 0.5rem;
+            color: #0f172a;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        
+        p.subtitle {
+            color: #64748b;
+            margin-bottom: 2rem;
+            font-size: 0.95rem;
+        }
+        
+        .input-group {
+            margin-bottom: 1.5rem;
+        }
+        
+        label {
+            display: block;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.025em;
+            color: #475569;
+        }
+        
+        input[type="date"] {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border-radius: 0.75rem;
+            border: 2px solid #e2e8f0;
+            font-size: 1rem;
+            font-family: inherit;
+            box-sizing: border-box;
+            transition: border-color 0.2s;
+        }
+        
+        input[type="date"]:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+        
+        button {
+            width: 100%;
+            padding: 1rem;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 0.75rem;
+            font-weight: 700;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        button:hover {
+            background-color: var(--primary-dark);
+            transform: translateY(-1px);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        button:disabled {
+            background-color: #cbd5e1;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        #result {
+            margin-top: 2rem;
+            padding: 1.25rem;
+            border-radius: 1rem;
+            font-size: 0.9rem;
+            line-height: 1.5;
+            display: none;
+        }
+        
+        .success-box {
+            background-color: #ecfdf5;
+            border: 1px solid #10b981;
+            color: #065f46;
+            display: block !important;
+        }
+        
+        .error-box {
+            background-color: #fef2f2;
+            border: 1px solid #ef4444;
+            color: #991b1b;
+            display: block !important;
+        }
+        
+        .logs {
+            margin-top: 1rem;
+            max-height: 200px;
+            overflow-y: auto;
+            background: #f1f5f9;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            font-family: monospace;
+            font-size: 0.75rem;
+            white-space: pre-wrap;
+        }
+        
+        .loader {
+            width: 20px;
+            height: 20px;
+            border: 3px solid #ffffff;
+            border-bottom-color: transparent;
+            border-radius: 50%;
+            display: inline-block;
+            box-sizing: border-box;
+            animation: rotation 1s linear infinite;
+        }
+
+        @keyframes rotation {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>⚡ Sync Setoran MTA</h1>
+        <p class="subtitle">Tarik data setoran harian dari API MTA ke Supabase. Pilih tanggal lalu klik sync — di dashboard, sinkron untuk <strong>hari ini</strong> juga jalan otomatis sekali sehari (admin/guru).</p>
+        
+        <div class="input-group">
+            <label for="syncDate">Pilih Tanggal:</label>
+            <input type="date" id="syncDate">
+        </div>
+        
+        <button id="syncBtn">
+            <span>💾 Sync Sekarang</span>
+        </button>
+        
+        <div id="result"></div>
+    </div>
+
+    <script>
+        // Set default date to today
+        const dateInput = document.getElementById('syncDate');
+        const today = new Date().toISOString().split('T')[0];
+        dateInput.value = today;
+
+        const syncBtn = document.getElementById('syncBtn');
+        const resultDiv = document.getElementById('result');
+
+        syncBtn.addEventListener('click', async () => {
+            const date = dateInput.value;
+            if (!date) {
+                alert('Silakan pilih tanggal!');
+                return;
+            }
+
+            // Set loading state
+            syncBtn.disabled = true;
+            syncBtn.innerHTML = '<span class="loader"></span> <span>Sedang Sinkron...</span>';
+            resultDiv.style.display = 'none';
+
+            try {
+                // Initial load
+                if (!window.supabaseClient) {
+                    await initSupabase();
+                }
+
+                const result = await MTASetoranSync.syncDate(date);
+                
+                if (result.success) {
+                    resultDiv.className = 'success-box';
+                    let content = `
+                        <strong>✅ Sinkronisasi Berhasil!</strong><br>
+                        • Total Data API: <strong>${result.processed}</strong><br>
+                        • Berhasil Dicocokkan: <strong>${result.matched}</strong><br>
+                        • Data Baru Dibuat: <strong>${result.created}</strong><br>
+                        • Data Dilewati (Duplikat): <strong>${result.skipped}</strong>
+                    `;
+                    
+                    if (result.logs && result.logs.length > 0) {
+                        content += `<div class="logs">${result.logs.join('\n')}</div>`;
+                    }
+                    
+                    resultDiv.innerHTML = content;
+                } else {
+                    resultDiv.className = 'error-box';
+                    resultDiv.innerHTML = `<strong>❌ Gagal!</strong><br>${result.error}`;
+                }
+            } catch (err) {
+                resultDiv.className = 'error-box';
+                resultDiv.innerHTML = `<strong>❌ Terjadi Kesalahan!</strong><br>${err.message}`;
+            } finally {
+                syncBtn.disabled = false;
+                syncBtn.innerHTML = '<span>💾 Sync Sekarang</span>';
+                resultDiv.style.display = 'block';
+            }
+        });
+
+        // Initialize Supabase on load
+        window.addEventListener('load', async () => {
+            if (typeof initSupabase === 'function') {
+                await initSupabase();
+                console.log('Supabase Initialized');
+            }
+        });
+    </script>
+</body>
+</html>

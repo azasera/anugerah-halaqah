@@ -256,7 +256,7 @@
                     <span class="font-semibold text-sm">Aturan Poin</span>
                 </button>
 
-                <a href="dashboard.html"
+                <a href="index.html"
                     class="sidebar-menu-item w-full flex items-center gap-3 px-3 py-3 rounded-lg text-left hover:no-underline text-primary-600 hover:text-primary-700"
                     data-sidebar-section="login">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -264,7 +264,7 @@
                             d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1">
                         </path>
                     </svg>
-                    <span class="font-semibold text-sm">Masuk Dashboard</span>
+                    <span class="font-semibold text-sm">Beranda / Login</span>
                 </a>
 
                 <button onclick="scrollToSection('absensi')"
@@ -300,8 +300,9 @@
 
             <!-- Settings -->
             <div class="mt-4 pt-4 border-t border-slate-200">
-                <button id="sidebar-settings" onclick="showAdminSettings()"
-                    class="sidebar-menu-item w-full flex items-center gap-3 px-3 py-3 rounded-lg text-left text-slate-600 hover:text-primary-600 hover:bg-slate-50 transition-colors">
+                <button id="sidebar-settings" type="button" onclick="showAdminSettings()"
+                    class="sidebar-menu-item w-full flex items-center gap-3 px-3 py-3 rounded-lg text-left text-slate-600 hover:text-primary-600 hover:bg-slate-50 transition-colors"
+                    data-sidebar-section="settings">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z">
@@ -492,11 +493,23 @@
                 <!-- Halaqah Content (Re-uses existing ID but managed in new layout) -->
                 <div id="ranking-halaqah-content" class="col-span-12">
                     <section id="halaqah" class="space-y-6">
-                        <div class="flex items-center justify-between">
-                            <h3 class="font-display font-bold text-2xl text-slate-800 flex items-center gap-2">
+                        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <h3 class="font-display font-bold text-2xl text-slate-800 flex items-center gap-2 shrink-0">
                                 <span class="w-2 h-8 bg-primary-500 rounded-full"></span>
                                 Ranking Halaqah
                             </h3>
+                            <div class="relative w-full sm:max-w-xs">
+                                <input type="search" id="halaqahSearch" placeholder="Cari halaqah atau guru..."
+                                    aria-label="Cari halaqah atau guru"
+                                    autocomplete="off"
+                                    class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all glass text-sm"
+                                    enterkeyhint="search">
+                                <svg class="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+                                    fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                </svg>
+                            </div>
                         </div>
 
                         <div id="halaqahRankings" class="space-y-4">
@@ -695,14 +708,15 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <script src="js/settings.js"></script>
-    <script src="js/data.js?v=13"></script>
+    <script src="js/data.js?v=14"></script>
     <script src="js/supabase.js?v=16"></script>
     <script src="js/auth.js?v=2"></script>
     <script src="js/setoran-harian.js"></script>
+    <script src="js/mta-setoran-sync.js?v=2"></script>
     <script src="js/setoran-integration.js?v=12"></script>
     <script src="js/debug.js"></script>
     <script src="js/reset-data.js?v=8"></script>
-    <script src="js/ui.js?v=13"></script>
+    <script src="js/ui.js?v=16"></script>
     <script src="js/slider.js?v=13"></script>
     <script src="js/modal.js?v=9"></script>
     <script src="js/forms.js?v=8"></script>

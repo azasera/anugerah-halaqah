@@ -124,7 +124,7 @@ function showAdminSettings() {
                     </div>` : ''}
                 </div>
                 <div class="flex gap-2">
-                    <button onclick='closeModal(); showEditStudentForm(${studentJson}, true)' 
+                    <button onclick='showEditStudentForm(${studentJson}, true)' 
                         class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Edit">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
@@ -150,7 +150,7 @@ function showAdminSettings() {
                     <div class="text-xs text-slate-500">${halaqah.members} anggota • ${halaqah.points} poin • Rank #${halaqah.rank}</div>
                 </div>
                 <div class="flex gap-2">
-                    <button onclick='closeModal(); showEditHalaqahForm(${halaqahJson})' 
+                    <button onclick='showEditHalaqahForm(${halaqahJson})' 
                         class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Edit">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
@@ -331,7 +331,7 @@ function showAdminSettings() {
                                 class="px-4 py-2 bg-green-600 text-white rounded-lg font-bold hover:bg-green-700 transition-colors text-sm">
                                 ➕ Tambah Massal
                             </button>
-                            <button onclick="closeModal(); showAddStudentForm()" 
+                            <button onclick="showAddStudentForm()" 
                                 class="px-4 py-2 bg-primary-600 text-white rounded-lg font-bold hover:bg-primary-700 transition-colors text-sm">
                                 ➕ Tambah Santri
                             </button>
@@ -401,7 +401,7 @@ function showAdminSettings() {
                                 class="px-4 py-2 bg-green-600 text-white rounded-lg font-bold hover:bg-green-700 transition-colors text-sm">
                                 ➕ Tambah Massal
                             </button>
-                            <button onclick="closeModal(); showAddHalaqahForm()" 
+                            <button onclick="showAddHalaqahForm()" 
                                 class="px-4 py-2 bg-accent-teal text-white rounded-lg font-bold hover:bg-accent-teal/90 transition-colors text-sm">
                                 ➕ Tambah Halaqah
                             </button>
@@ -459,7 +459,7 @@ function showAdminSettings() {
                     </div>
                     
                     <div class="space-y-3">
-                        <button onclick="closeModal(); showPenaltyReport()" 
+                        <button onclick="showPenaltyReport()" 
                             class="w-full flex items-center justify-center gap-3 p-4 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-colors">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
@@ -496,7 +496,7 @@ function showAdminSettings() {
                     <h3 class="font-bold text-xl text-slate-800 mb-4">Import & Export Data</h3>
                     
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                        <button onclick="closeModal(); showImportExcel()" 
+                        <button onclick="showImportExcel()" 
                             class="flex flex-col items-center gap-3 p-6 bg-green-50 border-2 border-green-200 rounded-2xl hover:bg-green-100 transition-colors">
                             <svg class="w-12 h-12 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
@@ -577,7 +577,7 @@ function showAdminSettings() {
                                 🧹 Hapus Poin Negatif (Fix)
                             </button>
                             
-                            <button onclick="closeModal(); showResetDataModal()" 
+                            <button onclick="showResetDataModal()" 
                                 class="w-full bg-red-600 text-white px-4 py-3 rounded-lg font-bold hover:bg-red-700 transition-colors flex items-center justify-center gap-2">
                                 🔧 Reset Data Lengkap
                             </button>
@@ -618,6 +618,10 @@ function showAdminSettings() {
     `;
 
     createModal(content, false);
+
+    if (typeof window.updateActiveNavigation === 'function') {
+        window.updateActiveNavigation('settings');
+    }
 }
 
 // Render Admin Settings Inline (not modal)
@@ -1671,7 +1675,7 @@ function updateAdminSantriList() {
                     <div class="text-xs text-slate-500">Halaqah ${student.halaqah} • ${student.total_points} poin • Rank #${student.overall_ranking}</div>
                 </div>
                 <div class="flex gap-2">
-                    <button onclick='closeModal(); showEditStudentForm(${studentJson}, true)' 
+                    <button onclick='showEditStudentForm(${studentJson}, true)' 
                         class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Edit">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
@@ -1727,7 +1731,7 @@ function updateAdminHalaqahList() {
                     <div class="text-xs text-slate-500">${halaqah.members} anggota • ${halaqah.points} poin • Rank #${halaqah.rank}</div>
                 </div>
                 <div class="flex gap-1 flex-shrink-0">
-                    <button onclick='closeModal(); showEditHalaqahForm(${halaqahJson})'
+                    <button onclick='showEditHalaqahForm(${halaqahJson})'
                         class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Edit">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>

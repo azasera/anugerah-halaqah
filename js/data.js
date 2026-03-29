@@ -87,26 +87,101 @@ function filterStudents(searchTerm, halaqahFilter = 'all', lembagaFilter = 'all'
     }
 
     if (lembagaFilter !== 'all') {
+        const key = lembagaFilter.toUpperCase();
+
         if (lembagaFilter.startsWith('SDITA_')) {
             const parts = lembagaFilter.split('_');
             const kelasTarget = parts.length > 1 ? parseInt(parts[1], 10) : null;
 
             filtered = filtered.filter(s => {
-                const lembaga = (s.lembaga || '').toUpperCase().trim();
-                if (lembaga !== 'SDITA') return false;
+                let sLembaga = (s.lembaga || '').toUpperCase().trim();
+                const sKelas = (s.kelas || '').toString().toLowerCase();
+                const sHalaqah = (s.halaqah || '').toString().toLowerCase();
+
+                // 1. Detect from halaqah name
+                if (!sLembaga) {
+                    const h = sHalaqah.toLowerCase();
+                    if (h.includes('sdita')) sLembaga = 'SDITA';
+                    else if (h.includes('smpita')) sLembaga = 'SMPITA';
+                    else if (h.includes('smaita') || h.includes('sma')) sLembaga = 'SMAITA';
+                    else if (h.includes('mta')) sLembaga = 'MTA';
+                    else {
+                        // Detect by grade numbers in halaqah name
+                        const match = h.match(/\b(10|11|12)[abcde]?\b/i);
+                        if (match) sLembaga = 'SMAITA';
+                        else if (h.match(/\b(7|8|9)[abcde]?\b/i)) sLembaga = 'SMPITA';
+                        else if (h.match(/\b(1|2|3|4|5|6)[abcde]?\b/i)) sLembaga = 'SDITA';
+                    }
+                }
+
+                // 2. Detect from kelas
+                if (!sLembaga) {
+                    const k = sKelas.toLowerCase();
+                    if (k.includes('sdita')) sLembaga = 'SDITA';
+                    else if (k.includes('smpita')) sLembaga = 'SMPITA';
+                    else if (k.includes('smaita') || k.includes('sma')) sLembaga = 'SMAITA';
+                    else if (k.includes('mta')) sLembaga = 'MTA';
+                    else {
+                        // Detect by grade numbers
+                        const match = k.match(/\b(10|11|12)\b/);
+                        if (match) sLembaga = 'SMAITA';
+                        else if (k.match(/\b(7|8|9)\b/)) sLembaga = 'SMPITA';
+                        else if (k.match(/\b(1|2|3|4|5|6)\b/)) sLembaga = 'SDITA';
+                    }
+                }
+
+                if (sLembaga !== 'SDITA') return false;
 
                 if (!kelasTarget || Number.isNaN(kelasTarget)) return true;
 
-                const kelasRaw = (s.kelas || '').toString().toLowerCase();
-                const match = kelasRaw.match(/\d+/);
+                const match = sKelas.match(/\d+/);
                 const kelasNum = match ? parseInt(match[0], 10) : null;
 
                 return kelasNum === kelasTarget;
             });
         } else {
             filtered = filtered.filter(s => {
-                const lembaga = (s.lembaga || '').toUpperCase().trim();
-                return lembaga === lembagaFilter.toUpperCase();
+                let sLembaga = (s.lembaga || '').toUpperCase().trim();
+                const sKelas = (s.kelas || '').toString().toLowerCase();
+                const sHalaqah = (s.halaqah || '').toString().toLowerCase();
+
+                // 1. Detect from halaqah name
+                if (!sLembaga) {
+                    const h = sHalaqah.toLowerCase();
+                    if (h.includes('sdita')) sLembaga = 'SDITA';
+                    else if (h.includes('smpita')) sLembaga = 'SMPITA';
+                    else if (h.includes('smaita') || h.includes('sma')) sLembaga = 'SMAITA';
+                    else if (h.includes('mta')) sLembaga = 'MTA';
+                    else {
+                        // Detect by grade numbers in halaqah name
+                        const match = h.match(/\b(10|11|12)[abcde]?\b/i);
+                        if (match) sLembaga = 'SMAITA';
+                        else if (h.match(/\b(7|8|9)[abcde]?\b/i)) sLembaga = 'SMPITA';
+                        else if (h.match(/\b(1|2|3|4|5|6)[abcde]?\b/i)) sLembaga = 'SDITA';
+                    }
+                }
+
+                // 2. Detect from kelas
+                if (!sLembaga) {
+                    const k = sKelas.toLowerCase();
+                    if (k.includes('sdita')) sLembaga = 'SDITA';
+                    else if (k.includes('smpita')) sLembaga = 'SMPITA';
+                    else if (k.includes('smaita') || k.includes('sma')) sLembaga = 'SMAITA';
+                    else if (k.includes('mta')) sLembaga = 'MTA';
+                    else {
+                        // Detect by grade numbers
+                        const match = k.match(/\b(10|11|12)\b/);
+                        if (match) sLembaga = 'SMAITA';
+                        else if (k.match(/\b(7|8|9)\b/)) sLembaga = 'SMPITA';
+                        else if (k.match(/\b(1|2|3|4|5|6)\b/)) sLembaga = 'SDITA';
+                    }
+                }
+
+                // Kosong = MTA (sama seperti upsert Supabase) agar filter MTA konsisten
+                if (key === 'MTA') {
+                    return !sLembaga || sLembaga === 'MTA' || sLembaga.startsWith('MTA');
+                }
+                return sLembaga === key || sLembaga.startsWith(key);
             });
         }
     }

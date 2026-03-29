@@ -502,9 +502,17 @@ function handleAddStudent(event) {
     StorageManager.save();
     if (window.autoSync) autoSync();
 
-    closeModal();
+    // closeModal(); // Don't close modal, just refresh view
     refreshAllData();
     showNotification('✅ Santri berhasil ditambahkan!');
+    
+    // If we're in admin view, refresh the list
+    if (typeof showAdminSettings === 'function' && document.getElementById('detailModal')) {
+        showAdminSettings();
+        switchAdminTab('santri');
+    } else {
+        closeModal();
+    }
 }
 
 function handleEditStudent(event, studentId, fromAdmin = false) {
@@ -532,13 +540,15 @@ function handleEditStudent(event, studentId, fromAdmin = false) {
         StorageManager.save();
         if (window.autoSync) autoSync();
 
-        closeModal();
+        // closeModal(); // Don't close modal, just refresh view
         refreshAllData();
 
         if (fromAdmin) {
-            // Kembali ke admin settings
+            // Kembali ke admin settings tanpa menutup modal (flicker-free)
             showAdminSettings();
             switchAdminTab('santri');
+        } else {
+            closeModal();
         }
     }
 }
@@ -580,7 +590,14 @@ function handleAddHalaqah(event) {
     dashboardData.halaqahs.push(newHalaqah);
     StorageManager.save();
 
-    closeModal();
+    // If we're in admin view, refresh the list
+    if (typeof showAdminSettings === 'function' && document.getElementById('detailModal')) {
+        showAdminSettings();
+        switchAdminTab('halaqah');
+    } else {
+        closeModal();
+    }
+    
     refreshAllData();
     showNotification('✅ Halaqah baru berhasil ditambahkan!');
 }

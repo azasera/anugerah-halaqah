@@ -62,7 +62,26 @@ function getTargetHafalanJuz(student) {
 }
 
 function createModal(content, allowClickOutside = true) {
-    const modal = document.createElement('div');
+    let modal = document.getElementById('detailModal');
+    
+    if (modal) {
+        // If modal already exists, just update its content
+        const contentWrapper = modal.querySelector('.glass');
+        if (contentWrapper) {
+            contentWrapper.innerHTML = content;
+            // Also update allowClickOutside logic if needed
+            if (allowClickOutside) {
+                modal.onclick = (e) => {
+                    if (e.target === modal) closeModal();
+                };
+            } else {
+                modal.onclick = null;
+            }
+            return;
+        }
+    }
+
+    modal = document.createElement('div');
     modal.id = 'detailModal';
     modal.className = 'fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm';
 

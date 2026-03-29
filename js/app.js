@@ -1,5 +1,24 @@
 // Main Application Module
 
+/**
+ * Update active state for bottom nav (mobile) and sidebar (desktop).
+ * Scoped queries avoid matching wrong nodes and reduce work vs document-wide querySelectorAll.
+ */
+function updateActiveNavigation(section) {
+    const bottomNav = document.querySelector('nav.fixed.bottom-0');
+    if (bottomNav) {
+        bottomNav.querySelectorAll('.nav-item[data-section]').forEach((item) => item.classList.remove('active'));
+        bottomNav.querySelector(`.nav-item[data-section="${CSS.escape(section)}"]`)?.classList.add('active');
+    }
+    const aside = document.querySelector('aside');
+    if (aside) {
+        aside.querySelectorAll('.sidebar-menu-item[data-sidebar-section]').forEach((item) => item.classList.remove('active'));
+        aside.querySelector(`.sidebar-menu-item[data-sidebar-section="${CSS.escape(section)}"]`)?.classList.add('active');
+    }
+}
+
+window.updateActiveNavigation = updateActiveNavigation;
+
 // View Switching Function - must be defined early for onclick handlers
 function scrollToSection(section, subSection) {
     // Get target element first
@@ -186,20 +205,10 @@ function scrollToSection(section, subSection) {
                     break;
             }
 
-            // Update active nav item (mobile)
-            document.querySelectorAll('.nav-item').forEach(item => {
-                item.classList.remove('active');
-            });
-            document.querySelector(`[data-section="${section}"]`)?.classList.add('active');
+            updateActiveNavigation(section);
 
-            // Update active sidebar item (desktop)
-            document.querySelectorAll('.sidebar-menu-item').forEach(item => {
-                item.classList.remove('active');
-            });
-            document.querySelector(`[data-sidebar-section="${section}"]`)?.classList.add('active');
-
-            // Scroll to top of main content
-            window.scrollTo({ top: 0, behavior: 'instant' });
+            // Scroll to top of main content (instant)
+            window.scrollTo({ top: 0, behavior: 'auto' });
         });
     });
 }
@@ -213,6 +222,9 @@ function initSearchHandler() {
         searchInput.addEventListener('input', (e) => {
             renderSantri(e.target.value);
         });
+    }
+    if (typeof initHalaqahSearchHandler === 'function') {
+        initHalaqahSearchHandler();
     }
 }
 
@@ -283,6 +295,15 @@ function initApp() {
                     console.warn('⚠️ fixNegativePoints function not found');
                 }
             }, 3000); // Run 3 seconds after load to ensure everything is ready
+
+            // MTA setoran harian: sync sekali per hari untuk admin/guru (setelah data siap)
+            setTimeout(() => {
+                if (window.MTASetoranSync && typeof window.MTASetoranSync.runAutoSyncIfNeeded === 'function') {
+                    window.MTASetoranSync.runAutoSyncIfNeeded().catch((e) => {
+                        console.warn('[MTA-SYNC] auto:', e);
+                    });
+                }
+            }, 5500);
 
             // Auto-save to localStorage as backup
             setInterval(() => {
