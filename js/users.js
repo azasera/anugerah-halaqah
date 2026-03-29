@@ -1,28 +1,25 @@
 // User Management Module
 
-// Default users data
+// Default users data (must be on window so loadUsersFromSupabase can merge Supabase profiles)
 const usersData = {
     users: []
 };
+window.usersData = usersData;
 
 // Load users from localStorage
 async function loadUsers() {
-    // First, try to load from Supabase if available
-    if (window.loadUsersFromSupabase && navigator.onLine) {
+    // Prefer Supabase when client exists (same data as deploy); avoids stale single-user localhost cache
+    if (window.loadUsersFromSupabase && navigator.onLine && window.supabaseClient) {
         try {
             await window.loadUsersFromSupabase();
-            // Data already loaded and saved to localStorage by loadUsersFromSupabase
-            // Now read from localStorage to populate usersData
-            const saved = localStorage.getItem('usersData');
-            if (saved) {
-                const data = JSON.parse(saved);
-                usersData.users = data.users || [];
-                console.log('[USERS] Loaded from Supabase:', usersData.users.length, 'users');
-                return;
-            }
+            // loadUsersFromSupabase assigns window.usersData.users and localStorage
+            console.log('[USERS] Loaded from Supabase:', usersData.users.length, 'users');
+            return;
         } catch (error) {
             console.error('[USERS] Error loading from Supabase, falling back to localStorage:', error);
         }
+    } else if (navigator.onLine && !window.supabaseClient) {
+        console.warn('[USERS] Supabase client belum siap — pakai cache lokal dulu; akan disegarkan setelah init.');
     }
 
     // Fallback: Load from localStorage only
@@ -55,6 +52,31 @@ async function loadUsers() {
 function saveUsers() {
     localStorage.setItem('usersData', JSON.stringify(usersData));
 }
+
+/** Tarik ulang daftar dari Supabase (sama seperti deploy); berguna jika cache lokal hanya 1 akun */
+async function refreshUsersFromServer() {
+    if (!window.supabaseClient) {
+        if (typeof showNotification === 'function') {
+            showNotification('❌ Koneksi Supabase tidak tersedia (cek jaringan / CDN)', 'error');
+        }
+        return;
+    }
+    try {
+        if (typeof showNotification === 'function') {
+            showNotification('🔄 Memuat daftar user dari server…', 'info');
+        }
+        await window.loadUsersFromSupabase();
+        if (typeof showNotification === 'function') {
+            showNotification(`✅ Daftar diperbarui (${usersData.users.length} akun)`, 'success');
+        }
+    } catch (e) {
+        console.error('[USERS] refreshUsersFromServer:', e);
+        if (typeof showNotification === 'function') {
+            showNotification('❌ Gagal memuat dari server: ' + (e.message || String(e)), 'error');
+        }
+    }
+}
+window.refreshUsersFromServer = refreshUsersFromServer;
 
 // Render user management UI (mobile-first)
 function renderUserManagement() {
@@ -159,10 +181,16 @@ function renderUserManagement() {
                     </h3>
                     <p class="text-sm text-slate-500 mt-1">Kelola akses pengguna sistem</p>
                 </div>
-                <button onclick="showAddUserForm()" 
-                    class="w-full md:w-auto px-4 py-3 bg-primary-600 text-white rounded-xl font-bold hover:bg-primary-700 transition-colors shadow-lg shadow-primary-200">
-                    ➕ Tambah User
-                </button>
+                <div class="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
+                    <button type="button" onclick="refreshUsersFromServer()"
+                        class="w-full sm:w-auto px-4 py-3 bg-slate-100 text-slate-800 border border-slate-200 rounded-xl font-bold hover:bg-slate-200 transition-colors">
+                        🔄 Muat dari server
+                    </button>
+                    <button onclick="showAddUserForm()"
+                        class="w-full sm:w-auto px-4 py-3 bg-primary-600 text-white rounded-xl font-bold hover:bg-primary-700 transition-colors shadow-lg shadow-primary-200">
+                        ➕ Tambah User
+                    </button>
+                </div>
             </div>
             
             <!-- Search & Filter -->

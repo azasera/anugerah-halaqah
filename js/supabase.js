@@ -592,18 +592,15 @@ async function loadUsersFromSupabase() {
             });
         }
 
-        // 4. Update Global State
+        // 4. Update Global State + localStorage (always persist so localhost cache matches deploy)
         if (window.usersData) {
             window.usersData.users = allUsers;
-            
-            // Save to localStorage
-            localStorage.setItem('usersData', JSON.stringify(window.usersData));
-            console.log(`✅ Loaded ${allUsers.length} users from Supabase (Profiles + Local)`);
-            
-            // Refresh UI if needed
-            if (typeof renderUserManagement === 'function') {
-                renderUserManagement();
-            }
+        }
+        localStorage.setItem('usersData', JSON.stringify({ users: allUsers }));
+        console.log(`✅ Loaded ${allUsers.length} users from Supabase (Profiles + Local)`);
+
+        if (typeof renderUserManagement === 'function') {
+            renderUserManagement();
         }
 
         return allUsers;

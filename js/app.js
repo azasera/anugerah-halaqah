@@ -238,6 +238,11 @@ function initApp() {
     checkAuth().then(() => {
         // Initialize Supabase (optional, works without it)
         initSupabase().then(() => {
+            // Refresh user list from Supabase (profiles + local_users); requires window.usersData from users.js
+            if (typeof window.loadUsersFromSupabase === 'function' && navigator.onLine) {
+                window.loadUsersFromSupabase().catch((e) => console.warn('[app] loadUsersFromSupabase:', e));
+            }
+
             // Refresh parent-child link with fresh data
             if (typeof refreshUserChildLink === 'function') {
                 console.log('🔗 Refreshing parent-child link after Supabase init...');
