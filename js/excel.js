@@ -461,15 +461,39 @@ async function importFromJenjangApi(config) {
                 return { index, canImport: false, reason: 'Nama kosong', name, halaqahName: effectiveHalaqahShort, row };
             }
 
-            // Check if student already exists - by name only (nama santri harus unique)
-            const exists = dashboardData.students.some(s => {
-                if (!s) return false;
-                const sName = String(s.name || '').trim().toLowerCase();
-                return sName === name.toLowerCase();
-            });
+            // Map possible keys for profile fields (API often uses camelCase)
+            const mappedRow = {
+                ...row,
+                jenis_kelamin: row.jenis_kelamin || row.jenisKelamin || row.jk || row.gender || '',
+                tempat_lahir: row.tempat_lahir || row.tempatLahir || '',
+                tanggal_lahir: row.tanggal_lahir || row.tanggalLahir || row.tglLahir || '',
+                alamat: row.alamat || row.alamatLengkap || '',
+                hp: row.hp || row.noHp || row.whatsapp || '',
+                nama_ayah: row.nama_ayah || row.namaAyah || '',
+                nama_ibu: row.nama_ibu || row.namaIbu || '',
+                sekolah_asal: row.sekolah_asal || row.sekolahAsal || '',
+                nik: row.nik || row.noNik || '',
+                nisn: row.nisn || row.noNisn || ''
+            };
+
+            // Check if student already exists - by NISN first, then by name
+            let existingStudent = null;
+            const rowNisn = mappedRow.nisn ? String(mappedRow.nisn).trim() : '';
+            if (rowNisn) {
+                existingStudent = dashboardData.students.find(s =>
+                    s && s.nisn && String(s.nisn).trim() === rowNisn
+                );
+            }
+            if (!existingStudent) {
+                existingStudent = dashboardData.students.find(s => {
+                    if (!s) return false;
+                    const sName = String(s.name || '').trim().toLowerCase();
+                    return sName === name.toLowerCase();
+                });
+            }
+            const exists = !!existingStudent;
 
             // Cocokkan halaqah yang sudah ada (nama halaqah atau nama guru dari API)
-            let halaqahExists = false;
             let matchedHalaqah = null;
 
             if (effectiveHalaqahShort) {
@@ -497,34 +521,33 @@ async function importFromJenjangApi(config) {
                         return base === guruNameOnly || base.startsWith(guruNameOnly.split(' ')[0] || '');
                     });
                 }
-
-                halaqahExists = !!matchedHalaqah;
             }
 
-            let reason = '';
-            let canImport = false;
-            if (exists) {
-                reason = 'Sudah ada di sistem';
-            } else if (!effectiveHalaqahShort) {
-                reason = 'Nama halaqah / guru kosong di data API';
-            } else {
-                canImport = true;
-                reason = halaqahExists ? 'Siap diimport' : 'Halaqah akan dibuat otomatis saat import';
-            }
-
+            const halaqahExists = !!matchedHalaqah;
             const studentHalaqahShort = matchedHalaqah
                 ? matchedHalaqah.name.replace(/^Halaqah\s+/i, '').trim()
                 : effectiveHalaqahShort;
 
+            let reason = '';
+            if (existingStudent) {
+                const isMissingData = !existingStudent.nik || !existingStudent.tanggal_lahir || !existingStudent.jenis_kelamin;
+                reason = isMissingData ? 'Sudah ada (Data kurang, akan diupdate)' : 'Sudah ada di sistem (akan diupdate)';
+            } else if (!studentHalaqahShort) {
+                reason = 'Nama halaqah / guru kosong di data API';
+            } else {
+                reason = halaqahExists ? 'Siap diimport' : 'Halaqah akan dibuat otomatis saat import';
+            }
+
             return {
                 index,
-                row,
+                row: mappedRow,
                 name,
                 halaqahName: studentHalaqahShort,
                 guruHalaqoh,
-                exists,
+                exists: !!existingStudent,
+                existingStudentId: existingStudent ? existingStudent.id : null,
                 halaqahExists,
-                canImport,
+                canImport: !!studentHalaqahShort, // Allow import/update even if exists
                 reason
             };
         });
@@ -843,12 +866,12 @@ function showSdApiImportPreview() {
         const disabledAttr = selectable ? '' : 'disabled';
         const checkedAttr = selectable ? 'checked' : '';
         const status = item.reason || (selectable ? 'Siap diimport' : 'Tidak dapat diimport');
-        const statusColor = selectable ? 'text-emerald-700' : 'text-slate-500';
+        const statusColor = selectable ? (item.exists ? 'text-blue-700' : 'text-emerald-700') : 'text-slate-500';
         let badge = 'bg-emerald-100 text-emerald-700';
         let badgeText = 'Baru';
         if (item.exists) {
-            badge = 'bg-slate-100 text-slate-700';
-            badgeText = 'Sudah Ada';
+            badge = 'bg-blue-100 text-blue-700';
+            badgeText = 'Update';
         } else if (selectable && !item.halaqahExists) {
             badge = 'bg-amber-100 text-amber-800';
             badgeText = 'Buat halaqah';
@@ -973,40 +996,66 @@ function confirmSdApiImport() {
         if (!item || !item.canImport || !item.row) return;
         const row = item.row;
         const name = item.name;
-        const kelasStr = row.kelas ? String(row.kelas).trim() : '';
-        const santriHalaqah = ensureHalaqahForApiImport(
-            item.halaqahName,
-            item.guruHalaqoh || '',
-            kelasStr
-        );
-        if (!santriHalaqah) return;
+        
+        // Normalize Gender to L/P if possible
+        let jk = row.jenis_kelamin ? String(row.jenis_kelamin).trim() : '';
+        if (jk.toLowerCase().startsWith('l')) jk = 'L';
+        else if (jk.toLowerCase().startsWith('p')) jk = 'P';
 
-        dashboardData.students.push({
-            id: nextId++,
-            name: name,
-            halaqah: santriHalaqah,
-            nisn: row.nisn ? String(row.nisn).trim() : '',
-            nik: row.nik ? String(row.nik).trim() : '',
-            lembaga: (row.lembaga && String(row.lembaga).trim()) || sdApiDefaultLembaga,
-            kelas: row.kelas ? String(row.kelas).trim() : '',
-            jenis_kelamin: row.jenis_kelamin ? String(row.jenis_kelamin).trim() : '',
-            tempat_lahir: row.tempat_lahir ? String(row.tempat_lahir).trim() : '',
-            tanggal_lahir: row.tanggal_lahir ? String(row.tanggal_lahir).trim() : '',
-            alamat: row.alamat ? String(row.alamat).trim() : '',
-            hp: row.hp ? String(row.hp).trim() : '',
-            nama_ayah: row.nama_ayah ? String(row.nama_ayah).trim() : '',
-            nama_ibu: row.nama_ibu ? String(row.nama_ibu).trim() : '',
-            sekolah_asal: row.sekolah_asal ? String(row.sekolah_asal).trim() : '',
-            total_points: 0,
-            daily_ranking: dashboardData.students.length + 1,
-            overall_ranking: dashboardData.students.length + 1,
-            streak: 0,
-            lastActivity: 'Baru ditambahkan',
-            achievements: [],
-            setoran: [],
-            lastSetoranDate: ''
-        });
-        created++;
+        if (item.exists && item.existingStudentId) {
+            // UPDATE existing student - overwrite semua field dari API
+            const existing = dashboardData.students.find(s => s.id === item.existingStudentId);
+            if (existing) {
+                if (row.nisn && String(row.nisn).trim()) existing.nisn = String(row.nisn).trim();
+                if (row.nik && String(row.nik).trim()) existing.nik = String(row.nik).trim();
+                if (jk) existing.jenis_kelamin = jk;
+                if (row.tempat_lahir && String(row.tempat_lahir).trim()) existing.tempat_lahir = String(row.tempat_lahir).trim();
+                if (row.tanggal_lahir && String(row.tanggal_lahir).trim()) existing.tanggal_lahir = String(row.tanggal_lahir).trim();
+                if (row.alamat && String(row.alamat).trim()) existing.alamat = String(row.alamat).trim();
+                if (row.hp && String(row.hp).trim()) existing.hp = String(row.hp).trim();
+                if (row.nama_ayah && String(row.nama_ayah).trim()) existing.nama_ayah = String(row.nama_ayah).trim();
+                if (row.nama_ibu && String(row.nama_ibu).trim()) existing.nama_ibu = String(row.nama_ibu).trim();
+                if (row.sekolah_asal && String(row.sekolah_asal).trim()) existing.sekolah_asal = String(row.sekolah_asal).trim();
+                
+                console.log(`[IMPORT API] Updated data for existing student: ${name}`);
+            }
+        } else {
+            // CREATE new student
+            const kelasStr = row.kelas ? String(row.kelas).trim() : '';
+            const santriHalaqah = ensureHalaqahForApiImport(
+                item.halaqahName,
+                item.guruHalaqoh || '',
+                kelasStr
+            );
+            if (!santriHalaqah) return;
+
+            dashboardData.students.push({
+                id: nextId++,
+                name: name,
+                halaqah: santriHalaqah,
+                nisn: row.nisn ? String(row.nisn).trim() : '',
+                nik: row.nik ? String(row.nik).trim() : '',
+                lembaga: (row.lembaga && String(row.lembaga).trim()) || sdApiDefaultLembaga,
+                kelas: row.kelas ? String(row.kelas).trim() : '',
+                jenis_kelamin: jk,
+                tempat_lahir: row.tempat_lahir ? String(row.tempat_lahir).trim() : '',
+                tanggal_lahir: row.tanggal_lahir ? String(row.tanggal_lahir).trim() : '',
+                alamat: row.alamat ? String(row.alamat).trim() : '',
+                hp: row.hp ? String(row.hp).trim() : '',
+                nama_ayah: row.nama_ayah ? String(row.nama_ayah).trim() : '',
+                nama_ibu: row.nama_ibu ? String(row.nama_ibu).trim() : '',
+                sekolah_asal: row.sekolah_asal ? String(row.sekolah_asal).trim() : '',
+                total_points: 0,
+                daily_ranking: dashboardData.students.length + 1,
+                overall_ranking: dashboardData.students.length + 1,
+                streak: 0,
+                lastActivity: 'Baru ditambahkan',
+                achievements: [],
+                setoran: [],
+                lastSetoranDate: ''
+            });
+            created++;
+        }
     });
 
     if (created > 0) {
@@ -1078,7 +1127,25 @@ function confirmSdApiImport() {
     sdApiImportData = null;
 }
 
-function handleExcelUpload(event) {
+// Direct Upload Helper (without intermediate modal)
+function triggerDirectExcelUpload() {
+    let input = document.getElementById('directExcelInput');
+    if (!input) {
+        input = document.createElement('input');
+        input.type = 'file';
+        input.id = 'directExcelInput';
+        input.className = 'hidden';
+        input.accept = '.xlsx, .xls';
+        input.onchange = (e) => handleExcelUpload(e);
+        document.body.appendChild(input);
+    }
+    input.value = ''; // Reset to allow re-upload of same file
+    input.click();
+}
+
+window.triggerDirectExcelUpload = triggerDirectExcelUpload;
+
+async function handleExcelUpload(event) {
     if (typeof XLSX === 'undefined') {
         showNotification('❌ Library Excel belum dimuat. Periksa koneksi internet.', 'error');
         return;
@@ -1144,52 +1211,92 @@ function processExcelData(data) {
         return;
     }
 
-    // Map column indices with flexible matching
-    const findCol = (keywords) => headers.findIndex(h => {
+    // findColExact: cocokkan header yang persis sama dengan salah satu keyword (setelah trim+lowercase)
+    const findColExact = (keywords) => headers.findIndex(h => {
         if (!h) return false;
-        const headerStr = h.toString().toLowerCase();
+        const headerStr = h.toString().toLowerCase().trim();
+        return keywords.some(k => headerStr === k);
+    });
+
+    // findColContains: cocokkan header yang mengandung keyword (fallback)
+    const findColContains = (keywords) => headers.findIndex(h => {
+        if (!h) return false;
+        const headerStr = h.toString().toLowerCase().trim();
         return keywords.some(k => headerStr.includes(k));
     });
 
     const colMap = {
-        halaqah: findCol(['nama halaqah', 'halaqah', 'kelompok']),
-        guru: findCol(['guru', 'ustadz', 'musyrif', 'pembimbing']),
-        kelas: findCol(['kelas', 'tingkat']),
-        santri: headers.findIndex(h => {
-            if (!h) return false;
-            const str = h.toString().toLowerCase();
-            // Specific keywords
-            if (['nama santri', 'nama lengkap', 'nama siswa', 'santri', 'siswa', 'murid'].some(k => str.includes(k))) return true;
-            // Generic 'nama' but exclude conflicting columns
-            if (str.includes('nama') &&
-                !str.includes('halaqah') &&
-                !str.includes('guru') &&
-                !str.includes('ustadz') &&
-                !str.includes('ayah') &&
-                !str.includes('ibu') &&
-                !str.includes('wali') &&
-                !str.includes('sekolah')) return true;
-            return false;
-        }),
-        nisn: findCol(['nisn']),
-        nik: findCol(['nik', 'ktp']),
-        lembaga: findCol(['lembaga', 'sekolah', 'jenjang']),
-        alumni: findCol(['alumni', 'alumni/non alumni', 'alumni / non alumni', 'status alumni']),
-        // New fields
-        jenis_kelamin: findCol(['jenis kelamin', 'jk', 'l/p', 'gender']),
-        tempat_lahir: findCol(['tempat lahir']),
-        tanggal_lahir: findCol(['tanggal lahir', 'tgl lahir']),
-        // Combined TTL column support
-        ttl: findCol(['ttl', 'tempat tanggal lahir', 'tempat, tanggal lahir']),
-        alamat: findCol(['alamat']),
-        hp: findCol(['hp', 'no hp', 'wa', 'whatsapp', 'telepon']),
-        nama_ayah: findCol(['nama ayah', 'ayah']),
-        nama_ibu: findCol(['nama ibu', 'ibu']),
-        sekolah_asal: findCol(['sekolah asal', 'asal sekolah'])
+        halaqah: findColContains(['nama halaqah', 'halaqah', 'kelompok']),
+        guru: findColContains(['guru halaqah', 'ustadz halaqah', 'musyrif', 'pembimbing']),
+        kelas: findColExact(['kelas', 'tingkat']) !== -1
+            ? findColExact(['kelas', 'tingkat'])
+            : findColContains(['kelas', 'tingkat']),
+        santri: (() => {
+            // Prioritas: exact match dulu
+            const exactIdx = findColExact(['nama santri', 'nama lengkap', 'nama siswa', 'nama murid', 'santri', 'siswa', 'murid']);
+            if (exactIdx !== -1) return exactIdx;
+            // Fallback: contains, tapi exclude kolom yang bukan nama santri
+            return headers.findIndex(h => {
+                if (!h) return false;
+                const str = h.toString().toLowerCase().trim();
+                if (['nama santri', 'nama lengkap', 'nama siswa', 'santri', 'siswa', 'murid'].some(k => str.includes(k))) return true;
+                if (str === 'nama') return true;
+                return false;
+            });
+        })(),
+        nisn: (() => {
+            // Prioritas NISN dulu, baru NIS
+            const nisnIdx = findColExact(['nisn']);
+            if (nisnIdx !== -1) return nisnIdx;
+            const nisnContains = findColContains(['nisn']);
+            if (nisnContains !== -1) return nisnContains;
+            return findColExact(['nis']);
+        })(),
+        nik: findColExact(['nik']) !== -1
+            ? findColExact(['nik'])
+            : findColContains(['no nik', 'nomor nik', 'ktp']),
+        lembaga: findColExact(['lembaga', 'jenjang']) !== -1
+            ? findColExact(['lembaga', 'jenjang'])
+            : findColContains(['lembaga', 'jenjang']),
+        alumni: findColContains(['alumni/non alumni', 'alumni / non alumni', 'status alumni', 'alumni']),
+        jenis_kelamin: findColContains(['jenis kelamin', 'jenis_kelamin', 'l/p', 'gender']),
+        tempat_lahir: findColExact(['tempat lahir', 'tempat_lahir']) !== -1
+            ? findColExact(['tempat lahir', 'tempat_lahir'])
+            : findColContains(['tempat lahir']),
+        tanggal_lahir: findColExact(['tanggal lahir', 'tgl lahir', 'tanggal_lahir']) !== -1
+            ? findColExact(['tanggal lahir', 'tgl lahir', 'tanggal_lahir'])
+            : findColContains(['tanggal lahir', 'tgl lahir']),
+        ttl: findColContains(['ttl', 'tempat tanggal lahir', 'tempat, tanggal lahir']),
+        alamat: findColExact(['alamat']) !== -1
+            ? findColExact(['alamat'])
+            : findColContains(['alamat']),
+        hp: (() => {
+            // Coba exact dulu (termasuk "HP Ortu"), lalu contains
+            const exact = findColExact(['hp ortu', 'hp orang tua', 'no hp ortu', 'no. hp ortu', 'hp', 'no hp', 'no. hp', 'nohp', 'whatsapp', 'wa', 'telepon', 'telp']);
+            if (exact !== -1) return exact;
+            return findColContains(['hp ortu', 'hp orang tua', 'no hp', 'whatsapp', 'telepon', 'telp', 'hp']);
+        })(),
+        nama_ayah: findColExact(['nama ayah', 'nama_ayah']) !== -1
+            ? findColExact(['nama ayah', 'nama_ayah'])
+            : findColContains(['nama ayah']),
+        nama_ibu: findColExact(['nama ibu', 'nama_ibu']) !== -1
+            ? findColExact(['nama ibu', 'nama_ibu'])
+            : findColContains(['nama ibu']),
+        sekolah_asal: findColContains(['sekolah asal', 'asal sekolah', 'sekolah_asal'])
     };
+
+    // Fallback: jika guru belum ketemu, coba keyword lebih luas
+    if (colMap.guru === -1) {
+        colMap.guru = findColContains(['guru', 'ustadz', 'ustadzah']);
+    }
 
     console.log('[DEBUG] Column mapping:', colMap);
     console.log('[DEBUG] Tanggal Lahir column index:', colMap.tanggal_lahir);
+    // Log header yang tidak terpetakan untuk membantu debug
+    headers.forEach((h, i) => {
+        const mapped = Object.entries(colMap).find(([, v]) => v === i);
+        if (!mapped && h) console.log(`[DEBUG] Header tidak terpetakan - index ${i}: "${h}"`);
+    });
 
     // Helper to format date
     const formatDate = (dateVal) => {
@@ -1268,8 +1375,8 @@ function processExcelData(data) {
             return; // Skip empty/invalid name rows
         }
 
-        const halaqahName = row[colMap.halaqah] ? String(row[colMap.halaqah]).trim() : 'Unknown';
-        const guruName = row[colMap.guru] || 'Unknown';
+        const halaqahName = (colMap.halaqah !== -1 && row[colMap.halaqah]) ? String(row[colMap.halaqah]).trim() : '';
+        const guruName = (colMap.guru !== -1 && row[colMap.guru]) ? String(row[colMap.guru]).trim() : '';
         const kelas = row[colMap.kelas] || '';
         const nisn = (colMap.nisn !== -1 && row[colMap.nisn]) ? String(row[colMap.nisn]).trim() : '';
 
@@ -1282,7 +1389,7 @@ function processExcelData(data) {
         }
 
         // Add halaqah - only if halaqah info is present
-        if (halaqahName !== 'Unknown' && !halaqahs.has(halaqahName)) {
+        if (halaqahName && !halaqahs.has(halaqahName)) {
             halaqahs.set(halaqahName, {
                 name: `Halaqah ${halaqahName}`,
                 guru: guruName,
@@ -1332,25 +1439,23 @@ function processExcelData(data) {
 
         // Add student data to processing list
         students.push({
-            rowNum: rowNum, // Store for error reporting later
+            rowNum: rowNum,
             name: String(santriName).trim(),
-            halaqah: halaqahName !== 'Unknown' ? halaqahName : '',
+            halaqah: halaqahName || '',
             nisn: nisn,
             nik: (colMap.nik !== -1 && row[colMap.nik]) ? String(row[colMap.nik]).trim() : '',
-            lembaga: (colMap.lembaga !== -1 ? row[colMap.lembaga] : '') || 'MTA',
+            lembaga: (colMap.lembaga !== -1 && row[colMap.lembaga]) ? String(row[colMap.lembaga]).trim() : 'MTA',
             kelas: kelas,
             // New fields
-            jenis_kelamin: (colMap.jenis_kelamin !== -1 && row[colMap.jenis_kelamin]) ? String(row[colMap.jenis_kelamin]).trim() : '',
+            jenis_kelamin: (() => {
+                let jk = (colMap.jenis_kelamin !== -1 && row[colMap.jenis_kelamin]) ? String(row[colMap.jenis_kelamin]).trim() : '';
+                if (jk.toLowerCase().startsWith('l')) return 'L';
+                if (jk.toLowerCase().startsWith('p')) return 'P';
+                return jk;
+            })(),
             tempat_lahir: derivedTempatLahir,
             tanggal_lahir: derivedTanggalLahir,
             alamat: (colMap.alamat !== -1 && row[colMap.alamat]) ? String(row[colMap.alamat]).trim() : '',
-
-            // Debug Log for TTL
-            _debug_ttl_raw: {
-                tempat: row[colMap.tempat_lahir],
-                tanggal: row[colMap.tanggal_lahir],
-                ttl_combined: ttlCombined
-            },
             hp: (colMap.hp !== -1 && row[colMap.hp]) ? String(row[colMap.hp]).trim() : '',
             nama_ayah: (colMap.nama_ayah !== -1 && row[colMap.nama_ayah]) ? String(row[colMap.nama_ayah]).trim() : '',
             nama_ibu: (colMap.nama_ibu !== -1 && row[colMap.nama_ibu]) ? String(row[colMap.nama_ibu]).trim() : '',
@@ -1359,7 +1464,7 @@ function processExcelData(data) {
             kategori: kategori
         });
 
-        if (halaqahName !== 'Unknown' && halaqahs.has(halaqahName)) {
+        if (halaqahName && halaqahs.has(halaqahName)) {
             halaqahs.get(halaqahName).members++;
         }
     });
@@ -1379,6 +1484,7 @@ function processExcelData(data) {
         duplicates: duplicates,
         metadata: {
             hasLembagaColumn: colMap.lembaga !== -1,
+            hasHalaqahColumn: colMap.halaqah !== -1,
             hasTTLCombined: colMap.ttl !== -1
         }
     };
@@ -1393,6 +1499,14 @@ function showPreview(data) {
     if (!preview || !content) return;
 
     let warningHtml = '';
+    if (data.metadata && !data.metadata.hasHalaqahColumn) {
+        warningHtml += `
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3 text-sm text-blue-800">
+                <strong>ℹ️ Tidak ada kolom Halaqah di file Excel.</strong>
+                <div class="mt-1">Santri akan diimport tanpa halaqah. Anda bisa assign halaqah secara manual setelah import, atau tambahkan kolom <strong>Nama Halaqah</strong> di file Excel.</div>
+            </div>
+        `;
+    }
     if (data.errors.length > 0) {
         warningHtml += `
             <div class="bg-red-50 border border-red-200 rounded-lg p-3 mb-3 text-sm text-red-800">
@@ -1493,318 +1607,203 @@ function levenshteinDistance(a, b) {
 }
 
 function confirmImport() {
-    if (!importedData) return;
-
-    let newHalaqahs = 0;
-    let updatedHalaqahs = 0;
-    let newStudents = 0;
-    let updatedStudents = 0;
-
-    // Calculate next ID for safe integer generation
-    let nextId = dashboardData.students.reduce((max, s) => {
-        const id = parseInt(s.id);
-        return !isNaN(id) && id < 1000000000 ? Math.max(max, id) : max;
-    }, 0) + 1;
-    if (nextId < 1) nextId = 1;
-
-    // Detailed Result Tracking
-    const results = {
-        success: [],
-        failed: [...importedData.errors.map(e => ({ ...e, type: 'parse_error' }))], // Include parse errors
-        warnings: []
-    };
-
-    // Add file-level duplicates to warnings
-    if (importedData.duplicates && importedData.duplicates.length > 0) {
-        importedData.duplicates.forEach(d => {
-            results.warnings.push({
-                nisn: d.nisn,
-                message: `NISN ${d.nisn} duplikat di baris: ${d.rows.join(', ')}. Data terakhir yang akan digunakan.`
-            });
-        });
+    if (!importedData) {
+        console.error('[IMPORT] Tidak ada data yang di-import (importedData is null)');
+        showNotification('❌ Tidak ada data untuk di-import. Harap pilih file kembali.', 'error');
+        return;
     }
 
-    // Import halaqahs - UPDATE or ADD
-    importedData.halaqahs.forEach(h => {
-        const existing = dashboardData.halaqahs.find(existing =>
-            existing.name.toLowerCase() === h.name.toLowerCase()
-        );
+    try {
+        showNotification('⏳ Memproses import santri...', 'info');
+        console.log('[IMPORT] Starting confirmImport process...');
 
-        if (existing) {
-            // UPDATE existing halaqah
-            existing.guru = h.guru;
-            existing.kelas = h.kelas;
-            updatedHalaqahs++;
-        } else {
-            // ADD new halaqah
-            dashboardData.halaqahs.push({
-                id: Date.now() + Math.floor(Math.random() * 1000), // Halaqah ID can be random/timestamp, less critical than Student ID
-                name: h.name,
-                points: 0,
-                rank: dashboardData.halaqahs.length + 1,
-                status: 'BARU',
-                members: h.members,
-                avgPoints: 0,
-                trend: 0,
-                guru: h.guru,
-                kelas: h.kelas
-            });
-            newHalaqahs++;
-        }
-    });
+        let newHalaqahs = 0;
+        let updatedHalaqahs = 0;
+        let newStudents = 0;
+        let updatedStudents = 0;
 
-    // Import students - UPDATE or ADD with better duplicate detection
-    importedData.students.forEach(s => {
-        let existing = null;
-        let fuzzyMatched = false;
+        // Calculate next ID for safe integer generation
+        let nextId = (dashboardData.students || []).reduce((max, s) => {
+            const id = parseInt(s.id);
+            return !isNaN(id) && id < 1000000000 ? Math.max(max, id) : max;
+        }, 0) + 1;
+        if (nextId < 1) nextId = 1;
 
-        // Priority 1: Match by NISN (if NISN exists and not empty)
-        if (s.nisn && s.nisn.trim() !== '') {
-            existing = dashboardData.students.find(existing =>
-                existing.nisn && existing.nisn === s.nisn
-            );
-        }
+        const results = {
+            success: [],
+            failed: [...(importedData.errors || []).map(e => ({ ...e, type: 'parse_error' }))], 
+            warnings: []
+        };
 
-        // Priority 2: If no NISN match, check by exact name match (with normalization)
-        if (!existing) {
-            const sNameNorm = normalizeNameString(s.name);
-            const nameMatches = dashboardData.students.filter(existing =>
-                normalizeNameString(existing.name) === sNameNorm
-            );
-
-            // NEW: Selalu update berdasarkan nama pertama yang cocok.
-            // Jika ada lebih dari satu nama sama, tetap update salah satu
-            // dan beri peringatan, agar proses naik kelas/NIK lebih mudah.
-            if (nameMatches.length >= 1) {
-                existing = nameMatches[0];
-
-                if (nameMatches.length > 1) {
-                    results.warnings.push({
-                        row: s.rowNum,
-                        name: s.name,
-                        message: `Ditemukan ${nameMatches.length} santri dengan nama sama di database. Data baris ini di-update ke salah satu santri dengan nama tersebut.`
-                    });
-                }
-            }
-        }
-
-        // Priority 3: Fuzzy Name Match (Levenshtein Distance)
-        if (!existing) {
-            // Only attempt fuzzy match for names with decent length to avoid false positives
-            if (s.name.length >= 5) {
-                const sNameNorm = normalizeNameString(s.name);
-                const potentialMatches = dashboardData.students.map(existing => {
-                    const existingNameNorm = normalizeNameString(existing.name);
-                    const dist = levenshteinDistance(sNameNorm, existingNameNorm);
-                    return { student: existing, distance: dist };
-                }).filter(item => {
-                    // Allow max 2 edits for normal names, or 3 for very long names (>15 chars)
-                    const maxDist = item.student.name.length > 15 ? 3 : 2;
-                    return item.distance <= maxDist;
+        // Add file-level duplicates to warnings
+        if (importedData.duplicates && importedData.duplicates.length > 0) {
+            importedData.duplicates.forEach(d => {
+                results.warnings.push({
+                    nisn: d.nisn,
+                    message: `NISN ${d.nisn} duplikat di baris: ${d.rows.join(', ')}. Data terakhir yang akan digunakan.`
                 });
-
-                if (potentialMatches.length === 1) {
-                    // Single strong candidate found
-                    existing = potentialMatches[0].student;
-                    fuzzyMatched = true;
-
-                    results.warnings.push({
-                        message: `Fuzzy Match: Mencocokkan "${s.name}" dengan "${existing.name}" di database (Baris ${s.rowNum}).`
-                    });
-                }
-            }
+            });
         }
 
-        if (existing) {
-            // UPDATE existing student
-            if (!fuzzyMatched) {
-                existing.name = s.name.trim(); // Update name only if not fuzzy matched (to preserve DB name preference if desired, or update it?)
-                // Actually, usually we want to update to the latest name from Excel if it's a correction. 
-                // But for fuzzy match, it might be a typo in Excel. Let's keep the DB name for fuzzy matches unless user wants otherwise.
-                // Or better: Update it, but log it. The user seems to imply Excel is the source.
-                // "Afroz Darussalam Arafzar" (Excel) vs "Arafsar" (DB).
-                // Let's update it to match Excel, as Excel is usually the import source.
-                existing.name = s.name.trim();
+        // Import halaqahs - UPDATE or ADD
+        (importedData.halaqahs || []).forEach(h => {
+            const existing = (dashboardData.halaqahs || []).find(existing =>
+                existing.name && h.name && existing.name.toLowerCase() === h.name.toLowerCase()
+            );
+
+            if (existing) {
+                // UPDATE existing halaqah
+                existing.guru = h.guru;
+                existing.kelas = h.kelas;
+                updatedHalaqahs++;
             } else {
-                // For fuzzy match, let's update the name too, assuming Excel is the correction source.
-                // But let's log the name change implicitly via the success message if needed.
-                existing.name = s.name.trim();
+                // ADD new halaqah
+                dashboardData.halaqahs.push({
+                    id: Date.now() + Math.floor(Math.random() * 1000),
+                    name: h.name,
+                    points: 0,
+                    rank: dashboardData.halaqahs.length + 1,
+                    status: 'BARU',
+                    members: h.members,
+                    avgPoints: 0,
+                    trend: 0,
+                    guru: h.guru,
+                    kelas: h.kelas
+                });
+                newHalaqahs++;
+            }
+        });
+
+        // Import students - UPDATE or ADD
+        (importedData.students || []).forEach(s => {
+            let existing = null;
+
+            // Priority 1: Match by NISN
+            if (s.nisn && String(s.nisn).trim() !== '') {
+                existing = (dashboardData.students || []).find(existing =>
+                    existing.nisn && String(existing.nisn) === String(s.nisn)
+                );
             }
 
-            if (s.halaqah) existing.halaqah = s.halaqah.trim();
-            // Only update NISN if new NISN is not empty
-            if (s.halaqah) existing.halaqah = s.halaqah.trim();
-            // Only update NISN if new NISN is not empty
-            if (s.nisn && s.nisn.trim() !== '') {
-                existing.nisn = s.nisn.trim();
-            }
-            // Update NIK if provided
-            if (s.nik && s.nik.toString().trim() !== '') {
-                const oldNik = existing.nik ? existing.nik.toString().trim() : '';
-                const newNik = s.nik.toString().trim();
-                if (oldNik !== newNik) {
-                    console.log('[IMPORT] Updating NIK for', s.name, 'from', oldNik || '(kosong)', 'to', newNik);
+            // Priority 2: Match by exact name
+            if (!existing) {
+                const sNameNorm = normalizeNameString(s.name);
+                const nameMatches = (dashboardData.students || []).filter(existing =>
+                    normalizeNameString(existing.name) === sNameNorm
+                );
+                if (nameMatches.length >= 1) {
+                    existing = nameMatches[0];
                 }
-                existing.nik = newNik;
-            }
-            if (s.lembaga !== 'MTA' || (s.lembaga === 'MTA' && importedData.metadata && importedData.metadata.hasLembagaColumn)) {
-                existing.lembaga = s.lembaga;
-            }
-            if (s.kelas) existing.kelas = s.kelas;
-
-            // Update new fields - Only if provided in Excel (non-empty) to avoid wiping existing data
-            if (s.jenis_kelamin) existing.jenis_kelamin = s.jenis_kelamin;
-
-            if (s.tempat_lahir) {
-                console.log(`[DEBUG] Updating Tempat Lahir for ${s.name}: ${s.tempat_lahir}`);
-                existing.tempat_lahir = s.tempat_lahir;
             }
 
-            if (s.tanggal_lahir) {
-                console.log(`[DEBUG] Updating Tanggal Lahir for ${s.name}: ${s.tanggal_lahir}`);
-                existing.tanggal_lahir = s.tanggal_lahir;
-            }
+            if (existing) {
+                // UPDATE existing student
+                existing.name = s.name.trim();
+                if (s.halaqah) existing.halaqah = s.halaqah.trim();
+                if (s.nisn && String(s.nisn).trim() !== '') existing.nisn = String(s.nisn).trim();
+                if (s.nik && String(s.nik).trim() !== '') existing.nik = String(s.nik).trim();
+                
+                // Update lembaga: hanya jika kolom Lembaga ada di file Excel (bukan default 'MTA')
+                if (importedData.metadata && importedData.metadata.hasLembagaColumn) {
+                    existing.lembaga = s.lembaga;
+                }
+                if (s.kelas) existing.kelas = s.kelas;
+                if (s.jenis_kelamin) existing.jenis_kelamin = s.jenis_kelamin;
+                if (s.tempat_lahir) existing.tempat_lahir = s.tempat_lahir;
+                if (s.tanggal_lahir) existing.tanggal_lahir = s.tanggal_lahir;
+                if (s.alamat) existing.alamat = s.alamat;
+                if (s.hp) existing.hp = s.hp;
+                if (s.nama_ayah) existing.nama_ayah = s.nama_ayah;
+                if (s.nama_ibu) existing.nama_ibu = s.nama_ibu;
+                if (s.sekolah_asal) existing.sekolah_asal = s.sekolah_asal;
+                if (typeof s.is_alumni === 'boolean') existing.is_alumni = s.is_alumni;
+                if (s.kategori) existing.kategori = s.kategori;
 
-            if (s.alamat) existing.alamat = s.alamat;
-            if (s.hp) existing.hp = s.hp;
-            if (s.nama_ayah) existing.nama_ayah = s.nama_ayah;
-            if (s.nama_ibu) existing.nama_ibu = s.nama_ibu;
-            if (s.sekolah_asal) existing.sekolah_asal = s.sekolah_asal;
-            if (typeof s.is_alumni === 'boolean') existing.is_alumni = s.is_alumni;
-            if (s.kategori) existing.kategori = s.kategori;
-
-            updatedStudents++;
-            results.success.push({ name: s.name, action: 'Updated' });
-        } else {
-            // Check required fields for NEW student
-            if (!s.halaqah || s.halaqah === '') {
-                // Skip if new student but missing halaqah info (likely partial update file)
-                results.failed.push({
-                    row: s.rowNum,
-                    name: s.name,
-                    message: "Santri baru wajib memiliki Nama Halaqah."
+                updatedStudents++;
+                results.success.push({ name: s.name, action: 'Updated' });
+            } else {
+                // ADD new student
+                dashboardData.students.push({
+                    id: nextId++,
+                    name: s.name.trim(),
+                    halaqah: s.halaqah ? s.halaqah.trim() : '',
+                    nisn: s.nisn ? String(s.nisn).trim() : '',
+                    nik: s.nik ? String(s.nik).trim() : '',
+                    lembaga: s.lembaga || 'MTA',
+                    kelas: s.kelas || '',
+                    jenis_kelamin: s.jenis_kelamin || '',
+                    tempat_lahir: s.tempat_lahir || '',
+                    tanggal_lahir: s.tanggal_lahir || '',
+                    alamat: s.alamat || '',
+                    hp: s.hp || '',
+                    nama_ayah: s.nama_ayah || '',
+                    nama_ibu: s.nama_ibu || '',
+                    sekolah_asal: s.sekolah_asal || '',
+                    is_alumni: !!s.is_alumni,
+                    kategori: s.kategori || '',
+                    total_points: 0,
+                    daily_ranking: dashboardData.students.length + 1,
+                    overall_ranking: dashboardData.students.length + 1,
+                    streak: 0,
+                    lastActivity: 'Baru ditambahkan',
+                    achievements: [],
+                    setoran: [],
+                    lastSetoranDate: ''
                 });
-                return;
+                newStudents++;
+                results.success.push({ name: s.name, action: 'Created' });
             }
+        });
 
-            // ADD new student
-            dashboardData.students.push({
-                id: nextId++,
-                name: s.name.trim(),
-                halaqah: s.halaqah.trim(),
-                nisn: s.nisn ? s.nisn.trim() : '',
-                nik: s.nik ? s.nik.toString().trim() : '',
-                lembaga: s.lembaga,
-                kelas: s.kelas,
-                // New fields
-                jenis_kelamin: s.jenis_kelamin || '',
-                tempat_lahir: s.tempat_lahir || (console.log(`[DEBUG] No Tempat Lahir for new student ${s.name}`), ''),
-                tanggal_lahir: s.tanggal_lahir || (console.log(`[DEBUG] No Tanggal Lahir for new student ${s.name}`), ''),
-                alamat: s.alamat || '',
-                hp: s.hp || '',
-                nama_ayah: s.nama_ayah || '',
-                nama_ibu: s.nama_ibu || '',
-                sekolah_asal: s.sekolah_asal || '',
-                is_alumni: typeof s.is_alumni === 'boolean' ? s.is_alumni : false,
-                kategori: s.kategori || '',
+        // Finalize state
+        if (typeof recalculateRankings === 'function') recalculateRankings();
+        StorageManager.save();
 
-                total_points: 0,
-                daily_ranking: dashboardData.students.length + 1,
-                overall_ranking: dashboardData.students.length + 1,
-                streak: 0,
-                lastActivity: 'Baru ditambahkan',
-                achievements: [],
-                setoran: [],
-                lastSetoranDate: ''
-            });
-            newStudents++;
-            results.success.push({ name: s.name, action: 'Created' });
-        }
-    });
+        // Close modal and show results
+        closeModal();
+        showImportResultModal(results, newHalaqahs, updatedHalaqahs, newStudents, updatedStudents);
+        
+        // SYNC TO SUPABASE
+        if (navigator.onLine) {
+            showNotification('☁️ Menyimpan data ke database server...', 'info');
+            const syncPromises = [];
+            if (typeof window.syncHalaqahsToSupabase === 'function') syncPromises.push(window.syncHalaqahsToSupabase());
+            if (typeof window.syncStudentsToSupabase === 'function') syncPromises.push(window.syncStudentsToSupabase());
 
-    recalculateRankings();
-    localStorage.removeItem('_deleteJustDone');
-    StorageManager.save();
-
-    // Close modal and show results first (Optimistic UI)
-    closeModal();
-    refreshAllData();
-    showImportResultModal(results, newHalaqahs, updatedHalaqahs, newStudents, updatedStudents);
-    importedData = null;
-
-    // SYNC TO SUPABASE - Critical for persistence
-    if (navigator.onLine) {
-        showNotification('☁️ Menyimpan data ke database server...', 'info');
-
-        const syncPromises = [];
-        // PENTING: gunakan window. prefix agar fungsi dari supabase.js terdeteksi
-        if (typeof window.syncHalaqahsToSupabase === 'function') {
-            syncPromises.push(window.syncHalaqahsToSupabase());
+            if (syncPromises.length > 0) {
+                Promise.all(syncPromises)
+                    .then(() => {
+                        console.log('[IMPORT] Sync completed successfully');
+                        if (typeof refreshAllData === 'function') refreshAllData();
+                        showNotification('✅ Data berhasil tersimpan di server.', 'success');
+                    })
+                    .catch(err => {
+                        console.error('[IMPORT] Sync failed:', err);
+                        showNotification('⚠️ Data tersimpan lokal, tapi GAGAL kirim ke server.', 'warning');
+                        if (typeof refreshAllData === 'function') refreshAllData();
+                    });
+            } else {
+                if (typeof refreshAllData === 'function') refreshAllData();
+            }
         } else {
-            console.warn('[IMPORT] window.syncHalaqahsToSupabase not found - pastikan supabase.js termuat');
-        }
-        if (typeof window.syncStudentsToSupabase === 'function') {
-            syncPromises.push(window.syncStudentsToSupabase());
-        } else {
-            console.error('[IMPORT] window.syncStudentsToSupabase not found - DATA TIDAK AKAN TERSIMPAN KE SERVER!');
-            showNotification('❌ Fungsi sync tidak ditemukan. Pastikan supabase.js termuat dengan benar.', 'error');
+            if (typeof refreshAllData === 'function') refreshAllData();
         }
 
-        if (syncPromises.length === 0) {
-            console.error('[IMPORT] syncPromises kosong - tidak ada fungsi sync yang ditemukan!');
-        } else {
-            Promise.all(syncPromises)
-                .then(syncResults => {
-                    const studentSync = syncResults.find(r => r && r.status);
-                    console.log('[IMPORT] Sync results:', syncResults);
-                    if (studentSync && studentSync.status === 'success') {
-                        showNotification('✅ Data berhasil tersimpan permanen di server.', 'success');
-                    } else if (studentSync && studentSync.status === 'skipped_in_progress') {
-                        // Auto-sync sedang berjalan - tunggu lalu retry otomatis
-                        console.log('[IMPORT] Sync diblokir (in_progress). Auto-retry setelah selesai...');
-                        showNotification('⏳ Menunggu sinkronisasi selesai, lalu menyimpan data baru...', 'info');
-                        waitAndSyncAfterImport().then(retryResult => {
-                            console.log('[IMPORT] Retry result:', retryResult);
-                            if (retryResult && retryResult.status === 'success') {
-                                showNotification('✅ Data berhasil tersimpan permanen ke server.', 'success');
-                            } else {
-                                showNotification('⚠️ Status sync: ' + (retryResult && retryResult.status || 'unknown'), 'warning');
-                            }
-                        }).catch(err => {
-                            console.error('[IMPORT] Retry failed:', err);
-                            showNotification('⚠️ Gagal menyimpan ke server setelah retry.', 'warning');
-                        });
-                    } else if (studentSync && studentSync.status === 'skipped_permission') {
-                        console.warn('[IMPORT] Sync diblokir - user bukan admin/guru. Profile:', window.currentProfile);
-                        showNotification('⚠️ Sync gagal: pastikan Anda login sebagai Admin atau Guru.', 'warning');
-                    } else if (studentSync && studentSync.status && studentSync.status.startsWith('skipped_')) {
-                        console.warn('[IMPORT] Sync skipped:', studentSync.status);
-                        showNotification('⚠️ Data tersimpan lokal, belum tersimpan di server (' + studentSync.status + ').', 'warning');
-                    } else {
-                        showNotification('✅ Proses sinkronisasi selesai.', 'success');
-                    }
-                })
-                .catch(err => {
-                    console.error('[IMPORT] Sync failed:', err);
-                    showNotification('⚠️ Data tersimpan lokal, tapi GAGAL sync ke server. Cek koneksi & coba lagi.', 'warning');
-                });
-        }
-    }
+        // Clean up
+        importedData = null;
 
-    if (window.autoSync) {
-        // Debounce autoSync to avoid double hit
-        setTimeout(() => {
-            if (!window.syncInProgress) autoSync();
-        }, 5000);
+    } catch (error) {
+        console.error('[IMPORT] Error in confirmImport:', error);
+        showNotification('❌ Terjadi kesalahan saat memproses data: ' + error.message, 'error');
     }
 }
 
-function showImportResultModal(results, newH, updH, newS, updS) {
+function showImportResultModal(results, newHalaqahs, updatedHalaqahs, newStudents, updatedStudents) {
     const failedCount = results.failed.length;
     const successCount = results.success.length;
     const warningCount = results.warnings ? results.warnings.length : 0;
 
-    let content = `
+    const content = `
         <div class="p-6">
             <div class="text-center mb-6">
                 <div class="inline-flex items-center justify-center w-16 h-16 rounded-full ${failedCount > 0 ? 'bg-amber-100 text-amber-600' : 'bg-green-100 text-green-600'} mb-4">
@@ -1819,41 +1818,22 @@ function showImportResultModal(results, newH, updH, newS, updS) {
             </div>
 
             <div class="grid grid-cols-2 gap-4 mb-6">
-                <div class="bg-blue-50 p-4 rounded-xl text-center">
-                    <div class="text-2xl font-bold text-blue-700">${newS}</div>
-                    <div class="text-xs text-blue-600 uppercase font-bold">Santri Baru</div>
+                <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                    <div class="text-xs text-slate-500 uppercase font-bold tracking-wider mb-1">📚 Halaqah</div>
+                    <div class="text-sm">Baru: <span class="font-bold">${newHalaqahs}</span></div>
+                    <div class="text-sm">Update: <span class="font-bold">${updatedHalaqahs}</span></div>
                 </div>
-                <div class="bg-purple-50 p-4 rounded-xl text-center">
-                    <div class="text-2xl font-bold text-purple-700">${updS}</div>
-                    <div class="text-xs text-purple-600 uppercase font-bold">Update Data</div>
+                <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                    <div class="text-xs text-slate-500 uppercase font-bold tracking-wider mb-1">👥 Santri</div>
+                    <div class="text-sm">Baru: <span class="font-bold">${newStudents}</span></div>
+                    <div class="text-sm">Update: <span class="font-bold">${updatedStudents}</span></div>
                 </div>
             </div>
 
-            ${warningCount > 0 ? `
-                <div class="mb-4">
-                    <h4 class="font-bold text-amber-800 mb-2 flex items-center gap-2">
-                        <span>⚠️</span> Peringatan (${warningCount})
-                    </h4>
-                    <div class="bg-amber-50 border border-amber-100 rounded-xl overflow-hidden max-h-40 overflow-y-auto">
-                        <table class="w-full text-left text-sm">
-                            <tbody class="divide-y divide-amber-200">
-                                ${results.warnings.map(w => `
-                                    <tr>
-                                        <td class="p-3 text-amber-800">
-                                            <div class="opacity-90">${w.message}</div>
-                                        </td>
-                                    </tr>
-                                `).join('')}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            ` : ''}
-
             ${failedCount > 0 ? `
                 <div class="mb-6">
-                    <h4 class="font-bold text-red-800 mb-2 flex items-center gap-2">
-                        <span>❌</span> Detail Masalah (${failedCount})
+                    <h4 class="font-bold text-slate-800 mb-2 flex items-center gap-2">
+                        <span class="text-red-500">❌</span> Baris Gagal (${failedCount})
                     </h4>
                     <div class="bg-red-50 border border-red-100 rounded-xl overflow-hidden max-h-60 overflow-y-auto">
                         <table class="w-full text-left text-sm">

@@ -61,8 +61,9 @@ function getTargetHafalanJuz(student) {
     return 30;
 }
 
-function createModal(content, allowClickOutside = true) {
+function createModal(content, allowClickOutside = true, size = 'normal') {
     let modal = document.getElementById('detailModal');
+    const sizeClass = size === 'wide' ? 'max-w-7xl' : 'max-w-2xl';
     
     if (modal) {
         // If modal already exists, just update its content
@@ -93,7 +94,7 @@ function createModal(content, allowClickOutside = true) {
     }
 
     modal.innerHTML = `
-        <div class="glass rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto custom-scrollbar shadow-2xl border border-slate-200 animate-scale-in">
+        <div class="glass rounded-3xl ${sizeClass} w-full max-h-[90vh] overflow-y-auto custom-scrollbar shadow-2xl border border-slate-200 animate-scale-in">
             ${content}
         </div>
     `;

@@ -172,47 +172,7 @@ function showAdminSettings() {
     const sesiList = renderAdminSesiList(firstLembagaKey);
 
     // Generate Data Induk Table Rows
-    const dataIndukRows = dashboardData.students.map((student, index) => {
-        const birthDate = student.tanggal_lahir ? new Date(student.tanggal_lahir).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-';
-
-        // Status checks
-        const hasNIK = !!student.nik;
-        const hasTTL = !!student.tanggal_lahir;
-        const isReady = hasNIK && hasTTL;
-
-        return `
-            <tr class="hover:bg-slate-50 border-b border-slate-100 text-sm">
-                <td class="px-4 py-3 text-slate-500">${index + 1}</td>
-                <td class="px-4 py-3 font-mono text-slate-600">${student.nisn || '-'}</td>
-                <td class="px-4 py-3 font-mono text-slate-600">
-                    ${student.nik || '-'}
-                    ${!hasNIK ? '<span class="ml-1 text-xs text-red-500" title="Wajib untuk login">(Missing)</span>' : ''}
-                </td>
-                <td class="px-4 py-3 font-semibold text-slate-800">${student.name}</td>
-                <td class="px-4 py-3 text-slate-600">${student.jenis_kelamin || '-'}</td>
-                <td class="px-4 py-3 text-slate-600">
-                    ${(() => {
-                const birthDate = student.tanggal_lahir ? new Date(student.tanggal_lahir).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
-                const parts = [];
-                if (student.tempat_lahir) parts.push(student.tempat_lahir);
-                if (birthDate) parts.push(birthDate);
-                return parts.length > 0 ? parts.join(', ') : '-';
-            })()}
-                    ${!hasTTL ? '<span class="ml-1 text-xs text-red-500" title="Wajib untuk password">(Missing TTL)</span>' : ''}
-                </td>
-                <td class="px-4 py-3 text-slate-600 max-w-xs truncate" title="${student.alamat || ''}">${student.alamat || '-'}</td>
-                <td class="px-4 py-3 text-slate-600">
-                    <div class="text-xs">Ayah: ${student.nama_ayah || '-'}</div>
-                    <div class="text-xs">Ibu: ${student.nama_ibu || '-'}</div>
-                </td>
-                <td class="px-4 py-3 text-center">
-                    ${isReady
-                ? '<span class="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-bold">Siap Login</span>'
-                : '<span class="px-2 py-1 bg-red-100 text-red-700 rounded-full text-xs font-bold">Data Kurang</span>'}
-                </td>
-            </tr>
-        `;
-    }).join('');
+    const dataIndukRows = generateDataIndukRows(dashboardData.students);
 
     // Generate Verification Stats
     const totalStudents = dashboardData.students.length;
@@ -358,9 +318,14 @@ function showAdminSettings() {
                 <div id="content-datainduk" class="admin-tab-content hidden">
                     <div class="flex items-center justify-between mb-4">
                         <h3 class="font-bold text-xl text-slate-800">Data Induk Santri (Lengkap)</h3>
-                        <button onclick="exportToExcel()" class="px-4 py-2 bg-green-600 text-white rounded-lg font-bold hover:bg-green-700 transition-colors text-sm">
-                            📥 Download Excel
-                        </button>
+                        <div class="flex gap-2">
+                            <button onclick="triggerDirectExcelUpload()" class="px-4 py-2 bg-primary-600 text-white rounded-lg font-bold hover:bg-primary-700 transition-colors text-sm">
+                                ➕ Import Excel
+                            </button>
+                            <button onclick="exportToExcel()" class="px-4 py-2 bg-green-600 text-white rounded-lg font-bold hover:bg-green-700 transition-colors text-sm">
+                                📥 Download Excel
+                            </button>
+                        </div>
                     </div>
                     
                     <div class="mb-3">
@@ -369,27 +334,28 @@ function showAdminSettings() {
                             class="w-full px-4 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none">
                     </div>
 
-                    <div class="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
-                        <div class="overflow-x-auto max-h-[500px]">
-                            <table class="w-full text-left border-collapse relative">
-                                <thead class="sticky top-0 z-10">
-                                    <tr class="bg-slate-50 border-b border-slate-200 text-xs uppercase text-slate-500 font-bold shadow-sm">
-                                        <th class="px-4 py-3 bg-slate-50">No</th>
-                                        <th class="px-4 py-3 bg-slate-50">NISN</th>
-                                        <th class="px-4 py-3 bg-slate-50">NIK</th>
-                                        <th class="px-4 py-3 bg-slate-50">Nama Lengkap</th>
-                                        <th class="px-4 py-3 bg-slate-50">L/P</th>
-                                        <th class="px-4 py-3 bg-slate-50">TTL</th>
-                                        <th class="px-4 py-3 bg-slate-50">Alamat</th>
-                                        <th class="px-4 py-3 bg-slate-50">Orang Tua</th>
-                                        <th class="px-4 py-3 bg-slate-50 text-center">Status Login</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="dataIndukTableBody" class="bg-white">
-                                    ${dataIndukRows}
-                                </tbody>
-                            </table>
-                        </div>
+                    <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-auto max-h-[500px] custom-scrollbar">
+                        <table class="min-w-max text-left border-collapse relative">
+                            <thead class="sticky top-0 z-10">
+                                <tr class="bg-slate-50 border-b border-slate-200 text-xs uppercase text-slate-500 font-bold shadow-sm">
+                                    <th class="px-3 py-3 bg-slate-50">No</th>
+                                    <th class="px-3 py-3 bg-slate-50">NISN</th>
+                                    <th class="px-3 py-3 bg-slate-50">NIK</th>
+                                    <th class="px-3 py-3 bg-slate-50">Nama Lengkap</th>
+                                    <th class="px-3 py-3 bg-slate-50">L/P</th>
+                                    <th class="px-3 py-3 bg-slate-50">TTL</th>
+                                    <th class="px-3 py-3 bg-slate-50">Lembaga</th>
+                                    <th class="px-3 py-3 bg-slate-50">Kelas</th>
+                                    <th class="px-3 py-3 bg-slate-50">Halaqah</th>
+                                    <th class="px-3 py-3 bg-slate-50">Alamat</th>
+                                    <th class="px-3 py-3 bg-slate-50">Orang Tua</th>
+                                    <th class="px-3 py-3 bg-slate-50 text-center">Status Login</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dataIndukTableBody" class="bg-white">
+                                ${dataIndukRows}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
 
@@ -496,7 +462,7 @@ function showAdminSettings() {
                     <h3 class="font-bold text-xl text-slate-800 mb-4">Import & Export Data</h3>
                     
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                        <button onclick="showImportExcel()" 
+                        <button onclick="triggerDirectExcelUpload()" 
                             class="flex flex-col items-center gap-3 p-6 bg-green-50 border-2 border-green-200 rounded-2xl hover:bg-green-100 transition-colors">
                             <svg class="w-12 h-12 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
@@ -617,7 +583,7 @@ function showAdminSettings() {
         </div>
     `;
 
-    createModal(content, false);
+    createModal(content, false, 'wide');
 
     if (typeof window.updateActiveNavigation === 'function') {
         window.updateActiveNavigation('settings');
@@ -647,34 +613,58 @@ function renderAdminSettings(force = false) {
 }
 
 // Generate admin settings content (reusable)
-function generateAdminSettingsContent() {
-    const dataIndukRows = dashboardData.students.map((student, index) => {
+function generateDataIndukRows(students) {
+    return students.map((student, index) => {
+        const hasNIK = !!student.nik;
+        const hasTTL = !!student.tanggal_lahir;
+        const isReady = hasNIK && hasTTL;
+        
+        let birthDate = '';
+        if (student.tanggal_lahir) {
+            const dateObj = new Date(student.tanggal_lahir);
+            if (!isNaN(dateObj.getTime())) {
+                birthDate = dateObj.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+            } else {
+                birthDate = String(student.tanggal_lahir);
+            }
+        }
+        
+        const ttl = [student.tempat_lahir, birthDate].filter(Boolean).join(', ') || '-';
+
         return `
-            <tr class="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-                <td class="px-4 py-3 text-sm text-slate-500">${index + 1}</td>
-                <td class="px-4 py-3 text-sm font-medium text-slate-800">${student.nisn || '-'}</td>
-                <td class="px-4 py-3 text-sm text-slate-600">${student.nik || '-'}</td>
-                <td class="px-4 py-3 text-sm font-bold text-slate-800">${student.name}</td>
-                <td class="px-4 py-3 text-sm text-slate-600">${student.jenis_kelamin || '-'}</td>
-                <td class="px-4 py-3 text-sm text-slate-600">
-                    ${(() => {
-                const birthDate = student.tanggal_lahir ? new Date(student.tanggal_lahir).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
-                const parts = [];
-                if (student.tempat_lahir) parts.push(student.tempat_lahir);
-                if (birthDate) parts.push(birthDate);
-                return parts.length > 0 ? parts.join(', ') : '-';
-            })()}
+            <tr class="hover:bg-slate-50 border-b border-slate-100 text-sm">
+                <td class="px-3 py-2 text-slate-500 text-center">${index + 1}</td>
+                <td class="px-3 py-2 font-mono text-slate-600 whitespace-nowrap">${student.nisn || '-'}</td>
+                <td class="px-3 py-2 font-mono text-slate-600 whitespace-nowrap">
+                    ${student.nik || '-'}
+                    ${!hasNIK ? '<span class="ml-1 text-xs text-red-500">(Missing)</span>' : ''}
                 </td>
-                <td class="px-4 py-3 text-sm text-slate-600 truncate max-w-[200px]" title="${student.alamat || ''}">${student.alamat || '-'}</td>
-                <td class="px-4 py-3 text-sm text-slate-600">
-                    <div class="flex flex-col">
-                        <span class="text-xs text-slate-500">Ayah: ${student.nama_ayah || '-'}</span>
-                        <span class="text-xs text-slate-500">Ibu: ${student.nama_ibu || '-'}</span>
-                    </div>
+                <td class="px-3 py-2 font-semibold text-slate-800 whitespace-nowrap">${student.name}</td>
+                <td class="px-3 py-2 text-slate-600 text-center">${student.jenis_kelamin || '-'}</td>
+                <td class="px-3 py-2 text-slate-600 whitespace-nowrap">
+                    ${ttl}
+                    ${!hasTTL ? '<br><span class="text-xs text-red-500">(Missing TTL)</span>' : ''}
+                </td>
+                <td class="px-3 py-2 text-slate-600 whitespace-nowrap">${student.lembaga || '-'}</td>
+                <td class="px-3 py-2 text-slate-600 whitespace-nowrap">${student.kelas || '-'}</td>
+                <td class="px-3 py-2 text-slate-600 whitespace-nowrap">${student.halaqah || '<span class="text-slate-400 italic">Belum</span>'}</td>
+                <td class="px-3 py-2 text-slate-600 max-w-[180px] truncate" title="${student.alamat || ''}">${student.alamat || '-'}</td>
+                <td class="px-3 py-2 text-slate-600 whitespace-nowrap">
+                    <div class="text-xs">Ayah: ${student.nama_ayah || '-'}</div>
+                    <div class="text-xs">Ibu: ${student.nama_ibu || '-'}</div>
+                </td>
+                <td class="px-3 py-2 text-center whitespace-nowrap">
+                    ${isReady
+                        ? '<span class="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-bold">Siap Login</span>'
+                        : '<span class="px-2 py-1 bg-red-100 text-red-700 rounded-full text-xs font-bold">Data Kurang</span>'}
                 </td>
             </tr>
         `;
     }).join('');
+}
+
+function generateAdminSettingsContent() {
+    const dataIndukRows = generateDataIndukRows(dashboardData.students);
 
     const santriList = dashboardData.students.map(student => {
         const studentJson = JSON.stringify(student).replace(/"/g, '&quot;');
@@ -846,9 +836,14 @@ function generateAdminSettingsContent() {
                 <div id="content-inline-datainduk" class="admin-tab-inline-content hidden">
                     <div class="flex items-center justify-between mb-4">
                         <h4 class="font-bold text-xl text-slate-800">Data Induk Santri (Lengkap)</h4>
-                        <button onclick="exportToExcel()" class="px-4 py-2 bg-green-600 text-white rounded-lg font-bold hover:bg-green-700 transition-colors text-sm">
-                            📥 Download Excel
-                        </button>
+                        <div class="flex gap-2">
+                            <button onclick="triggerDirectExcelUpload()" class="px-4 py-2 bg-primary-600 text-white rounded-lg font-bold hover:bg-primary-700 transition-colors text-sm">
+                                ➕ Import Excel
+                            </button>
+                            <button onclick="exportToExcel()" class="px-4 py-2 bg-green-600 text-white rounded-lg font-bold hover:bg-green-700 transition-colors text-sm">
+                                📥 Download Excel
+                            </button>
+                        </div>
                     </div>
                     
                     <div class="mb-3">
@@ -857,26 +852,28 @@ function generateAdminSettingsContent() {
                             class="w-full px-4 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none">
                     </div>
 
-                    <div class="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
-                        <div class="overflow-x-auto max-h-[500px]">
-                            <table class="w-full text-left border-collapse relative">
-                                <thead class="sticky top-0 z-10">
-                                    <tr class="bg-slate-50 border-b border-slate-200 text-xs uppercase text-slate-500 font-bold shadow-sm">
-                                        <th class="px-4 py-3 bg-slate-50">No</th>
-                                        <th class="px-4 py-3 bg-slate-50">NISN</th>
-                                        <th class="px-4 py-3 bg-slate-50">NIK</th>
-                                        <th class="px-4 py-3 bg-slate-50">Nama Lengkap</th>
-                                        <th class="px-4 py-3 bg-slate-50">L/P</th>
-                                        <th class="px-4 py-3 bg-slate-50">TTL</th>
-                                        <th class="px-4 py-3 bg-slate-50">Alamat</th>
-                                        <th class="px-4 py-3 bg-slate-50">Orang Tua</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="inlineDataIndukTableBody" class="bg-white">
-                                    ${dataIndukRows}
-                                </tbody>
-                            </table>
-                        </div>
+                    <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-auto max-h-[500px] custom-scrollbar">
+                        <table class="min-w-max text-left border-collapse relative">
+                            <thead class="sticky top-0 z-10">
+                                <tr class="bg-slate-50 border-b border-slate-200 text-xs uppercase text-slate-500 font-bold shadow-sm">
+                                    <th class="px-3 py-3 bg-slate-50">No</th>
+                                    <th class="px-3 py-3 bg-slate-50">NISN</th>
+                                    <th class="px-3 py-3 bg-slate-50">NIK</th>
+                                    <th class="px-3 py-3 bg-slate-50">Nama Lengkap</th>
+                                    <th class="px-3 py-3 bg-slate-50">L/P</th>
+                                    <th class="px-3 py-3 bg-slate-50">TTL</th>
+                                    <th class="px-3 py-3 bg-slate-50">Lembaga</th>
+                                    <th class="px-3 py-3 bg-slate-50">Kelas</th>
+                                    <th class="px-3 py-3 bg-slate-50">Halaqah</th>
+                                    <th class="px-3 py-3 bg-slate-50">Alamat</th>
+                                    <th class="px-3 py-3 bg-slate-50">Orang Tua</th>
+                                    <th class="px-3 py-3 bg-slate-50 text-center">Status Login</th>
+                                </tr>
+                            </thead>
+                            <tbody id="inlineDataIndukTableBody" class="bg-white">
+                                ${dataIndukRows}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
 
@@ -884,7 +881,7 @@ function generateAdminSettingsContent() {
                     <div class="flex items-center justify-between mb-4">
                         <h4 class="font-bold text-xl text-slate-800">Kelola Santri</h4>
                         <div class="flex gap-2">
-                            <button onclick="showImportExcel()" 
+                            <button onclick="triggerDirectExcelUpload()" 
                                 class="px-4 py-2 bg-green-600 text-white rounded-lg font-bold hover:bg-green-700 transition-colors text-sm">
                                 ➕ Tambah Massal
                             </button>
@@ -916,7 +913,7 @@ function generateAdminSettingsContent() {
                     <div class="flex items-center justify-between mb-4">
                         <h4 class="font-bold text-xl text-slate-800">Kelola Halaqah</h4>
                         <div class="flex gap-2">
-                            <button onclick="showImportExcel()" 
+                            <button onclick="triggerDirectExcelUpload()" 
                                 class="px-4 py-2 bg-green-600 text-white rounded-lg font-bold hover:bg-green-700 transition-colors text-sm">
                                 ➕ Tambah Massal
                             </button>
@@ -990,7 +987,7 @@ function generateAdminSettingsContent() {
                     <h4 class="font-bold text-xl text-slate-800 mb-4">Import & Export Data</h4>
                     
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                        <button onclick="showImportExcel()" 
+                        <button onclick="triggerDirectExcelUpload()" 
                             class="flex flex-col items-center gap-3 p-6 bg-green-50 border-2 border-green-200 rounded-2xl hover:bg-green-100 transition-colors">
                             <svg class="w-12 h-12 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
@@ -1177,12 +1174,12 @@ function filterAdminListInline(type, searchTerm) {
 
 // Bulk Add Students - Using Excel Import
 function showBulkAddStudents() {
-    showImportExcel();
+    triggerDirectExcelUpload();
 }
 
 // Bulk Add Halaqahs - Using Excel Import  
 function showBulkAddHalaqahs() {
-    showImportExcel();
+    triggerDirectExcelUpload();
 }
 
 

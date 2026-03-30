@@ -70,27 +70,35 @@ async function resetAllDataInSupabase() {
         const studentIds = (allStudents || []).map(s => s.id);
         console.log(`[RESET] Ditemukan ${studentIds.length} students di Supabase`);
 
-        // --- STEP 3: Hapus students SATU PER SATU pakai .eq('id', id) ---
-        // RLS pada Supabase memblokir bulk delete (.in/.gt/.not) secara SILENT
-        // Tapi single delete .eq() bekerja (sama seperti confirmDeleteHalaqah)
+        // --- STEP 3: Hapus students pakai batch .in() (lebih cepat & andal) ---
         let deletedStudents = 0;
-        let failedStudents = 0;
-        for (let i = 0; i < studentIds.length; i++) {
-            const { error } = await window.supabaseClient
-                .from('students').delete().eq('id', studentIds[i]);
-            if (error) {
-                failedStudents++;
-                console.warn(`[RESET] Gagal hapus student ${studentIds[i]}:`, error.message);
-            } else {
-                deletedStudents++;
-            }
-            // Progress update setiap 50 baris
-            if ((i + 1) % 50 === 0 || i === studentIds.length - 1) {
-                showNotification(`⏳ Menghapus santri: ${i + 1}/${studentIds.length}...`, 'info');
-                console.log(`[RESET] Progress: ${i + 1}/${studentIds.length} students processed`);
+        if (studentIds.length > 0) {
+            const batchSize = 100;
+            for (let i = 0; i < studentIds.length; i += batchSize) {
+                const batch = studentIds.slice(i, i + batchSize);
+                const { error } = await window.supabaseClient.from('students').delete().in('id', batch);
+                if (error) {
+                    console.warn(`[RESET] Batch delete students error:`, error.message);
+                } else {
+                    deletedStudents += batch.length;
+                }
+                showNotification(`⏳ Menghapus santri: ${Math.min(i + batchSize, studentIds.length)}/${studentIds.length}...`, 'info');
+                console.log(`[RESET] Progress: ${Math.min(i + batchSize, studentIds.length)}/${studentIds.length} students processed`);
             }
         }
-        console.log(`[RESET] ✅ Students: ${deletedStudents} dihapus, ${failedStudents} gagal`);
+
+        // Fallback: hapus semua lembaga satu per satu pakai .ilike() jika masih ada sisa
+        const lembagaKeys = Object.keys(appSettings.lembaga || {});
+        for (const key of lembagaKeys) {
+            if (key.startsWith('SDITA_')) {
+                const kelasNum = parseInt(key.split('_')[1], 10);
+                await window.supabaseClient.from('students').delete()
+                    .ilike('lembaga', 'SDITA').ilike('kelas', `%${kelasNum}%`);
+            } else {
+                await window.supabaseClient.from('students').delete().ilike('lembaga', key);
+            }
+        }
+        console.log(`[RESET] ✅ Students: ${deletedStudents} dihapus (+ fallback per-lembaga dijalankan)`);
 
         // --- STEP 4: Ambil SEMUA halaqah IDs dari Supabase ---
         const { data: allHalaqahs, error: fetchHalaqahErr } = await window.supabaseClient
@@ -103,12 +111,15 @@ async function resetAllDataInSupabase() {
         const halaqahIds = (allHalaqahs || []).map(h => h.id);
         console.log(`[RESET] Ditemukan ${halaqahIds.length} halaqahs di Supabase`);
 
-        // --- STEP 5: Hapus halaqahs SATU PER SATU ---
+        // --- STEP 5: Hapus halaqahs pakai batch .in() ---
         let deletedHalaqahs = 0;
-        for (let i = 0; i < halaqahIds.length; i++) {
-            const { error } = await window.supabaseClient
-                .from('halaqahs').delete().eq('id', halaqahIds[i]);
-            if (!error) deletedHalaqahs++;
+        if (halaqahIds.length > 0) {
+            const batchSize = 100;
+            for (let i = 0; i < halaqahIds.length; i += batchSize) {
+                const batch = halaqahIds.slice(i, i + batchSize);
+                const { error } = await window.supabaseClient.from('halaqahs').delete().in('id', batch);
+                if (!error) deletedHalaqahs += batch.length;
+            }
         }
         console.log(`[RESET] ✅ Halaqahs: ${deletedHalaqahs}/${halaqahIds.length} dihapus`);
 
