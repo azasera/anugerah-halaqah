@@ -490,6 +490,11 @@ function updateStudentTilawahProgress(studentId) {
 
     const student = dashboardData.students.find(s => String(s.id) === String(studentId));
     if (student) student.total_tilawah_hal = totalHal;
+    
+    // Mark as having pending local changes for Supabase sync
+    if (typeof window !== 'undefined') {
+        window.hasPendingLocalChanges = true;
+    }
 
     const progressBar = document.getElementById('tilawahProgressBar');
     const progressText = document.getElementById('tilawahProgressText');

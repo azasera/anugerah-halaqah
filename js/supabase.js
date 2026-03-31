@@ -272,7 +272,7 @@ function normalizeTanggalLahir(raw) {
 async function syncStudentsToSupabase() {
     if (!window.supabaseClient || !navigator.onLine) {
         window.hasPendingLocalChanges = true;
-        return;
+        return { status: 'offline' };
     }
 
     if (window.syncInProgress) {
@@ -348,6 +348,24 @@ async function syncStudentsToSupabase() {
     } finally {
         window.syncInProgress = false;
     }
+}
+
+// Auto-sync function for background updates
+async function autoSync() {
+    // Only sync if logged in as admin or guru
+    const profile = window.currentProfile;
+    if (!profile || (profile.role !== 'admin' && profile.role !== 'guru')) {
+        console.log('[autoSync] Skip - not authorized or not logged in');
+        return;
+    }
+
+    if (!navigator.onLine) {
+        window.hasPendingLocalChanges = true;
+        return;
+    }
+
+    console.log('🔄 [autoSync] Triggering background sync...');
+    return await syncStudentsToSupabase();
 }
 
 // Sync halaqahs to Supabase
@@ -754,6 +772,7 @@ window.loadStudentsFromSupabase = loadStudentsFromSupabase;
 window.loadHalaqahsFromSupabase = loadHalaqahsFromSupabase;
 window.syncStudentsToSupabase = syncStudentsToSupabase;
 window.syncHalaqahsToSupabase = syncHalaqahsToSupabase;
+window.autoSync = autoSync;
 window.manualFullSync = manualFullSync;
 window.deleteStudentFromSupabase = deleteStudentFromSupabase;
 window.deleteHalaqahFromSupabase = deleteHalaqahFromSupabase;

@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>Debug Tilawah SMPITA</title>
+<style>
+body { font-family: monospace; padding: 20px; background: #1e293b; color: #e2e8f0; }
+table { border-collapse: collapse; width: 100%; margin-top: 10px; }
+th, td { border: 1px solid #475569; padding: 6px 10px; text-align: left; font-size: 12px; }
+th { background: #334155; }
+tr:hover { background: #334155; }
+.ok { color: #4ade80; }
+.zero { color: #f87171; }
+h2 { color: #f59e0b; }
+#log { background: #0f172a; padding: 10px; border-radius: 8px; margin-bottom: 20px; font-size: 12px; line-height: 1.6; }
+</style>
+</head>
+<body>
+<h2>Debug Tilawah SMPITA</h2>
+<div id="log">Loading...</div>
+<div id="result"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL = 'https://klhegwunosmryqozuahc.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtsaGVnd3Vub3Ntcnlxb3p1YWhjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3Mjg3NDcsImV4cCI6MjA4NjMwNDc0N30.0X54jxpMZI9eilDxfJ7FYUGImuN-TEH9qGQkdRTtRXw';
+
+const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const log = document.getElementById('log');
+const result = document.getElementById('result');
+
+function addLog(msg) {
+    log.innerHTML += msg + '<br>';
+}
+
+async function run() {
+    log.innerHTML = '';
+    addLog('🔍 Fetching students from Supabase...');
+
+    const { data, error } = await client
+        .from('students')
+        .select('id, name, lembaga, kelas, total_tilawah_hal')
+        .order('total_tilawah_hal', { ascending: false });
+
+    if (error) {
+        addLog('❌ Error: ' + JSON.stringify(error));
+        return;
+    }
+
+    addLog(`✅ Total students: ${data.length}`);
+
+    const smpita = data.filter(s => {
+        const l = (s.lembaga || '').toUpperCase();
+        return l === 'SMPITA' || l === 'SMP';
+    });
+
+    addLog(`📘 SMPITA students: ${smpita.length}`);
+    const withTilawah = smpita.filter(s => (s.total_tilawah_hal || 0) > 0);
+    addLog(`📊 SMPITA dengan total_tilawah_hal > 0: ${withTilawah.length}`);
+
+    if (withTilawah.length === 0) {
+        addLog('⚠️ MASALAH: Tidak ada santri SMPITA dengan data tilawah di Supabase!');
+        addLog('💡 Field total_tilawah_hal = 0 untuk semua santri SMPITA');
+    }
+
+    result.innerHTML = `
+        <h2>Santri SMPITA (${smpita.length} total)</h2>
+        <table>
+            <tr><th>#</th><th>Nama</th><th>Lembaga</th><th>Kelas</th><th>total_tilawah_hal</th></tr>
+            ${smpita.map((s, i) => `
+                <tr>
+                    <td>${i+1}</td>
+                    <td>${s.name}</td>
+                    <td>${s.lembaga}</td>
+                    <td>${s.kelas || '-'}</td>
+                    <td class="${(s.total_tilawah_hal || 0) > 0 ? 'ok' : 'zero'}">${s.total_tilawah_hal || 0}</td>
+                </tr>
+            `).join('')}
+        </table>
+
+        <h2 style="margin-top:20px">Semua Santri dengan tilawah > 0</h2>
+        <table>
+            <tr><th>#</th><th>Nama</th><th>Lembaga</th><th>total_tilawah_hal</th></tr>
+            ${data.filter(s => (s.total_tilawah_hal || 0) > 0).map((s, i) => `
+                <tr>
+                    <td>${i+1}</td>
+                    <td>${s.name}</td>
+                    <td>${s.lembaga}</td>
+                    <td class="ok">${s.total_tilawah_hal}</td>
+                </tr>
+            `).join('')}
+        </table>
+    `;
+}
+
+run();
+</script>
+</body>
+</html>
