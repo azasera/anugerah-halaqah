@@ -331,7 +331,10 @@ function openTilawahInputForm(prayerId, studentId) {
         .filter(t => String(t.studentId) === String(studentId))
         .flatMap(t => Object.values(t.entries || {}))
         .reduce((sum, e) => sum + (e.jumlahHal || 0), 0);
-    const progressPct = Math.min(100, Math.round((totalHalSantri / 604) * 100));
+    const { khatam: khatamSantri, sisa: sisaSantri, pct: progressPct } = getTilawahKhatamInfo(totalHalSantri);
+    const progressLabel = khatamSantri > 0
+        ? `${khatamSantri}x Khatam + ${sisaSantri} hal (${progressPct}%)`
+        : `${sisaSantri} / 604 hal (${progressPct}%)`;
 
     const content = `
         <div class="p-6">
@@ -354,7 +357,7 @@ function openTilawahInputForm(prayerId, studentId) {
             <div class="bg-emerald-50 border border-emerald-100 rounded-2xl p-4 mb-6">
                 <div class="flex justify-between items-center mb-2">
                     <span class="text-xs font-bold text-emerald-700">Progress Tilawah</span>
-                    <span class="text-xs font-black text-emerald-800" id="tilawahProgressText">${totalHalSantri} / 604 hal (${progressPct}%)</span>
+                    <span class="text-xs font-black text-emerald-800" id="tilawahProgressText">${progressLabel}</span>
                 </div>
                 <div class="w-full bg-emerald-100 rounded-full h-3">
                     <div class="bg-emerald-500 h-3 rounded-full transition-all" id="tilawahProgressBar" style="width:${progressPct}%"></div>
@@ -471,26 +474,31 @@ function handleMutabaahSubmission(event, prayerId, studentId) {
     showNotification(`✅ Tilawah ${prayerId} disimpan! +${jumlahHal} halaman`, 'success');
 }
 
+// Helper: hitung info khatam dari total halaman
+function getTilawahKhatamInfo(totalHal) {
+    const khatam = Math.floor(totalHal / 604);
+    const sisa = totalHal % 604;
+    const pct = Math.round((sisa / 604) * 100);
+    return { khatam, sisa, pct };
+}
+
 function updateStudentTilawahProgress(studentId) {
-    // Hitung total halaman tilawah dari semua entri historis
     const allEntries = (dashboardData.tilawah || [])
         .filter(t => String(t.studentId) === String(studentId))
         .flatMap(t => Object.values(t.entries || {}));
     const totalHal = allEntries.reduce((sum, e) => sum + (e.jumlahHal || 0), 0);
 
-    // Simpan ke student object agar bisa diakses di mana saja
     const student = dashboardData.students.find(s => String(s.id) === String(studentId));
-    if (student) {
-        student.total_tilawah_hal = totalHal;
-    }
+    if (student) student.total_tilawah_hal = totalHal;
 
-    // Update progress bar di header card jika sedang tampil
     const progressBar = document.getElementById('tilawahProgressBar');
     const progressText = document.getElementById('tilawahProgressText');
     if (progressBar && progressText) {
-        const pct = Math.min(100, Math.round((totalHal / 604) * 100));
+        const { khatam, sisa, pct } = getTilawahKhatamInfo(totalHal);
         progressBar.style.width = pct + '%';
-        progressText.textContent = `${totalHal} / 604 hal (${pct}%)`;
+        progressText.textContent = khatam > 0
+            ? `${khatam}x Khatam + ${sisa} hal (${pct}%)`
+            : `${sisa} / 604 hal (${pct}%)`;
     }
 }
 
@@ -499,7 +507,8 @@ function openSetPosisiTilawah(studentId) {
     if (!student) return;
 
     const current = student.total_tilawah_hal || 0;
-    const currentPct = Math.min(100, Math.round((current / 604) * 100));
+    const { khatam: curKhatam, sisa: curSisa, pct: currentPct } = getTilawahKhatamInfo(current);
+    const currentLabel = curKhatam > 0 ? `${curKhatam}x Khatam + ${curSisa} hal` : `${curSisa} / 604 hal`;
 
     const content = `
         <div class="p-6">
@@ -514,40 +523,45 @@ function openSetPosisiTilawah(studentId) {
             </div>
 
             <div class="bg-blue-50 border border-blue-100 rounded-2xl p-4 mb-6 text-sm text-blue-800">
-                Update total halaman tilawah santri. Masukkan <strong>total halaman yang sudah dibaca</strong> hingga saat ini.
+                Masukkan <strong>total halaman kumulatif</strong> yang sudah dibaca. Jika sudah 2x khatam, isi <strong>1208</strong> (604×2).
             </div>
 
             <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 mb-5">
                 <div class="flex justify-between text-xs font-bold text-slate-500 mb-2">
-                    <span>Posisi saat ini</span>
-                    <span id="setPosisiCurrentText">${current} / 604 hal (${currentPct}%)</span>
+                    <span>Saat ini</span>
+                    <span>${currentLabel} (${currentPct}%)</span>
                 </div>
                 <div class="w-full bg-slate-200 rounded-full h-2">
-                    <div class="bg-emerald-500 h-2 rounded-full" id="setPosisiCurrentBar" style="width:${currentPct}%"></div>
+                    <div class="bg-emerald-500 h-2 rounded-full" style="width:${currentPct}%"></div>
                 </div>
+                ${curKhatam > 0 ? `<div class="text-xs text-emerald-600 font-bold mt-1">🏆 ${curKhatam}x Khatam Al-Qur'an</div>` : ''}
             </div>
 
             <form onsubmit="handleSetPosisiTilawah(event, ${studentId})" class="space-y-5">
                 <div class="space-y-2">
-                    <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Halaman yang Sudah Dibaca</label>
-                    <input type="number" name="totalHal" placeholder="0 – 604" value="${current}"
-                        min="0" max="604" required
+                    <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Halaman Kumulatif</label>
+                    <input type="number" name="totalHal" placeholder="Contoh: 604 (1x khatam), 1208 (2x khatam)" value="${current}"
+                        min="0" required
                         oninput="
                             const v=parseInt(this.value)||0;
-                            const pct=Math.min(100,Math.round(v/604*100));
-                            document.getElementById('setPosisiPreviewPct').textContent=pct+'%';
+                            const k=Math.floor(v/604); const s=v%604;
+                            const pct=Math.round((s/604)*100);
+                            const label=k>0?(k+'x Khatam + '+s+' hal ('+pct+'%)'):(s+' / 604 hal ('+pct+'%)');
+                            document.getElementById('setPosisiPreviewPct').textContent=label;
                             document.getElementById('setPosisiPreviewBar').style.width=pct+'%';
-                            const info=typeof quranPageMap!=='undefined'?quranPageMap.find(p=>p.p===v):null;
-                            document.getElementById('setPosisiInfo').textContent=info?'Hal '+v+' · '+info.ss+' '+info.sa:'';
+                            document.getElementById('setPosisiKhatamBadge').textContent=k>0?('🏆 '+k+'x Khatam Al-Quran'):'';
+                            const pg=s>0&&s<=604?quranPageMap&&quranPageMap.find(p=>p.p===s):null;
+                            document.getElementById('setPosisiInfo').textContent=pg?'Posisi: '+pg.ss+' '+pg.sa:'';
                         "
                         class="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-emerald-500 outline-none text-2xl font-black text-slate-800 transition-all">
                     <div id="setPosisiInfo" class="text-xs text-emerald-600 font-semibold min-h-[16px]"></div>
+                    <div id="setPosisiKhatamBadge" class="text-sm font-black text-amber-600 min-h-[20px]"></div>
                 </div>
 
                 <div class="bg-emerald-50 border border-emerald-100 rounded-2xl p-3">
                     <div class="flex justify-between text-xs font-bold text-emerald-700 mb-2">
-                        <span>Preview</span>
-                        <span id="setPosisiPreviewPct">0%</span>
+                        <span>Preview progress putaran saat ini</span>
+                        <span id="setPosisiPreviewPct">—</span>
                     </div>
                     <div class="w-full bg-emerald-100 rounded-full h-3">
                         <div class="bg-emerald-500 h-3 rounded-full transition-all" id="setPosisiPreviewBar" style="width:0%"></div>
@@ -556,7 +570,7 @@ function openSetPosisiTilawah(studentId) {
 
                 <div class="grid grid-cols-2 gap-4 pt-2">
                     <button type="button" onclick="closeModal()" class="px-6 py-4 rounded-2xl font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 transition-all">Batal</button>
-                    <button type="submit" class="px-6 py-4 bg-emerald-600 text-white rounded-2xl font-display font-bold shadow-xl shadow-emerald-200 active:scale-95 transition-all">Simpan Posisi</button>
+                    <button type="submit" class="px-6 py-4 bg-emerald-600 text-white rounded-2xl font-display font-bold shadow-xl shadow-emerald-200 active:scale-95 transition-all">Simpan</button>
                 </div>
             </form>
         </div>
@@ -567,15 +581,16 @@ function openSetPosisiTilawah(studentId) {
 function handleSetPosisiTilawah(event, studentId) {
     event.preventDefault();
     const totalHal = parseInt(event.target.elements.totalHal.value) || 0;
-    if (totalHal < 0 || totalHal > 604) {
-        showNotification('❌ Halaman harus antara 0 - 604', 'error');
+    if (totalHal < 0) {
+        showNotification('❌ Total halaman tidak boleh negatif', 'error');
         return;
     }
 
     const student = dashboardData.students.find(s => String(s.id) === String(studentId));
     if (!student) return;
 
-    // Simpan sebagai baseline entry khusus (tanggal jauh di masa lalu agar tidak bentrok)
+    const { khatam, sisa } = getTilawahKhatamInfo(totalHal);
+
     initMutabaahData();
     const baselineDate = '2000-01-01';
     let baselineData = dashboardData.tilawah.find(t => String(t.studentId) === String(studentId) && t.date === baselineDate);
@@ -591,21 +606,20 @@ function handleSetPosisiTilawah(event, studentId) {
         dashboardData.tilawah.push(baselineData);
     }
 
-    // Simpan sebagai satu entry baseline
+    const pageInfo = (typeof quranPageMap !== 'undefined' && sisa > 0) ? quranPageMap.find(p => p.p === sisa) : null;
     baselineData.entries['baseline'] = {
         halAwal: 1,
         halAkhir: totalHal,
         jumlahHal: totalHal,
         hal: totalHal,
-        juz: getJuzFromPage(totalHal),
-        surah: (typeof quranPageMap !== 'undefined' && quranPageMap.find(p => p.p === totalHal))?.ss || '',
-        note: 'Posisi awal (set manual)',
+        juz: getJuzFromPage(sisa || 604),
+        surah: pageInfo ? pageInfo.ss : '',
+        note: `Update manual${khatam > 0 ? ` (${khatam}x khatam)` : ''}`,
         timestamp: '00:00'
     };
     baselineData.summary.totalHalaman = totalHal;
 
-    // Update progress
-    student.total_tilawah_hal = null; // reset agar dihitung ulang
+    student.total_tilawah_hal = null;
     updateStudentTilawahProgress(studentId);
 
     StorageManager.save();
@@ -613,7 +627,10 @@ function handleSetPosisiTilawah(event, studentId) {
 
     closeModal();
     renderMutabaahDashboard();
-    showNotification(`✅ Tilawah ${student.name} diupdate: ${totalHal} halaman`, 'success');
+    const msg = khatam > 0
+        ? `✅ ${student.name}: ${khatam}x Khatam + ${sisa} halaman`
+        : `✅ Tilawah ${student.name} diupdate: ${totalHal} halaman`;
+    showNotification(msg, 'success');
 }
 
 function approveMutabaah(role, studentId) {
