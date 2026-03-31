@@ -500,7 +500,11 @@ function handleAddStudent(event) {
     localStorage.removeItem('_deleteJustDone');
     recalculateRankings();
     StorageManager.save();
-    if (window.autoSync) autoSync();
+
+    // Sync ke Supabase
+    if (navigator.onLine && typeof window.syncStudentsToSupabase === 'function') {
+        window.syncStudentsToSupabase().catch(e => console.error('Sync student failed:', e));
+    }
 
     // closeModal(); // Don't close modal, just refresh view
     refreshAllData();
@@ -538,7 +542,11 @@ function handleEditStudent(event, studentId, fromAdmin = false) {
 
         recalculateRankings();
         StorageManager.save();
-        if (window.autoSync) autoSync();
+
+        // Sync ke Supabase
+        if (navigator.onLine && typeof window.syncStudentsToSupabase === 'function') {
+            window.syncStudentsToSupabase().catch(e => console.error('Sync student failed:', e));
+        }
 
         // closeModal(); // Don't close modal, just refresh view
         refreshAllData();
@@ -592,12 +600,12 @@ function handleAddHalaqah(event) {
 
     // Sync ke Supabase
     if (navigator.onLine && typeof window.syncHalaqahsToSupabase === 'function') {
-        window.syncHalaqahsToSupabase()
-            .then(() => showNotification('✅ Halaqah baru berhasil disimpan!', 'success'))
-            .catch(e => {
-                console.error('Sync halaqah failed:', e);
-                showNotification('⚠️ Halaqah tersimpan lokal, gagal sync ke server.', 'warning');
-            });
+        window.syncHalaqahsToSupabase().then(() => {
+            showNotification('✅ Halaqah baru tersimpan!', 'success');
+        }).catch(e => {
+            console.error('Sync halaqah failed:', e);
+            showNotification('⚠️ Halaqah ditambahkan lokal, gagal sync ke server.', 'warning');
+        });
     } else {
         showNotification('✅ Halaqah baru berhasil ditambahkan!', 'success');
     }
