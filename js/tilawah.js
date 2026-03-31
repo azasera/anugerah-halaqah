@@ -325,10 +325,10 @@ function openTilawahInputForm(prayerId, studentId) {
     const existingEntry = todayData.entries[prayerId] || {};
 
     // Hitung total halaman tilawah santri ini (semua waktu)
-    const allEntries = (dashboardData.tilawah || [])
+    const totalHalSantri = student.total_tilawah_hal || (dashboardData.tilawah || [])
         .filter(t => String(t.studentId) === String(studentId))
-        .flatMap(t => Object.values(t.entries || {}));
-    const totalHalSantri = allEntries.reduce((sum, e) => sum + (e.jumlahHal || 0), 0);
+        .flatMap(t => Object.values(t.entries || {}))
+        .reduce((sum, e) => sum + (e.jumlahHal || 0), 0);
     const progressPct = Math.min(100, Math.round((totalHalSantri / 604) * 100));
 
     const content = `
@@ -352,10 +352,10 @@ function openTilawahInputForm(prayerId, studentId) {
             <div class="bg-emerald-50 border border-emerald-100 rounded-2xl p-4 mb-6">
                 <div class="flex justify-between items-center mb-2">
                     <span class="text-xs font-bold text-emerald-700">Progress Tilawah</span>
-                    <span class="text-xs font-black text-emerald-800">${totalHalSantri} / 604 hal (${progressPct}%)</span>
+                    <span class="text-xs font-black text-emerald-800" id="tilawahProgressText">${totalHalSantri} / 604 hal (${progressPct}%)</span>
                 </div>
                 <div class="w-full bg-emerald-100 rounded-full h-3">
-                    <div class="bg-emerald-500 h-3 rounded-full transition-all" style="width:${progressPct}%"></div>
+                    <div class="bg-emerald-500 h-3 rounded-full transition-all" id="tilawahProgressBar" style="width:${progressPct}%"></div>
                 </div>
             </div>
 
@@ -458,12 +458,38 @@ function handleMutabaahSubmission(event, prayerId, studentId) {
     // Recalculate summary — jumlah halaman aktual
     todayData.summary.totalHalaman = Object.values(todayData.entries).reduce((sum, e) => sum + (e.jumlahHal || 0), 0);
 
+    // Update progress kumulatif tilawah santri
+    updateStudentTilawahProgress(studentId);
+
     StorageManager.save();
     if (window.autoSync) window.autoSync();
 
     closeModal();
     renderMutabaahDashboard();
-    showNotification(`✅ Mutaba'ah Tilawah ${prayerId} berhasil disimpan!`, 'success');
+    showNotification(`✅ Tilawah ${prayerId} disimpan! +${jumlahHal} halaman`, 'success');
+}
+
+function updateStudentTilawahProgress(studentId) {
+    // Hitung total halaman tilawah dari semua entri historis
+    const allEntries = (dashboardData.tilawah || [])
+        .filter(t => String(t.studentId) === String(studentId))
+        .flatMap(t => Object.values(t.entries || {}));
+    const totalHal = allEntries.reduce((sum, e) => sum + (e.jumlahHal || 0), 0);
+
+    // Simpan ke student object agar bisa diakses di mana saja
+    const student = dashboardData.students.find(s => String(s.id) === String(studentId));
+    if (student) {
+        student.total_tilawah_hal = totalHal;
+    }
+
+    // Update progress bar di header card jika sedang tampil
+    const progressBar = document.getElementById('tilawahProgressBar');
+    const progressText = document.getElementById('tilawahProgressText');
+    if (progressBar && progressText) {
+        const pct = Math.min(100, Math.round((totalHal / 604) * 100));
+        progressBar.style.width = pct + '%';
+        progressText.textContent = `${totalHal} / 604 hal (${pct}%)`;
+    }
 }
 
 function approveMutabaah(role, studentId) {
