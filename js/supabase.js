@@ -156,7 +156,10 @@ async function loadStudentsFromSupabase() {
             StorageManager.save();
 
             // Update UI
+            if (typeof renderStats === 'function') renderStats();
+            if (typeof renderHalaqahRankings === 'function') renderHalaqahRankings();
             if (typeof renderSantri === 'function') renderSantri();
+            if (typeof renderFilters === 'function') renderFilters();
             if (typeof updateStats === 'function') updateStats();
         } else {
             console.log('⚠️ Remote students empty — sinkronkan ke kosong (sumber: server)');
@@ -209,6 +212,8 @@ async function loadHalaqahsFromSupabase() {
             StorageManager.save();
 
             if (typeof renderHalaqah === 'function') renderHalaqah();
+            if (typeof renderHalaqahRankings === 'function') renderHalaqahRankings();
+            if (typeof renderStats === 'function') renderStats();
             if (typeof updateStats === 'function') updateStats();
         } else {
             console.log('⚠️ Remote halaqahs empty — sinkronkan ke kosong');
