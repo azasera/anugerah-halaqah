@@ -590,6 +590,18 @@ function handleAddHalaqah(event) {
     dashboardData.halaqahs.push(newHalaqah);
     StorageManager.save();
 
+    // Sync ke Supabase
+    if (navigator.onLine && typeof window.syncHalaqahsToSupabase === 'function') {
+        window.syncHalaqahsToSupabase()
+            .then(() => showNotification('✅ Halaqah baru berhasil disimpan!', 'success'))
+            .catch(e => {
+                console.error('Sync halaqah failed:', e);
+                showNotification('⚠️ Halaqah tersimpan lokal, gagal sync ke server.', 'warning');
+            });
+    } else {
+        showNotification('✅ Halaqah baru berhasil ditambahkan!', 'success');
+    }
+
     // If we're in admin view, refresh the list
     if (typeof showAdminSettings === 'function' && document.getElementById('detailModal')) {
         showAdminSettings();
@@ -599,7 +611,6 @@ function handleAddHalaqah(event) {
     }
     
     refreshAllData();
-    showNotification('✅ Halaqah baru berhasil ditambahkan!');
 }
 
 function confirmDeleteStudent(studentId, keepModalOpen = false) {
