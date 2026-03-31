@@ -258,14 +258,6 @@ function handleEditHalaqah(event, halaqahId) {
         recalculateRankings();
         
         StorageManager.save();
-
-        // Sync ke Supabase
-        if (navigator.onLine) {
-            const p = [];
-            if (typeof window.syncHalaqahsToSupabase === 'function') p.push(window.syncHalaqahsToSupabase());
-            if (typeof window.syncStudentsToSupabase === 'function') p.push(window.syncStudentsToSupabase());
-            Promise.all(p).catch(e => console.error('Sync halaqah edit failed:', e));
-        }
         if (window.autoSync) autoSync();
         
         closeModal();
