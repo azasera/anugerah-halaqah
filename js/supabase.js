@@ -82,13 +82,21 @@ async function loadStudentsFromSupabase() {
         return;
     }
 
-    // Mode hapus semua: jangan tarik ulang semua santri dari server (tanpa batas waktu — sampai user tambah/import lagi)
-    if (localStorage.getItem('_deleteJustDone')) {
-        console.log('[LOAD] ⏭️ Skip load students — mode hapus aktif (tambah/import santri untuk muat dari server lagi)');
-        if (typeof window.enforcePostDeleteLocalState === 'function') {
-            window.enforcePostDeleteLocalState();
+    // Mode hapus semua: expired setelah 1 jam
+    const deleteFlag = localStorage.getItem('_deleteJustDone');
+    if (deleteFlag) {
+        const elapsed = Date.now() - parseInt(deleteFlag, 10);
+        if (elapsed < 3600000) { // 1 jam
+            console.log('[LOAD] ⏭️ Skip load students — mode hapus aktif');
+            if (typeof window.enforcePostDeleteLocalState === 'function') {
+                window.enforcePostDeleteLocalState();
+            }
+            return;
+        } else {
+            // Expired — hapus flag dan lanjut load
+            localStorage.removeItem('_deleteJustDone');
+            console.log('[LOAD] ✅ Flag hapus expired, lanjut load dari server');
         }
-        return;
     }
 
     if (window.hasPendingLocalChanges) {
@@ -186,10 +194,17 @@ async function loadHalaqahsFromSupabase() {
     if (!navigator.onLine || window.isLoadingHalaqahs) return;
 
     if (localStorage.getItem('_deleteJustDone')) {
-        console.log('[LOAD] ⏭️ Skip load halaqahs — mode hapus aktif');
-        if (typeof window.enforcePostDeleteLocalState === 'function') {
-            window.enforcePostDeleteLocalState();
+        const elapsed = Date.now() - parseInt(localStorage.getItem('_deleteJustDone'), 10);
+        if (elapsed < 3600000) {
+            console.log('[LOAD] ⏭️ Skip load halaqahs — mode hapus aktif');
+            if (typeof window.enforcePostDeleteLocalState === 'function') {
+                window.enforcePostDeleteLocalState();
+            }
+            return;
+        } else {
+            localStorage.removeItem('_deleteJustDone');
         }
+    }
         return;
     }
 
