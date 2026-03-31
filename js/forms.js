@@ -117,6 +117,18 @@ function showAddStudentForm() {
                     </select>
                 </div>
 
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-2">Lembaga</label>
+                    <select name="lembaga" required
+                        class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all">
+                        <option value="">Pilih Lembaga</option>
+                        <option value="SDITA">SDITA</option>
+                        <option value="SMPITA">SMPITA</option>
+                        <option value="SMAITA">SMAITA</option>
+                        <option value="MTA">MTA</option>
+                    </select>
+                </div>
+
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm font-bold text-slate-700 mb-2">NIS / NISN</label>
@@ -260,6 +272,18 @@ function showEditStudentForm(student, fromAdmin = false) {
                                 ${h.name}
                             </option>
                         `).join('')}
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-2">Lembaga</label>
+                    <select name="lembaga"
+                        class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all">
+                        <option value="">Pilih Lembaga</option>
+                        <option value="SDITA" ${student.lembaga === 'SDITA' ? 'selected' : ''}>SDITA</option>
+                        <option value="SMPITA" ${student.lembaga === 'SMPITA' ? 'selected' : ''}>SMPITA</option>
+                        <option value="SMAITA" ${student.lembaga === 'SMAITA' ? 'selected' : ''}>SMAITA</option>
+                        <option value="MTA" ${student.lembaga === 'MTA' ? 'selected' : ''}>MTA</option>
                     </select>
                 </div>
 
@@ -477,6 +501,7 @@ function handleAddStudent(event) {
         nisn: formData.get('nisn')?.trim() || '',
         nik: formData.get('nik')?.trim() || '',
         halaqah: formData.get('halaqah'),
+        lembaga: formData.get('lembaga') || '',
         total_points: parseInt(formData.get('points')),
 
         // New Fields
@@ -529,6 +554,7 @@ function handleEditStudent(event, studentId, fromAdmin = false) {
         student.nisn = (formData.get('nisn') || '').trim();
         student.nik = (formData.get('nik') || '').trim();
         student.halaqah = formData.get('halaqah');
+        student.lembaga = formData.get('lembaga') || student.lembaga || '';
 
         // Update New Fields
         student.jenis_kelamin = formData.get('jenis_kelamin');
