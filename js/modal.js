@@ -127,8 +127,16 @@ function showStudentDetail(studentOrId) {
     const isAuthorized = typeof currentProfile !== 'undefined' &&
         (currentProfile.role === 'guru' || currentProfile.role === 'admin');
 
+    // Ortu boleh input untuk anak sendiri
+    const isOrtuOwnChild = typeof currentProfile !== 'undefined' &&
+        currentProfile.role === 'ortu' &&
+        window.currentUserChild &&
+        String(window.currentUserChild.id) === String(student.id);
+
+    const canInput = isAuthorized || isOrtuOwnChild;
+
     // Determine default tab
-    const defaultTab = isAuthorized ? 'input' : 'profil';
+    const defaultTab = canInput ? 'input' : 'profil';
 
     // Determine current session
     let currentSessionId = '';
@@ -163,12 +171,12 @@ function showStudentDetail(studentOrId) {
     // Generate tabs HTML
     const tabs = `
         <div class="flex border-b border-slate-200 mb-6">
-            ${isAuthorized ? `
+            ${canInput ? `
             <button onclick="switchDetailTab('input')" id="tab-btn-input" class="flex-1 py-3 text-sm font-bold text-primary-600 border-b-2 border-primary-600 transition-colors">
                 📝 Input Setoran
             </button>
             ` : ''}
-            <button onclick="switchDetailTab('profil')" id="tab-btn-profil" class="flex-1 py-3 text-sm font-bold ${!isAuthorized ? 'text-primary-600 border-b-2 border-primary-600' : 'text-slate-500 border-transparent'} transition-colors">
+            <button onclick="switchDetailTab('profil')" id="tab-btn-profil" class="flex-1 py-3 text-sm font-bold ${!canInput ? 'text-primary-600 border-b-2 border-primary-600' : 'text-slate-500 border-transparent'} transition-colors">
                 👤 Profil
             </button>
             <button onclick="switchDetailTab('riwayat')" id="tab-btn-riwayat" class="flex-1 py-3 text-sm font-bold text-slate-500 border-b-2 border-transparent transition-colors">
@@ -179,7 +187,7 @@ function showStudentDetail(studentOrId) {
 
     // Input Content
     let inputContent = '';
-    if (isAuthorized) {
+    if (canInput) {
         // Get Lembaga Target
         const lembagaKey = (typeof window.normalizeLembagaKey === 'function')
             ? window.normalizeLembagaKey(student.lembaga || 'MTA')
@@ -302,7 +310,7 @@ function showStudentDetail(studentOrId) {
 
     // Profil Content (Existing)
     const profilContent = `
-        <div id="tab-content-profil" class="${isAuthorized ? 'hidden' : ''} animate-fade-in">
+        <div id="tab-content-profil" class="${canInput ? 'hidden' : ''} animate-fade-in">
             <div class="grid grid-cols-2 gap-4 mb-6">
                 <div class="bg-primary-50 rounded-2xl p-4">
                     <div class="text-primary-600 text-sm font-bold mb-1">Ranking Keseluruhan</div>
@@ -468,7 +476,7 @@ function showStudentDetail(studentOrId) {
     createModal(content, false);
 
     // Initialize auto poin logic if input tab is active
-    if (isAuthorized) {
+    if (canInput) {
         setTimeout(calculateAutoPoin, 100);
     }
 }
