@@ -227,7 +227,12 @@ function getTopHalaqah() {
 
 /** Samakan "Halaqah 5A", "5A", "halaqah 5a" untuk hitung anggota & filter. */
 function normalizeHalaqahLabel(name) {
-    return String(name || '').replace(/^Halaqah\s+/i, '').trim().toLowerCase();
+    if (!name) return '';
+    return String(name)
+        .replace(/^Halaqah\s+/i, '')
+        .replace(/^(Ustadz|Ustadzah|Ust\.?|U\.)\s+/i, '')
+        .trim()
+        .toLowerCase();
 }
 
 function getStudentsByHalaqah(halaqahName) {

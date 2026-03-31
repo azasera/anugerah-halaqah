@@ -608,6 +608,17 @@ function showResetDataModal() {
                         </div>
                     </div>
                 </button>
+
+                <button onclick="closeModal(); mergeDuplicateHalaqahs()" 
+                    class="w-full p-4 bg-indigo-50 border-2 border-indigo-200 text-indigo-800 rounded-xl font-bold hover:bg-indigo-100 transition-colors text-left">
+                    <div class="flex items-center gap-3">
+                        <div class="text-3xl">🔗</div>
+                        <div class="flex-1">
+                            <div class="font-bold text-lg">Gabungkan Duplikasi Halaqah</div>
+                            <div class="text-sm font-normal">Gabungkan halaqah yang mirip (misal: Basrial & Ustadz Basrial)</div>
+                        </div>
+                    </div>
+                </button>
                 
                 <button onclick="closeModal(); clearCacheAndReload()" 
                     class="w-full p-4 bg-green-50 border-2 border-green-200 text-green-800 rounded-xl font-bold hover:bg-green-100 transition-colors text-left">
@@ -695,12 +706,100 @@ function showResetDataModal() {
     createModal(content, false);
 }
 
+// Merge duplicate halaqahs (e.g. "Basrial" and "Ustadz Basrial")
+async function mergeDuplicateHalaqahs() {
+    if (!confirm('⚠️ Gabungkan duplikasi halaqah?\n\nSistem akan mencari halaqah dengan nama yang mirip (misal: "Basrial" dan "Ustadz Basrial") dan menggabungkannya menjadi satu.\n\nLanjutkan?')) return;
+
+    try {
+        if (!window.supabaseClient) {
+            showNotification('❌ Supabase client belum siap', 'error');
+            return;
+        }
+
+        showNotification('⏳ Mencari duplikasi halaqah...', 'info');
+        
+        const groups = {};
+        dashboardData.halaqahs.forEach(h => {
+            const key = typeof normalizeHalaqahLabel === 'function' ? normalizeHalaqahLabel(h.name) : (h.name || '').toLowerCase();
+            if (!groups[key]) groups[key] = [];
+            groups[key].push(h);
+        });
+
+        const duplicates = Object.values(groups).filter(g => g.length > 1);
+        
+        if (duplicates.length === 0) {
+            showNotification('✅ Tidak ditemukan duplikasi halaqah.', 'success');
+            return;
+        }
+
+        let totalMerged = 0;
+        const deletedIds = [];
+
+        for (const group of duplicates) {
+            // Sort: prioritize names with titles (Ustadz/Ustadzah) or more members
+            group.sort((a, b) => {
+                const aHasTitle = /Ustadz|Ustadzah|Ust\./i.test(a.name);
+                const bHasTitle = /Ustadz|Ustadzah|Ust\./i.test(b.name);
+                if (aHasTitle && !bHasTitle) return -1;
+                if (!aHasTitle && bHasTitle) return 1;
+                return (b.members || 0) - (a.members || 0);
+            });
+
+            const canonical = group[0];
+            const toDelete = group.slice(1);
+            
+            console.log(`[MERGE] Canonical: ${canonical.name} (${canonical.id})`);
+            
+            for (const dup of toDelete) {
+                console.log(`[MERGE] Removing duplicate: ${dup.name} (${dup.id})`);
+                deletedIds.push(dup.id);
+                totalMerged++;
+            }
+        }
+
+        if (deletedIds.length > 0) {
+            showNotification(`⏳ Menghapus ${deletedIds.length} duplikasi di server...`, 'info');
+            
+            // Delete from Supabase
+            const { error } = await window.supabaseClient
+                .from('halaqahs')
+                .delete()
+                .in('id', deletedIds);
+
+            if (error) throw error;
+
+            // Update local state
+            dashboardData.halaqahs = dashboardData.halaqahs.filter(h => !deletedIds.includes(h.id));
+            
+            // Reconcile students (move them to canonical name)
+            if (typeof recalculateRankings === 'function') {
+                recalculateRankings();
+            }
+            
+            // Save & Sync students
+            if (typeof StorageManager !== 'undefined') StorageManager.save();
+            
+            if (typeof syncStudentsToSupabase === 'function' && navigator.onLine) {
+                await syncStudentsToSupabase();
+            }
+
+            showNotification(`✅ Berhasil menggabungkan ${totalMerged} duplikasi halaqah!`, 'success');
+            if (typeof refreshAllData === 'function') refreshAllData();
+        }
+
+    } catch (error) {
+        console.error('[MERGE] Error:', error);
+        showNotification('❌ Gagal menggabungkan: ' + error.message, 'error');
+    }
+}
+
 // Export functions
 window.clearCacheAndReload = clearCacheAndReload;
 window.resetAllDataInSupabase = resetAllDataInSupabase;
 window.resetAllPointsToZero = resetAllPointsToZero;
 window.showResetDataModal = showResetDataModal;
 window.fixNegativePoints = fixNegativePoints;
+window.mergeDuplicateHalaqahs = mergeDuplicateHalaqahs;
 window.resetSingleStudent = resetSingleStudent;
 window.deleteDataByLembaga = deleteDataByLembaga;
 window.resetPointsByLembaga = resetPointsByLembaga;

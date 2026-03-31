@@ -550,7 +550,12 @@ function showAdminSettings() {
                                 class="w-full bg-purple-600 text-white px-4 py-3 rounded-lg font-bold hover:bg-purple-700 transition-colors flex items-center justify-center gap-2">
                                 🧹 Hapus Poin Negatif (Fix)
                             </button>
-                            
+
+                            <button onclick="mergeDuplicateHalaqahs()" 
+                                 class="w-full bg-indigo-600 text-white px-4 py-3 rounded-lg font-bold hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2">
+                                 🔗 Gabungkan Duplikasi Halaqah
+                            </button>
+
                             <button onclick="showResetDataModal()" 
                                 class="w-full bg-red-600 text-white px-4 py-3 rounded-lg font-bold hover:bg-red-700 transition-colors flex items-center justify-center gap-2">
                                 🔧 Reset Data Lengkap
