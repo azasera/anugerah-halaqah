@@ -2098,3 +2098,94 @@ function toggleHoliday(lembagaKey) {
 window.toggleHoliday = toggleHoliday;
 window.updateAutoPoinStats = updateAutoPoinStats;
 window.updateAutoPoinStatsInline = updateAutoPoinStatsInline;
+
+function showMergeHalaqahForm(sourceId) {
+    const source = dashboardData.halaqahs.find(h => h.id === sourceId);
+    if (!source) return;
+
+    const others = dashboardData.halaqahs.filter(h => h.id !== sourceId);
+    const options = others.map(h =>
+        `<option value="${h.id}">${h.name} (${h.members} anggota)</option>`
+    ).join('');
+
+    const members = dashboardData.students.filter(s => s.halaqah === source.name).length;
+
+    const content = `
+        <div class="p-6">
+            <div class="flex items-center justify-between mb-6">
+                <div>
+                    <h2 class="font-display font-bold text-2xl text-slate-800">🔀 Merge Halaqah</h2>
+                    <p class="text-slate-500 text-sm mt-1">Pindahkan semua santri ke halaqah lain, lalu hapus halaqah ini</p>
+                </div>
+                <button onclick="closeModal()" class="p-2 bg-slate-100 rounded-xl text-slate-400 hover:bg-slate-200">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-5">
+                <div class="font-bold text-amber-800">${source.name}</div>
+                <div class="text-sm text-amber-700">${members} santri akan dipindahkan</div>
+            </div>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Merge ke Halaqah</label>
+                    <select id="mergeTargetSelect" class="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-emerald-500 outline-none font-medium">
+                        <option value="">-- Pilih halaqah tujuan --</option>
+                        ${options}
+                    </select>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3 pt-2">
+                    <button onclick="closeModal()" class="px-4 py-3 rounded-xl font-bold text-slate-500 bg-slate-100 hover:bg-slate-200">Batal</button>
+                    <button onclick="executeMergeHalaqah(${sourceId})" class="px-4 py-3 bg-amber-600 text-white rounded-xl font-bold hover:bg-amber-700 active:scale-95 transition-all">Merge & Hapus</button>
+                </div>
+            </div>
+        </div>
+    `;
+    createModal(content, false);
+}
+
+async function executeMergeHalaqah(sourceId) {
+    const targetId = parseInt(document.getElementById('mergeTargetSelect')?.value);
+    if (!targetId) { showNotification('Pilih halaqah tujuan terlebih dahulu', 'warning'); return; }
+
+    const source = dashboardData.halaqahs.find(h => h.id === sourceId);
+    const target = dashboardData.halaqahs.find(h => h.id === targetId);
+    if (!source || !target) return;
+
+    if (!confirm(`Pindahkan semua santri dari "${source.name}" ke "${target.name}", lalu hapus "${source.name}"?`)) return;
+
+    // Pindahkan semua santri
+    let moved = 0;
+    dashboardData.students.forEach(s => {
+        if (s.halaqah === source.name) {
+            s.halaqah = target.name;
+            moved++;
+        }
+    });
+
+    // Hapus halaqah sumber dari lokal
+    dashboardData.halaqahs = dashboardData.halaqahs.filter(h => h.id !== sourceId);
+
+    // Recalculate
+    if (typeof recalculateRankings === 'function') recalculateRankings();
+    StorageManager.save();
+
+    // Sync ke Supabase
+    if (navigator.onLine) {
+        const promises = [];
+        if (typeof window.syncStudentsToSupabase === 'function') promises.push(window.syncStudentsToSupabase());
+        if (typeof window.syncHalaqahsToSupabase === 'function') promises.push(window.syncHalaqahsToSupabase());
+        if (typeof window.deleteHalaqahFromSupabase === 'function') promises.push(window.deleteHalaqahFromSupabase(sourceId));
+        await Promise.all(promises).catch(e => console.error('Merge sync error:', e));
+    }
+
+    closeModal();
+    if (typeof refreshAllData === 'function') refreshAllData();
+    if (typeof showAdminSettings === 'function') showAdminSettings();
+    showNotification(`✅ ${moved} santri dipindahkan ke ${target.name}`, 'success');
+}
+
+window.showMergeHalaqahForm = showMergeHalaqahForm;
+window.executeMergeHalaqah = executeMergeHalaqah;
