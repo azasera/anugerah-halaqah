@@ -36,6 +36,30 @@ const slides = [
         id: 'hafalan-leaders',
         title: '📖 Top Hafalan per Lembaga',
         type: 'hafalan'
+    },
+    {
+        id: 'tilawah-sdita',
+        title: '📗 Ranking Tilawah SDITA',
+        type: 'tilawah-lembaga',
+        lembaga: 'SDITA'
+    },
+    {
+        id: 'tilawah-smpita',
+        title: '📘 Ranking Tilawah SMPITA',
+        type: 'tilawah-lembaga',
+        lembaga: 'SMPITA'
+    },
+    {
+        id: 'tilawah-smaita',
+        title: '📙 Ranking Tilawah SMAITA',
+        type: 'tilawah-lembaga',
+        lembaga: 'SMAITA'
+    },
+    {
+        id: 'tilawah-mta',
+        title: '📕 Ranking Tilawah MTA',
+        type: 'tilawah-lembaga',
+        lembaga: 'MTA'
     }
 ];
 
@@ -85,6 +109,8 @@ function renderSlideContent() {
             renderStreakLeaders(contentContainer);
         } else if (slide.type === 'hafalan') {
             renderHafalanLeaders(contentContainer);
+        } else if (slide.type === 'tilawah-lembaga') {
+            renderTilawahLembaga(contentContainer, slide.lembaga);
         }
     });
 }
@@ -366,6 +392,56 @@ function renderHafalanLeaders(container) {
             ${content || '<div class="col-span-full text-center text-white/50 text-sm">Belum ada data hafalan</div>'}
         </div>
     `;
+}
+
+function renderTilawahLembaga(container, lembaga) {
+    const students = (dashboardData.students || [])
+        .filter(s => {
+            const l = (typeof window.normalizeLembagaKey === 'function')
+                ? window.normalizeLembagaKey(s.lembaga || '')
+                : (s.lembaga || '');
+            return l === lembaga;
+        })
+        .map(s => {
+            const totalHal = s.total_tilawah_hal || (dashboardData.tilawah || [])
+                .filter(t => String(t.studentId) === String(s.id))
+                .flatMap(t => Object.values(t.entries || {}))
+                .reduce((sum, e) => sum + (e.jumlahHal || 0), 0);
+            return { ...s, totalHal };
+        })
+        .filter(s => s.totalHal > 0)
+        .sort((a, b) => b.totalHal - a.totalHal)
+        .slice(0, 5);
+
+    if (students.length === 0) {
+        container.innerHTML = `<div class="flex items-center justify-center h-full text-white/50 text-sm">Belum ada data tilawah ${lembaga}</div>`;
+        return;
+    }
+
+    const medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣'];
+    const rows = students.map((s, i) => {
+        const { khatam, sisa, pct } = typeof getTilawahKhatamInfo === 'function'
+            ? getTilawahKhatamInfo(s.totalHal)
+            : { khatam: Math.floor(s.totalHal / 604), sisa: s.totalHal % 604, pct: Math.round((s.totalHal % 604) / 604 * 100) };
+        const label = khatam > 0 ? `${khatam}x Khatam + ${sisa} hal` : `${sisa} / 604 hal`;
+        return `
+            <div class="flex items-center gap-3 bg-white/10 backdrop-blur-sm rounded-xl p-3 border border-white/20">
+                <div class="text-2xl flex-shrink-0">${medals[i]}</div>
+                <div class="flex-1 min-w-0">
+                    <div class="font-bold text-white text-sm truncate">${s.name}</div>
+                    <div class="text-white/60 text-[10px]">${s.halaqah || ''}</div>
+                    <div class="mt-1 w-full bg-white/20 rounded-full h-1.5">
+                        <div class="bg-yellow-300 h-1.5 rounded-full" style="width:${pct}%"></div>
+                    </div>
+                </div>
+                <div class="text-right flex-shrink-0">
+                    ${khatam > 0 ? `<div class="text-yellow-300 font-black text-xs">🏆${khatam}x</div>` : ''}
+                    <div class="text-white/80 text-[10px] font-bold">${label}</div>
+                </div>
+            </div>`;
+    }).join('');
+
+    container.innerHTML = `<div class="space-y-2">${rows}</div>`;
 }
 
 function nextSlide() {
