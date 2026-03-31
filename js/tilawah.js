@@ -613,7 +613,7 @@ function handleSetPosisiTilawah(event, studentId) {
 
     closeModal();
     renderMutabaahDashboard();
-    showNotification(`✅ Posisi tilawah ${student.name} diset ke ${totalHal} halaman`, 'success');
+    showNotification(`✅ Tilawah ${student.name} diupdate: ${totalHal} halaman`, 'success');
 }
 
 function approveMutabaah(role, studentId) {
