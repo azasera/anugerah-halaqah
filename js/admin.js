@@ -328,10 +328,18 @@ function showAdminSettings() {
                         </div>
                     </div>
                     
-                    <div class="mb-3">
-                        <input type="text" placeholder="Cari di data induk..." 
-                            oninput="const term = this.value.toLowerCase(); document.querySelectorAll('#dataIndukTableBody tr').forEach(row => { row.style.display = row.innerText.toLowerCase().includes(term) ? '' : 'none'; })"
-                            class="w-full px-4 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none">
+                    <div class="mb-3 flex gap-2">
+                        <input type="text" id="dataIndukSearch" placeholder="Cari di data induk..." 
+                            oninput="filterDataInduk()"
+                            class="flex-1 px-4 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none">
+                        <select id="dataIndukLembagaFilter" onchange="filterDataInduk()"
+                            class="px-3 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none bg-white text-slate-700 font-medium">
+                            <option value="">Semua Lembaga</option>
+                            <option value="SDITA">SDITA</option>
+                            <option value="SMPITA">SMPITA</option>
+                            <option value="SMAITA">SMAITA</option>
+                            <option value="MTA">MTA</option>
+                        </select>
                     </div>
 
                     <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-auto max-h-[500px] custom-scrollbar">
@@ -613,6 +621,33 @@ function renderAdminSettings(force = false) {
 }
 
 // Generate admin settings content (reusable)
+function filterDataInduk() {
+    const term = (document.getElementById('dataIndukSearch')?.value || '').toLowerCase();
+    const lembaga = (document.getElementById('dataIndukLembagaFilter')?.value || '').toUpperCase();
+    document.querySelectorAll('#dataIndukTableBody tr').forEach(row => {
+        const cells = row.querySelectorAll('td');
+        const text = row.innerText.toLowerCase();
+        // Kolom Lembaga ada di index 6 (No, NISN, NIK, Nama, L/P, TTL, Lembaga)
+        const lembagaCell = cells[6] ? cells[6].innerText.trim().toUpperCase() : '';
+        const matchText = !term || text.includes(term);
+        const matchLembaga = !lembaga || lembagaCell === lembaga;
+        row.style.display = matchText && matchLembaga ? '' : 'none';
+    });
+}
+
+function filterInlineDataInduk() {
+    const term = (document.getElementById('inlineDataIndukSearch')?.value || '').toLowerCase();
+    const lembaga = (document.getElementById('inlineDataIndukLembagaFilter')?.value || '').toUpperCase();
+    document.querySelectorAll('#inlineDataIndukTableBody tr').forEach(row => {
+        const cells = row.querySelectorAll('td');
+        const text = row.innerText.toLowerCase();
+        const lembagaCell = cells[6] ? cells[6].innerText.trim().toUpperCase() : '';
+        const matchText = !term || text.includes(term);
+        const matchLembaga = !lembaga || lembagaCell === lembaga;
+        row.style.display = matchText && matchLembaga ? '' : 'none';
+    });
+}
+
 function generateDataIndukRows(students) {
     return students.map((student, index) => {
         const hasNIK = !!student.nik;
@@ -650,6 +685,7 @@ function generateDataIndukRows(students) {
                 <td class="px-3 py-2 text-slate-600 whitespace-nowrap">${student.halaqah || '<span class="text-slate-400 italic">Belum</span>'}</td>
                 <td class="px-3 py-2 text-slate-600 max-w-[180px] truncate" title="${student.alamat || ''}">${student.alamat || '-'}</td>
                 <td class="px-3 py-2 text-slate-600 whitespace-nowrap">
+                    <div class="text-xs">HP Ortu: ${student.hp || '-'}</div>
                     <div class="text-xs">Ayah: ${student.nama_ayah || '-'}</div>
                     <div class="text-xs">Ibu: ${student.nama_ibu || '-'}</div>
                 </td>
@@ -846,10 +882,18 @@ function generateAdminSettingsContent() {
                         </div>
                     </div>
                     
-                    <div class="mb-3">
-                        <input type="text" placeholder="Cari di data induk..." 
-                            oninput="const term = this.value.toLowerCase(); document.querySelectorAll('#inlineDataIndukTableBody tr').forEach(row => { row.style.display = row.innerText.toLowerCase().includes(term) ? '' : 'none'; })"
-                            class="w-full px-4 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none">
+                    <div class="mb-3 flex gap-2">
+                        <input type="text" id="inlineDataIndukSearch" placeholder="Cari di data induk..." 
+                            oninput="filterInlineDataInduk()"
+                            class="flex-1 px-4 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none">
+                        <select id="inlineDataIndukLembagaFilter" onchange="filterInlineDataInduk()"
+                            class="px-3 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none bg-white text-slate-700 font-medium">
+                            <option value="">Semua Lembaga</option>
+                            <option value="SDITA">SDITA</option>
+                            <option value="SMPITA">SMPITA</option>
+                            <option value="SMAITA">SMAITA</option>
+                            <option value="MTA">MTA</option>
+                        </select>
                     </div>
 
                     <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-auto max-h-[500px] custom-scrollbar">

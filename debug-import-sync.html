@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>Debug Import Sync</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="p-6 font-mono text-sm">
+<h1 class="text-xl font-bold mb-4">Debug: Cek Data Santri di Supabase</h1>
+<div class="flex gap-2 mb-4 flex-wrap">
+  <button onclick="countAll()" class="px-4 py-2 bg-blue-600 text-white rounded">Hitung Semua Santri</button>
+  <button onclick="countByLembaga()" class="px-4 py-2 bg-green-600 text-white rounded">Hitung per Lembaga</button>
+  <button onclick="checkLastImported()" class="px-4 py-2 bg-purple-600 text-white rounded">Santri Terbaru (50)</button>
+  <button onclick="checkErrors()" class="px-4 py-2 bg-red-600 text-white rounded">Test Upsert</button>
+  <button onclick="checkLocalStorage()" class="px-4 py-2 bg-yellow-600 text-white rounded">Cek localStorage</button>
+  <button onclick="pushLocalToSupabase()" class="px-4 py-2 bg-orange-600 text-white rounded font-bold">⬆ Push localStorage → Supabase</button>
+</div>
+<pre id="out" class="bg-gray-100 p-4 rounded overflow-auto max-h-[70vh] whitespace-pre-wrap"></pre>
+</body>
+</html>
+<script>
+const SUPABASE_URL = 'https://klhegwunosmryqozuahc.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtsaGVnd3Vub3Ntcnlxb3p1YWhjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3Mjg3NDcsImV4cCI6MjA4NjMwNDc0N30.0X54jxpMZI9eilDxfJ7FYUGImuN-TEH9qGQkdRTtRXw';
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const out = document.getElementById('out');
+const log = (msg) => { out.textContent += msg + '\n'; };
+
+async function countAll() {
+  out.textContent = '';
+  log('Menghitung semua santri di Supabase...');
+  const { count, error } = await db.from('students').select('*', { count: 'exact', head: true });
+  if (error) { log('ERROR: ' + JSON.stringify(error)); return; }
+  log('Total santri di Supabase: ' + count);
+}
+
+async function countByLembaga() {
+  out.textContent = '';
+  log('Menghitung santri per lembaga...');
+  const { data, error } = await db.from('students').select('lembaga');
+  if (error) { log('ERROR: ' + JSON.stringify(error)); return; }
+  const counts = {};
+  data.forEach(s => { const l = s.lembaga || '(kosong)'; counts[l] = (counts[l] || 0) + 1; });
+  log('Hasil per lembaga:');
+  Object.entries(counts).sort().forEach(([k,v]) => log('  ' + k + ': ' + v + ' santri'));
+  log('\nTotal: ' + data.length);
+}
+
+async function checkLastImported() {
+  out.textContent = '';
+  log('50 santri terbaru di Supabase (berdasarkan ID terbesar)...');
+  const { data, error } = await db.from('students').select('id,name,lembaga,kelas').order('id', { ascending: false }).limit(50);
+  if (error) { log('ERROR: ' + JSON.stringify(error)); return; }
+  data.forEach(s => log(`ID:${s.id} | ${s.name} | ${s.lembaga || '-'} | ${s.kelas || '-'}`));
+}
+
+async function checkErrors() {
+  out.textContent = '';
+  log('Test upsert 1 santri dummy ke Supabase...');
+  const testData = { id: 999999999, name: 'TEST SANTRI DEBUG', halaqah: 'Test', lembaga: 'SDITA',
+    nisn: '', nik: '', kelas: '1A', jenis_kelamin: 'L', total_points: 0, total_hafalan: 0,
+    daily_ranking: 0, overall_ranking: 0, streak: 0, achievements: '[]', setoran: '[]',
+    last_activity: new Date().toISOString(), last_setoran_date: null };
+  const { error } = await db.from('students').upsert([testData]);
+  if (error) {
+    log('❌ UPSERT GAGAL: ' + JSON.stringify(error, null, 2));
+    log('\nKemungkinan penyebab: RLS policy memblokir insert/update');
+  } else {
+    log('✅ Upsert berhasil! Tidak ada masalah RLS.');
+    log('Menghapus data test...');
+    await db.from('students').delete().eq('id', 999999999);
+    log('✅ Data test dihapus.');
+  }
+}
+
+function checkLocalStorage() {
+  out.textContent = '';
+  log('Membaca data dari localStorage...');
+  const raw = localStorage.getItem('dashboardData');
+  if (!raw) { log('❌ Tidak ada data di localStorage (key: dashboardData)'); return; }
+  try {
+    const data = JSON.parse(raw);
+    const students = data.students || [];
+    log('Total santri di localStorage: ' + students.length);
+    const counts = {};
+    students.forEach(s => { const l = s.lembaga || '(kosong)'; counts[l] = (counts[l] || 0) + 1; });
+    log('\nPer lembaga:');
+    Object.entries(counts).sort().forEach(([k,v]) => log('  ' + k + ': ' + v + ' santri'));
+  } catch(e) { log('ERROR parse: ' + e.message); }
+}
+
+async function pushLocalToSupabase() {
+  out.textContent = '';
+  log('Membaca data dari localStorage...');
+  const raw = localStorage.getItem('dashboardData');
+  if (!raw) { log('❌ Tidak ada data di localStorage'); return; }
+  let students;
+  try {
+    const data = JSON.parse(raw);
+    students = data.students || [];
+  } catch(e) { log('ERROR parse: ' + e.message); return; }
+
+  if (students.length === 0) { log('❌ Tidak ada santri di localStorage'); return; }
+  log('Total santri di localStorage: ' + students.length);
+  log('Mulai push ke Supabase...\n');
+
+  const toUpsert = students.map(s => {
+    // Normalize tanggal_lahir
+    function normTgl(raw) {
+      if (!raw) return null;
+      const str = String(raw).trim();
+      if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+      const m1 = str.match(/^(\d{2})-(\d{2})-(\d{2})$/);
+      if (m1) return `20${m1[3]}-${m1[2]}-${m1[1]}`;
+      const m2 = str.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+      if (m2) return `${m2[3]}-${m2[2]}-${m2[1]}`;
+      const m3 = str.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+      if (m3) return `${m3[3]}-${m3[2]}-${m3[1]}`;
+      const d = new Date(str);
+      return isNaN(d.getTime()) ? null : d.toISOString().split('T')[0];
+    }
+    return {
+    id: s.id,
+    name: s.name,
+    halaqah: s.halaqah || '',
+    nisn: s.nisn || '',
+    nik: s.nik || '',
+    lembaga: s.lembaga || '',
+    kelas: s.kelas || '',
+    jenis_kelamin: s.jenis_kelamin || '',
+    tempat_lahir: s.tempat_lahir || '',
+    tanggal_lahir: normTgl(s.tanggal_lahir),
+    alamat: s.alamat || '',
+    hp: s.hp || '',
+    nama_ayah: s.nama_ayah || '',
+    nama_ibu: s.nama_ibu || '',
+    sekolah_asal: s.sekolah_asal || '',
+    total_hafalan: Number(s.total_hafalan) || 0,
+    total_points: s.total_points || 0,
+    daily_ranking: s.daily_ranking || 0,
+    overall_ranking: s.overall_ranking || 0,
+    streak: s.streak || 0,
+    last_activity: s.last_activity || new Date().toISOString(),
+    achievements: JSON.stringify(Array.isArray(s.achievements) ? s.achievements : []),
+    setoran: JSON.stringify(Array.isArray(s.setoran) ? s.setoran : []),
+    last_setoran_date: s.last_setoran_date || null
+    };
+  });
+
+  const BATCH = 100;
+  let success = 0, failed = 0;
+  for (let i = 0; i < toUpsert.length; i += BATCH) {
+    const batch = toUpsert.slice(i, i + BATCH);
+    const { error } = await db.from('students').upsert(batch);
+    if (error) {
+      log(`❌ Batch ${i}-${i+batch.length} GAGAL: ${error.message}`);
+      failed += batch.length;
+    } else {
+      log(`✅ Batch ${i+1}-${Math.min(i+BATCH, toUpsert.length)} berhasil`);
+      success += batch.length;
+    }
+  }
+  log(`\nSelesai: ${success} berhasil, ${failed} gagal`);
+  if (success > 0) log('\nRefresh halaman dashboard untuk melihat hasilnya.');
+}
+</script>

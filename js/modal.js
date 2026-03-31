@@ -20,7 +20,9 @@ function getHafalanProgressPercent(value, targetJuz = 30) {
 function getTargetHafalanJuz(student) {
     if (!student) return 30;
 
-    const lembaga = (student.lembaga || 'MTA').toUpperCase();
+    const lembaga = (typeof window.normalizeLembagaKey === 'function')
+        ? window.normalizeLembagaKey(student.lembaga || 'MTA')
+        : (student.lembaga || 'MTA').toUpperCase();
     const kelasRaw = (student.kelas || '').toString().toLowerCase();
     const match = kelasRaw.match(/\d+/);
     const kelasNum = match ? parseInt(match[0], 10) : null;
@@ -132,7 +134,9 @@ function showStudentDetail(studentOrId) {
     let currentSessionId = '';
     let isCurrentSessionActive = false;
 
-    const lembagaKey = student.lembaga || 'MTA';
+    const lembagaKey = (typeof window.normalizeLembagaKey === 'function')
+        ? window.normalizeLembagaKey(student.lembaga || 'MTA')
+        : (student.lembaga || 'MTA');
     const hafalanTargetJuz = getTargetHafalanJuz(student);
     const hafalanPercent = getHafalanProgressPercent(student.total_hafalan, hafalanTargetJuz);
 
@@ -177,7 +181,9 @@ function showStudentDetail(studentOrId) {
     let inputContent = '';
     if (isAuthorized) {
         // Get Lembaga Target
-        const lembagaKey = student.lembaga || 'MTA';
+        const lembagaKey = (typeof window.normalizeLembagaKey === 'function')
+            ? window.normalizeLembagaKey(student.lembaga || 'MTA')
+            : (student.lembaga || 'MTA');
         const lembagaSettings = appSettings.lembaga[lembagaKey] || appSettings.lembaga['MTA'];
         const targetBaris = lembagaSettings.targetBaris || 15;
         const barisPerHalaman = lembagaSettings.barisPerHalaman || 15;

@@ -269,17 +269,14 @@ let lastHafalanImportSummary = null;
 /** Cocokkan santri dengan jenjang sinkron (SD/SDITA, SMP/SMPITA, dll.). */
 function studentBelongsToJenjang(s, lembagaKey) {
     if (!s) return false;
-    const v = (s.lembaga || '').toString().trim().toUpperCase();
-    const aliases = {
-        SDITA: ['SDITA', 'SD'],
-        SMPITA: ['SMPITA', 'SMP'],
-        SMAITA: ['SMAITA', 'SMA'],
-        MTA: ['MTA']
-    };
-    const list = aliases[lembagaKey] || [String(lembagaKey || '').toUpperCase()];
+    const normalize = (typeof window.normalizeLembagaKey === 'function')
+        ? window.normalizeLembagaKey
+        : (v) => String(v || '').trim().toUpperCase();
+    const v = normalize(s.lembaga);
+    const wanted = normalize(lembagaKey);
     if (v) {
-        if (list.some(k => v === k)) return true;
-        if (lembagaKey === 'MTA' && v.startsWith('MTA')) return true;
+        if (v === wanted) return true;
+        if (wanted === 'MTA' && v.startsWith('MTA')) return true;
         return false;
     }
     // Tanpa kolom lembaga: tetap ikut pencocokan nama (API per jenjang yang menentukan siapa di-update)
@@ -395,7 +392,7 @@ function downloadExcelTemplate() {
     }
 
     const template = [
-        ['Nama Halaqah', 'Guru Halaqah', 'Kelas', 'Nama Santri', 'NISN', 'NIK', 'Lembaga', 'Jenis Kelamin', 'Tempat Lahir', 'Tanggal Lahir', 'Alamat', 'HP', 'Nama Ayah', 'Nama Ibu', 'Sekolah Asal'],
+        ['Nama Halaqah', 'Guru Halaqah', 'Kelas', 'Nama Santri', 'NISN', 'NIK', 'Lembaga', 'Jenis Kelamin', 'Tempat Lahir', 'Tanggal Lahir', 'Alamat', 'HP Ortu', 'Nama Ayah', 'Nama Ibu', 'Sekolah Asal'],
         ['Alim Aswari', 'Ustadz Alim', 'MTA 1', 'Abercio Nabil Arazzak', '2526.03.0001', '3201123456780001', 'MTA', 'L', 'Jakarta', '2010-01-01', 'Jl. Contoh No. 1', '08123456789', 'Ayah Budi', 'Ibu Ani', 'SDN 01'],
         ['Alim Aswari', 'Ustadz Alim', 'MTA 1', 'Ahmad Fatih Rizqie Qetama', '2526.03.0002', '3201123456780002', 'MTA', 'L', 'Bandung', '2010-05-15', 'Jl. Test No. 2', '08129876543', 'Ayah Ahmad', 'Ibu Siti', 'SDIT Al-Falah'],
         ['Alim Aswari', 'Ustadz Alim', 'MTA 1', 'Umar Zhafran Yazid', '2526.03.0003', '3201123456780003', 'MTA', 'L', 'Surabaya', '2011-03-20', 'Jl. Coba No. 3', '08134567890', 'Ayah Umar', 'Ibu Fatimah', 'MI Nurul Huda']
@@ -1129,6 +1126,14 @@ function confirmSdApiImport() {
 
 // Direct Upload Helper (without intermediate modal)
 function triggerDirectExcelUpload() {
+    // Pastikan elemen preview ada di DOM.
+    // Jika user klik import dari halaman Data Induk Santri, modal showImportExcel() mungkin belum dibuka,
+    // sehingga showPreview() tidak menemukan `excelPreview` dan upload terlihat "tidak berfungsi".
+    const hasPreview = !!(document.getElementById('excelPreview') && document.getElementById('previewContent'));
+    if (!hasPreview && typeof showImportExcel === 'function') {
+        showImportExcel();
+    }
+
     let input = document.getElementById('directExcelInput');
     if (!input) {
         input = document.createElement('input');
@@ -1255,9 +1260,9 @@ function processExcelData(data) {
         nik: findColExact(['nik']) !== -1
             ? findColExact(['nik'])
             : findColContains(['no nik', 'nomor nik', 'ktp']),
-        lembaga: findColExact(['lembaga', 'jenjang']) !== -1
-            ? findColExact(['lembaga', 'jenjang'])
-            : findColContains(['lembaga', 'jenjang']),
+        lembaga: findColExact(['lembaga', 'jenjang', 'unit']) !== -1
+            ? findColExact(['lembaga', 'jenjang', 'unit'])
+            : findColContains(['lembaga', 'jenjang', 'unit', 'lembaga/sekolah', 'asal lembaga']),
         alumni: findColContains(['alumni/non alumni', 'alumni / non alumni', 'status alumni', 'alumni']),
         jenis_kelamin: findColContains(['jenis kelamin', 'jenis_kelamin', 'l/p', 'gender']),
         tempat_lahir: findColExact(['tempat lahir', 'tempat_lahir']) !== -1
@@ -1272,9 +1277,20 @@ function processExcelData(data) {
             : findColContains(['alamat']),
         hp: (() => {
             // Coba exact dulu (termasuk "HP Ortu"), lalu contains
-            const exact = findColExact(['hp ortu', 'hp orang tua', 'no hp ortu', 'no. hp ortu', 'hp', 'no hp', 'no. hp', 'nohp', 'whatsapp', 'wa', 'telepon', 'telp']);
+            const exact = findColExact([
+                'hp ortu', 'hp orang tua', 'hp wali',
+                'no hp ortu', 'no. hp ortu', 'nomor hp ortu',
+                'no wa ortu', 'wa ortu', 'whatsapp ortu',
+                'hp', 'no hp', 'no. hp', 'nohp', 'nomor hp',
+                'whatsapp', 'wa', 'telepon', 'telp'
+            ]);
             if (exact !== -1) return exact;
-            return findColContains(['hp ortu', 'hp orang tua', 'no hp', 'whatsapp', 'telepon', 'telp', 'hp']);
+            return findColContains([
+                'hp ortu', 'hp orang tua', 'hp wali',
+                'no hp', 'nomor hp',
+                'no wa', 'wa ortu', 'whatsapp',
+                'telepon', 'telp', 'phone', 'hp'
+            ]);
         })(),
         nama_ayah: findColExact(['nama ayah', 'nama_ayah']) !== -1
             ? findColExact(['nama ayah', 'nama_ayah'])
@@ -1412,8 +1428,15 @@ function processExcelData(data) {
                     const dateStr = parts.slice(1).join(' ');
                     if (!derivedTanggalLahir) derivedTanggalLahir = formatDate(dateStr);
                 } else {
-                    // Heuristic: if contains digits it's likely a date, else place
-                    if (/\d/.test(raw)) {
+                    // Coba ekstrak format gabungan tanpa koma: "Bandung 12-05-2012" / "Bandung 12/05/2012"
+                    const dateMatch = raw.match(/(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}|\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2})/);
+                    if (dateMatch) {
+                        const datePart = dateMatch[1];
+                        const placePart = raw.replace(datePart, '').replace(/[,.\-]+$/g, '').trim();
+                        if (!derivedTanggalLahir) derivedTanggalLahir = formatDate(datePart);
+                        if (!derivedTempatLahir && placePart) derivedTempatLahir = placePart;
+                    } else if (/\d/.test(raw)) {
+                        // Heuristic: jika ada angka anggap tanggal
                         if (!derivedTanggalLahir) derivedTanggalLahir = formatDate(raw);
                     } else {
                         if (!derivedTempatLahir) derivedTempatLahir = raw;
@@ -1444,7 +1467,13 @@ function processExcelData(data) {
             halaqah: halaqahName || '',
             nisn: nisn,
             nik: (colMap.nik !== -1 && row[colMap.nik]) ? String(row[colMap.nik]).trim() : '',
-            lembaga: (colMap.lembaga !== -1 && row[colMap.lembaga]) ? String(row[colMap.lembaga]).trim() : 'MTA',
+            lembaga: (() => {
+                const rawLembaga = (colMap.lembaga !== -1 && row[colMap.lembaga]) ? String(row[colMap.lembaga]).trim() : '';
+                if (rawLembaga && typeof window.normalizeLembagaKey === 'function') {
+                    return window.normalizeLembagaKey(rawLembaga);
+                }
+                return rawLembaga || inferLembagaFromKelas(kelas) || inferLembagaFromKelas(halaqahName);
+            })(),
             kelas: kelas,
             // New fields
             jenis_kelamin: (() => {
@@ -1456,7 +1485,7 @@ function processExcelData(data) {
             tempat_lahir: derivedTempatLahir,
             tanggal_lahir: derivedTanggalLahir,
             alamat: (colMap.alamat !== -1 && row[colMap.alamat]) ? String(row[colMap.alamat]).trim() : '',
-            hp: (colMap.hp !== -1 && row[colMap.hp]) ? String(row[colMap.hp]).trim() : '',
+            hp: (colMap.hp !== -1 && row[colMap.hp] != null) ? String(row[colMap.hp]).trim() : '',
             nama_ayah: (colMap.nama_ayah !== -1 && row[colMap.nama_ayah]) ? String(row[colMap.nama_ayah]).trim() : '',
             nama_ibu: (colMap.nama_ibu !== -1 && row[colMap.nama_ibu]) ? String(row[colMap.nama_ibu]).trim() : '',
             sekolah_asal: (colMap.sekolah_asal !== -1 && row[colMap.sekolah_asal]) ? String(row[colMap.sekolah_asal]).trim() : '',
@@ -1485,7 +1514,8 @@ function processExcelData(data) {
         metadata: {
             hasLembagaColumn: colMap.lembaga !== -1,
             hasHalaqahColumn: colMap.halaqah !== -1,
-            hasTTLCombined: colMap.ttl !== -1
+            hasTTLCombined: colMap.ttl !== -1,
+            hasHpColumn: colMap.hp !== -1
         }
     };
 
@@ -1499,11 +1529,42 @@ function showPreview(data) {
     if (!preview || !content) return;
 
     let warningHtml = '';
+    const hpRowsMissing = (data.students || []).filter(s => !String(s.hp || '').trim());
+    const hpRowsInvalid = (data.students || []).filter(s => {
+        const raw = String(s.hp || '').trim();
+        if (!raw) return false;
+        const digits = raw.replace(/\D/g, '');
+        return digits.length > 0 && digits.length < 9;
+    });
     if (data.metadata && !data.metadata.hasHalaqahColumn) {
         warningHtml += `
             <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3 text-sm text-blue-800">
                 <strong>ℹ️ Tidak ada kolom Halaqah di file Excel.</strong>
                 <div class="mt-1">Santri akan diimport tanpa halaqah. Anda bisa assign halaqah secara manual setelah import, atau tambahkan kolom <strong>Nama Halaqah</strong> di file Excel.</div>
+            </div>
+        `;
+    }
+    if (data.metadata && !data.metadata.hasHpColumn) {
+        warningHtml += `
+            <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-3 text-sm text-amber-800">
+                <strong>⚠️ Tidak ada kolom HP Ortu di file Excel.</strong>
+                <div class="mt-1">Data santri tetap bisa diimport, tetapi field <strong>HP Ortu</strong> akan kosong.</div>
+            </div>
+        `;
+    }
+    if (hpRowsMissing.length > 0) {
+        warningHtml += `
+            <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-3 text-sm text-amber-800">
+                <strong>⚠️ ${hpRowsMissing.length} santri tanpa HP Ortu.</strong>
+                <div class="mt-1">Contoh: ${hpRowsMissing.slice(0, 3).map(s => s.name).join(', ')}${hpRowsMissing.length > 3 ? ' ...' : ''}</div>
+            </div>
+        `;
+    }
+    if (hpRowsInvalid.length > 0) {
+        warningHtml += `
+            <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-3 text-sm text-amber-800">
+                <strong>⚠️ ${hpRowsInvalid.length} HP Ortu kemungkinan tidak valid.</strong>
+                <div class="mt-1">Pastikan nomor minimal 9 digit.</div>
             </div>
         `;
     }
@@ -1568,6 +1629,28 @@ function normalizeNameString(name) {
     if (!name) return '';
     // Replace multiple spaces/tabs/newlines/NBSP with single space, and trim
     return name.toLowerCase().replace(/[\s\u00A0]+/g, ' ').trim();
+}
+
+function inferLembagaFromKelas(kelasRaw) {
+    const normalize = (typeof window.normalizeLembagaKey === 'function')
+        ? window.normalizeLembagaKey
+        : (v) => String(v || '').trim().toUpperCase();
+    const kelasStr = String(kelasRaw || '').trim().toUpperCase();
+    if (!kelasStr) return '';
+    if (kelasStr.includes('MTA')) return normalize('MTA');
+    if (kelasStr.includes('SDITA') || /\bSD\b/.test(kelasStr)) return normalize('SDITA');
+    if (kelasStr.includes('SMPITA') || /\bSMP\b/.test(kelasStr)) return normalize('SMPITA');
+    if (kelasStr.includes('SMAITA') || /\bSMA\b/.test(kelasStr)) return normalize('SMAITA');
+
+    const match = kelasStr.match(/\d+/);
+    if (!match) return '';
+    const kelasNum = parseInt(match[0], 10);
+    if (Number.isNaN(kelasNum)) return '';
+
+    if (kelasNum >= 1 && kelasNum <= 6) return normalize('SDITA');
+    if (kelasNum >= 7 && kelasNum <= 9) return normalize('SMPITA');
+    if (kelasNum >= 10 && kelasNum <= 12) return normalize('SMAITA');
+    return '';
 }
 
 function levenshteinDistance(a, b) {
@@ -1703,9 +1786,11 @@ function confirmImport() {
                 if (s.nisn && String(s.nisn).trim() !== '') existing.nisn = String(s.nisn).trim();
                 if (s.nik && String(s.nik).trim() !== '') existing.nik = String(s.nik).trim();
                 
-                // Update lembaga: hanya jika kolom Lembaga ada di file Excel (bukan default 'MTA')
+                // Update lembaga hanya jika kolom Lembaga ada di file Excel.
                 if (importedData.metadata && importedData.metadata.hasLembagaColumn) {
-                    existing.lembaga = s.lembaga;
+                    existing.lembaga = (typeof window.normalizeLembagaKey === 'function')
+                        ? window.normalizeLembagaKey(s.lembaga)
+                        : s.lembaga;
                 }
                 if (s.kelas) existing.kelas = s.kelas;
                 if (s.jenis_kelamin) existing.jenis_kelamin = s.jenis_kelamin;
@@ -1729,7 +1814,13 @@ function confirmImport() {
                     halaqah: s.halaqah ? s.halaqah.trim() : '',
                     nisn: s.nisn ? String(s.nisn).trim() : '',
                     nik: s.nik ? String(s.nik).trim() : '',
-                    lembaga: s.lembaga || 'MTA',
+                    lembaga: (() => {
+                        const raw = s.lembaga || '';
+                        if (raw && typeof window.normalizeLembagaKey === 'function') {
+                            return window.normalizeLembagaKey(raw);
+                        }
+                        return raw || inferLembagaFromKelas(s.kelas);
+                    })(),
                     kelas: s.kelas || '',
                     jenis_kelamin: s.jenis_kelamin || '',
                     tempat_lahir: s.tempat_lahir || '',
@@ -1772,10 +1863,27 @@ function confirmImport() {
 
             if (syncPromises.length > 0) {
                 Promise.all(syncPromises)
-                    .then(() => {
-                        console.log('[IMPORT] Sync completed successfully');
+                    .then((results) => {
+                        const studentResult = results.find(r => r && r.status);
+                        if (studentResult && studentResult.status === 'skipped_in_progress') {
+                            // Sync sedang berjalan, tunggu lalu retry
+                            console.log('[IMPORT] Sync sedang berjalan, retry dalam 3 detik...');
+                            setTimeout(() => {
+                                if (typeof window.syncStudentsToSupabase === 'function') {
+                                    window.syncStudentsToSupabase().then(r => {
+                                        if (r && r.status === 'success') {
+                                            showNotification('✅ Data berhasil tersimpan di server.', 'success');
+                                        } else {
+                                            showNotification('⚠️ Data tersimpan lokal. Akan dicoba sync ulang otomatis.', 'warning');
+                                        }
+                                    });
+                                }
+                            }, 3000);
+                        } else {
+                            console.log('[IMPORT] Sync completed successfully');
+                            showNotification('✅ Data berhasil tersimpan di server.', 'success');
+                        }
                         if (typeof refreshAllData === 'function') refreshAllData();
-                        showNotification('✅ Data berhasil tersimpan di server.', 'success');
                     })
                     .catch(err => {
                         console.error('[IMPORT] Sync failed:', err);
@@ -1883,7 +1991,7 @@ function exportToExcel() {
     const data = [];
 
     // Header
-    data.push(['Nama Halaqah', 'Guru Halaqah', 'Kelas', 'Nama Santri', 'NISN', 'NIK', 'Lembaga', 'Jenis Kelamin', 'Tempat Lahir', 'Tanggal Lahir', 'Alamat', 'HP', 'Nama Ayah', 'Nama Ibu', 'Sekolah Asal', 'Total Poin', 'Ranking', 'Hari Beruntun']);
+    data.push(['Nama Halaqah', 'Guru Halaqah', 'Kelas', 'Nama Santri', 'NISN', 'NIK', 'Lembaga', 'Jenis Kelamin', 'Tempat Lahir', 'Tanggal Lahir', 'Alamat', 'HP Ortu', 'Nama Ayah', 'Nama Ibu', 'Sekolah Asal', 'Total Poin', 'Ranking', 'Hari Beruntun']);
 
     // Data rows
     dashboardData.students.forEach(student => {

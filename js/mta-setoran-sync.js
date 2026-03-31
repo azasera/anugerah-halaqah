@@ -53,7 +53,10 @@ function parseApiPayload(json) {
 }
 
 function isMtaLembaga(lembaga) {
-    return String(lembaga || '').trim().toUpperCase() === 'MTA';
+    const normalized = (typeof window.normalizeLembagaKey === 'function')
+        ? window.normalizeLembagaKey(lembaga)
+        : String(lembaga || '').trim().toUpperCase();
+    return normalized === 'MTA';
 }
 
 const MTASetoranSync = {
@@ -164,7 +167,7 @@ const MTASetoranSync = {
             : null;
         if (result && result.success && result.created > 0 && notify) {
             notify(`☁️ Setoran MTA: +${result.created} entri dari API`, 'success');
-        } else if (result && !result.success && notify) {
+        } else if (result && !result.success && !result.skipped && notify) {
             notify('⚠️ Sync setoran MTA: ' + (result.error || 'gagal'), 'warning');
         }
 
@@ -333,8 +336,14 @@ const MTASetoranSync = {
                 logs: syncLogs
             };
         } catch (error) {
+            const message = error && error.message ? error.message : String(error);
+            // Endpoint belum tersedia: jangan spam error/warning untuk user yang belum pakai MTA API.
+            if (String(message).includes('Endpoint API tidak ditemukan (404)')) {
+                console.info('[MTA-SYNC] Endpoint belum tersedia, lewati auto-sync hari ini.');
+                return { success: false, skipped: true, reason: 'endpoint_not_found', error: message };
+            }
             console.error('[MTA-SYNC] Sync operation failed:', error);
-            return { success: false, error: error.message || String(error) };
+            return { success: false, error: message };
         }
     }
 };

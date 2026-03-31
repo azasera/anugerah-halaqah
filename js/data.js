@@ -72,6 +72,20 @@ function enforcePostDeleteLocalState() {
     }
 }
 
+/**
+ * Normalisasi alias lembaga ke key kanonik:
+ * SD/SDITA -> SDITA, SMP/SMPITA -> SMPITA, SMA/SMAITA -> SMAITA, MTA -> MTA
+ */
+function normalizeLembagaKey(lembagaRaw) {
+    const raw = String(lembagaRaw || '').trim().toUpperCase();
+    if (!raw) return '';
+    if (raw === 'SD' || raw === 'SDITA') return 'SDITA';
+    if (raw === 'SMP' || raw === 'SMPITA') return 'SMPITA';
+    if (raw === 'SMA' || raw === 'SMAITA') return 'SMAITA';
+    if (raw === 'MTA' || raw.startsWith('MTA')) return 'MTA';
+    return raw;
+}
+
 // Data filtering and sorting functions
 function filterStudents(searchTerm, halaqahFilter = 'all', lembagaFilter = 'all') {
     let filtered = dashboardData.students;
@@ -87,14 +101,14 @@ function filterStudents(searchTerm, halaqahFilter = 'all', lembagaFilter = 'all'
     }
 
     if (lembagaFilter !== 'all') {
-        const key = lembagaFilter.toUpperCase();
+        const key = normalizeLembagaKey(lembagaFilter);
 
         if (lembagaFilter.startsWith('SDITA_')) {
             const parts = lembagaFilter.split('_');
             const kelasTarget = parts.length > 1 ? parseInt(parts[1], 10) : null;
 
             filtered = filtered.filter(s => {
-                let sLembaga = (s.lembaga || '').toUpperCase().trim();
+                let sLembaga = normalizeLembagaKey(s.lembaga || '');
                 const sKelas = (s.kelas || '').toString().toLowerCase();
                 const sHalaqah = (s.halaqah || '').toString().toLowerCase();
 
@@ -130,7 +144,7 @@ function filterStudents(searchTerm, halaqahFilter = 'all', lembagaFilter = 'all'
                     }
                 }
 
-                if (sLembaga !== 'SDITA') return false;
+                if (normalizeLembagaKey(sLembaga) !== 'SDITA') return false;
 
                 if (!kelasTarget || Number.isNaN(kelasTarget)) return true;
 
@@ -141,7 +155,7 @@ function filterStudents(searchTerm, halaqahFilter = 'all', lembagaFilter = 'all'
             });
         } else {
             filtered = filtered.filter(s => {
-                let sLembaga = (s.lembaga || '').toUpperCase().trim();
+                let sLembaga = normalizeLembagaKey(s.lembaga || '');
                 const sKelas = (s.kelas || '').toString().toLowerCase();
                 const sHalaqah = (s.halaqah || '').toString().toLowerCase();
 
@@ -178,10 +192,11 @@ function filterStudents(searchTerm, halaqahFilter = 'all', lembagaFilter = 'all'
                 }
 
                 // Kosong = MTA (sama seperti upsert Supabase) agar filter MTA konsisten
+                const normalized = normalizeLembagaKey(sLembaga);
                 if (key === 'MTA') {
-                    return !sLembaga || sLembaga === 'MTA' || sLembaga.startsWith('MTA');
+                    return !normalized || normalized === 'MTA';
                 }
-                return sLembaga === key || sLembaga.startsWith(key);
+                return normalized === key;
             });
         }
     }
@@ -414,6 +429,7 @@ function refreshAllData() {
 window.recalculateRankings = recalculateRankings;
 window.refreshAllData = refreshAllData;
 window.enforcePostDeleteLocalState = enforcePostDeleteLocalState;
+window.normalizeLembagaKey = normalizeLembagaKey;
 window.clearPostDeleteRemoteBlock = function () {
     localStorage.removeItem('_deleteJustDone');
 };

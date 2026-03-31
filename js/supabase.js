@@ -54,15 +54,17 @@ async function initSupabase() {
         if (window.hasPendingLocalChanges && !window.syncInProgress && !window.deleteOperationInProgress) {
             console.log('🔄 Retrying sync for pending changes...');
             if (typeof syncStudentsToSupabase === 'function') {
-                syncStudentsToSupabase().then(() => {
-                    window.hasPendingLocalChanges = false;
-                    console.log('✅ Retry sync successful');
+                syncStudentsToSupabase().then((result) => {
+                    if (result && result.status === 'success') {
+                        window.hasPendingLocalChanges = false;
+                        console.log('✅ Retry sync successful');
+                    }
                 }).catch(err => {
                     console.error('❌ Retry sync failed:', err);
                 });
             }
         }
-    }, 30000); // Retry every 30 seconds
+    }, 5000); // Retry every 5 seconds
 
     return true;
 }
@@ -226,6 +228,27 @@ async function loadHalaqahsFromSupabase() {
     }
 }
 
+// Normalize tanggal_lahir to YYYY-MM-DD for Supabase
+function normalizeTanggalLahir(raw) {
+    if (!raw) return null;
+    const s = String(raw).trim();
+    // Already YYYY-MM-DD
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+    // DD-MM-YY → YYYY-MM-DD (assume 2000s)
+    const m1 = s.match(/^(\d{2})-(\d{2})-(\d{2})$/);
+    if (m1) return `20${m1[3]}-${m1[2]}-${m1[1]}`;
+    // DD-MM-YYYY
+    const m2 = s.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+    if (m2) return `${m2[3]}-${m2[2]}-${m2[1]}`;
+    // DD/MM/YYYY
+    const m3 = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (m3) return `${m3[3]}-${m3[2]}-${m3[1]}`;
+    // Try native parse as last resort
+    const d = new Date(s);
+    if (!isNaN(d.getTime())) return d.toISOString().split('T')[0];
+    return null;
+}
+
 // Sync students to Supabase (Upload changes)
 async function syncStudentsToSupabase() {
     if (!window.supabaseClient || !navigator.onLine) {
@@ -233,7 +256,10 @@ async function syncStudentsToSupabase() {
         return;
     }
 
-    if (window.syncInProgress) return;
+    if (window.syncInProgress) {
+        window.hasPendingLocalChanges = true;
+        return { status: 'skipped_in_progress' };
+    }
     window.syncInProgress = true;
 
     try {
@@ -251,11 +277,13 @@ async function syncStudentsToSupabase() {
                 halaqah: s.halaqah,
                 nisn: s.nisn || '',
                 nik: s.nik || '', // Add NIK
-                lembaga: s.lembaga || 'MTA', // Add Lembaga
+                lembaga: (typeof window.normalizeLembagaKey === 'function')
+                    ? (window.normalizeLembagaKey(s.lembaga || '') || s.lembaga || '')
+                    : (s.lembaga || ''), // Keep original lembaga, don't default to MTA
                 kelas: s.kelas || '', // Add Kelas
                 jenis_kelamin: s.jenis_kelamin || '',
                 tempat_lahir: s.tempat_lahir || '',
-                tanggal_lahir: s.tanggal_lahir || '',
+                tanggal_lahir: normalizeTanggalLahir(s.tanggal_lahir),
                 alamat: s.alamat || '',
                 hp: s.hp || '',
                 nama_ayah: s.nama_ayah || '',
@@ -287,11 +315,16 @@ async function syncStudentsToSupabase() {
         console.log('✅ Sync successful');
         if (typeof showSyncStatus === 'function') showSyncStatus('✅ Perubahan tersimpan', 'success');
         window.hasPendingLocalChanges = false;
+        // Block realtime reload for 5s to prevent overwriting fresh local data
+        window._justSynced = true;
+        setTimeout(() => { window._justSynced = false; }, 5000);
+        return { status: 'success' };
 
     } catch (error) {
         console.error('Sync failed:', error);
         if (typeof showSyncStatus === 'function') showSyncStatus('❌ Gagal menyimpan (akan mencoba lagi)', 'warning');
         window.hasPendingLocalChanges = true; // Mark for retry
+        return { status: 'error', error };
     } finally {
         window.syncInProgress = false;
     }
@@ -353,7 +386,7 @@ function enableRealtimeSubscription() {
             // If we are the one who made the change (via sync), ignore to prevent loop
             // But Supabase doesn't give us the "origin" easily.
             // Simple strategy: Just reload if we are not currently syncing/editing
-            if (!window.hasPendingLocalChanges && !window.syncInProgress) {
+            if (!window.hasPendingLocalChanges && !window.syncInProgress && !window._justSynced) {
                 // Debounce reload
                 if (window.reloadTimeout) clearTimeout(window.reloadTimeout);
                 window.reloadTimeout = setTimeout(() => {
