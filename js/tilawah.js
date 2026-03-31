@@ -667,7 +667,6 @@ function showRekapTilawahGuru() {
 
     const today = new Date().toISOString().split('T')[0];
 
-    // Hitung data per santri
     const rows = students.map(s => {
         const totalHal = s.total_tilawah_hal || (dashboardData.tilawah || [])
             .filter(t => String(t.studentId) === String(s.id))
@@ -678,12 +677,34 @@ function showRekapTilawahGuru() {
         const todayHal = todayData?.summary?.totalHalaman || 0;
         const verOrtu = todayData?.approval?.ortu?.status ? '✅' : '—';
         const verGuru = todayData?.approval?.guru?.status ? '✅' : '—';
-        return { s, totalHal, khatam, sisa, pct, todayHal, verOrtu, verGuru };
+        const lembaga = (typeof window.normalizeLembagaKey === 'function')
+            ? window.normalizeLembagaKey(s.lembaga || '') : (s.lembaga || '');
+        return { s, totalHal, khatam, sisa, pct, todayHal, verOrtu, verGuru, lembaga };
     }).sort((a, b) => b.totalHal - a.totalHal);
+
+    const tableRows = rows.map(({ s, khatam, sisa, pct, todayHal, verOrtu, verGuru, lembaga }) => `
+        <tr class="hover:bg-slate-50 cursor-pointer rekap-row" data-lembaga="${lembaga}" onclick="closeModal(); selectStudentForMutabaah(${s.id})">
+            <td class="px-3 py-3">
+                <div class="font-semibold text-slate-800 text-xs">${s.name}</div>
+                <div class="text-[10px] text-slate-400">${lembaga || '—'}</div>
+                <div class="w-full bg-slate-100 rounded-full h-1 mt-1">
+                    <div class="bg-emerald-400 h-1 rounded-full" style="width:${pct}%"></div>
+                </div>
+                <div class="text-[10px] text-slate-400 mt-0.5">${khatam > 0 ? `${khatam}x Khatam + ${sisa} hal` : `${sisa}/604`}</div>
+            </td>
+            <td class="px-3 py-3 text-center">
+                ${khatam > 0 ? `<span class="text-xs font-black text-amber-600">🏆${khatam}x</span>` : `<span class="text-xs font-bold text-slate-600">${pct}%</span>`}
+            </td>
+            <td class="px-3 py-3 text-center">
+                <span class="text-xs font-bold ${todayHal > 0 ? 'text-emerald-600' : 'text-slate-300'}">${todayHal > 0 ? todayHal + ' hal' : '—'}</span>
+            </td>
+            <td class="px-3 py-3 text-center text-sm">${verOrtu}</td>
+            <td class="px-3 py-3 text-center text-sm">${verGuru}</td>
+        </tr>`).join('');
 
     const content = `
         <div class="p-6">
-            <div class="flex items-center justify-between mb-6">
+            <div class="flex items-center justify-between mb-4">
                 <div>
                     <h2 class="font-display font-bold text-2xl text-slate-800">📊 Rekap Tilawah</h2>
                     <p class="text-slate-500 text-xs mt-1">${new Date().toLocaleDateString('id-ID', {weekday:'long', day:'numeric', month:'long', year:'numeric'})}</p>
@@ -693,24 +714,38 @@ function showRekapTilawahGuru() {
                 </button>
             </div>
 
+            <!-- Filter Lembaga -->
+            <div class="flex gap-2 flex-wrap mb-4">
+                <button onclick="filterRekapLembaga('')" id="rekap-filter-all"
+                    class="px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 text-white transition-all">Semua</button>
+                <button onclick="filterRekapLembaga('SDITA')" id="rekap-filter-SDITA"
+                    class="px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all">SDITA</button>
+                <button onclick="filterRekapLembaga('SMPITA')" id="rekap-filter-SMPITA"
+                    class="px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all">SMPITA</button>
+                <button onclick="filterRekapLembaga('SMAITA')" id="rekap-filter-SMAITA"
+                    class="px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all">SMAITA</button>
+                <button onclick="filterRekapLembaga('MTA')" id="rekap-filter-MTA"
+                    class="px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all">MTA</button>
+            </div>
+
             <!-- Summary stats -->
-            <div class="grid grid-cols-3 gap-3 mb-5">
+            <div class="grid grid-cols-3 gap-3 mb-4">
                 <div class="bg-emerald-50 rounded-2xl p-3 text-center">
-                    <div class="text-xl font-black text-emerald-700">${rows.filter(r => r.todayHal > 0).length}</div>
+                    <div class="text-xl font-black text-emerald-700" id="rekap-stat-isi">${rows.filter(r => r.todayHal > 0).length}</div>
                     <div class="text-[10px] text-emerald-600 font-bold">Sudah Isi Hari Ini</div>
                 </div>
                 <div class="bg-amber-50 rounded-2xl p-3 text-center">
-                    <div class="text-xl font-black text-amber-700">${rows.filter(r => r.todayHal === 0).length}</div>
+                    <div class="text-xl font-black text-amber-700" id="rekap-stat-belum">${rows.filter(r => r.todayHal === 0).length}</div>
                     <div class="text-[10px] text-amber-600 font-bold">Belum Isi</div>
                 </div>
                 <div class="bg-blue-50 rounded-2xl p-3 text-center">
-                    <div class="text-xl font-black text-blue-700">${rows.filter(r => r.khatam > 0).length}</div>
+                    <div class="text-xl font-black text-blue-700" id="rekap-stat-khatam">${rows.filter(r => r.khatam > 0).length}</div>
                     <div class="text-[10px] text-blue-600 font-bold">Sudah Khatam</div>
                 </div>
             </div>
 
             <!-- Tabel -->
-            <div class="overflow-auto max-h-[55vh] rounded-2xl border border-slate-200">
+            <div class="overflow-auto max-h-[50vh] rounded-2xl border border-slate-200">
                 <table class="w-full text-sm">
                     <thead class="sticky top-0 bg-slate-50 border-b border-slate-200">
                         <tr class="text-[10px] font-black text-slate-500 uppercase tracking-wider">
@@ -721,25 +756,8 @@ function showRekapTilawahGuru() {
                             <th class="px-3 py-3 text-center">Guru</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-slate-100 bg-white">
-                        ${rows.map(({ s, khatam, sisa, pct, todayHal, verOrtu, verGuru }) => `
-                        <tr class="hover:bg-slate-50 cursor-pointer" onclick="closeModal(); selectStudentForMutabaah(${s.id})">
-                            <td class="px-3 py-3">
-                                <div class="font-semibold text-slate-800 text-xs">${s.name}</div>
-                                <div class="w-full bg-slate-100 rounded-full h-1 mt-1">
-                                    <div class="bg-emerald-400 h-1 rounded-full" style="width:${pct}%"></div>
-                                </div>
-                                <div class="text-[10px] text-slate-400 mt-0.5">${khatam > 0 ? `${khatam}x Khatam + ${sisa} hal` : `${sisa}/604`}</div>
-                            </td>
-                            <td class="px-3 py-3 text-center">
-                                ${khatam > 0 ? `<span class="text-xs font-black text-amber-600">🏆${khatam}x</span>` : `<span class="text-xs font-bold text-slate-600">${pct}%</span>`}
-                            </td>
-                            <td class="px-3 py-3 text-center">
-                                <span class="text-xs font-bold ${todayHal > 0 ? 'text-emerald-600' : 'text-slate-300'}">${todayHal > 0 ? todayHal + ' hal' : '—'}</span>
-                            </td>
-                            <td class="px-3 py-3 text-center text-sm">${verOrtu}</td>
-                            <td class="px-3 py-3 text-center text-sm">${verGuru}</td>
-                        </tr>`).join('')}
+                    <tbody id="rekapTilawahBody" class="divide-y divide-slate-100 bg-white">
+                        ${tableRows}
                     </tbody>
                 </table>
             </div>
@@ -747,6 +765,44 @@ function showRekapTilawahGuru() {
         </div>
     `;
     createModal(content, false);
+}
+
+function filterRekapLembaga(lembaga) {
+    // Update tombol aktif
+    ['', 'SDITA', 'SMPITA', 'SMAITA', 'MTA'].forEach(l => {
+        const btn = document.getElementById(`rekap-filter-${l || 'all'}`);
+        if (!btn) return;
+        if (l === lembaga) {
+            btn.className = 'px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 text-white transition-all';
+        } else {
+            btn.className = 'px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all';
+        }
+    });
+
+    // Filter baris tabel
+    const rows = document.querySelectorAll('#rekapTilawahBody .rekap-row');
+    let isi = 0, belum = 0, khatam = 0;
+    rows.forEach(row => {
+        const rowLembaga = row.dataset.lembaga || '';
+        const show = !lembaga || rowLembaga === lembaga;
+        row.style.display = show ? '' : 'none';
+        if (show) {
+            // Update stats dari visible rows
+            const todayCell = row.cells[2]?.textContent?.trim();
+            const totalCell = row.cells[1]?.textContent?.trim();
+            if (todayCell && todayCell !== '—') isi++;
+            else belum++;
+            if (totalCell && totalCell.includes('🏆')) khatam++;
+        }
+    });
+
+    // Update stats
+    const statIsi = document.getElementById('rekap-stat-isi');
+    const statBelum = document.getElementById('rekap-stat-belum');
+    const statKhatam = document.getElementById('rekap-stat-khatam');
+    if (statIsi) statIsi.textContent = isi;
+    if (statBelum) statBelum.textContent = belum;
+    if (statKhatam) statKhatam.textContent = khatam;
 }
 
 function renderStudentSelectionForMutabaah() {
