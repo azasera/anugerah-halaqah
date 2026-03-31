@@ -253,7 +253,7 @@ function renderMutabaahDashboard() {
                 <!-- Ziyadah & Murojaah Action Card -->
                 <div class="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm space-y-4 md:col-span-2">
 
-                    <div class="grid grid-cols-3 gap-2">
+                    <div class="grid grid-cols-4 gap-2">
                         <button onclick="showTilawahQuickInput(${student.id})" class="flex items-center justify-center flex-col gap-1.5 p-3 bg-blue-50 text-blue-700 rounded-xl font-bold hover:bg-blue-100 transition-all border border-blue-100 active:scale-95">
                             <span class="text-xl text-blue-600">📖</span>
                             <span class="text-[10px]">Tilawah</span>
@@ -266,10 +266,12 @@ function renderMutabaahDashboard() {
                              <span class="text-xl text-amber-600">🔄</span>
                              <span class="text-[10px]">Murojaah</span>
                         </button>
+                        <button onclick="openSetPosisiTilawah(${student.id})" class="flex items-center justify-center flex-col gap-1.5 p-3 bg-slate-50 text-slate-600 rounded-xl font-bold hover:bg-slate-100 transition-all border border-slate-200 active:scale-95">
+                            <span class="text-xl">📍</span>
+                            <span class="text-[10px]">Set Posisi</span>
+                        </button>
                     </div>
                 </div>
-
-
             </div>
 
             <!-- Approval Section -->
@@ -490,6 +492,129 @@ function updateStudentTilawahProgress(studentId) {
         progressBar.style.width = pct + '%';
         progressText.textContent = `${totalHal} / 604 hal (${pct}%)`;
     }
+}
+
+function openSetPosisiTilawah(studentId) {
+    const student = dashboardData.students.find(s => String(s.id) === String(studentId));
+    if (!student) return;
+
+    const current = student.total_tilawah_hal || 0;
+    const currentPct = Math.min(100, Math.round((current / 604) * 100));
+
+    const content = `
+        <div class="p-6">
+            <div class="flex items-center justify-between mb-6">
+                <div>
+                    <h2 class="font-display font-bold text-2xl text-slate-800">📍 Set Posisi Tilawah</h2>
+                    <p class="text-slate-500 text-sm mt-1">${student.name}</p>
+                </div>
+                <button onclick="closeModal()" class="p-2 bg-slate-100 rounded-xl text-slate-400 hover:bg-slate-200">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+
+            <div class="bg-blue-50 border border-blue-100 rounded-2xl p-4 mb-6 text-sm text-blue-800">
+                Gunakan ini untuk santri yang <strong>sudah tilawah sebelumnya</strong> tapi belum pernah input data. 
+                Masukkan halaman terakhir yang sudah dibaca sebagai posisi awal.
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 mb-5">
+                <div class="flex justify-between text-xs font-bold text-slate-500 mb-2">
+                    <span>Posisi saat ini</span>
+                    <span id="setPosisiCurrentText">${current} / 604 hal (${currentPct}%)</span>
+                </div>
+                <div class="w-full bg-slate-200 rounded-full h-2">
+                    <div class="bg-emerald-500 h-2 rounded-full" id="setPosisiCurrentBar" style="width:${currentPct}%"></div>
+                </div>
+            </div>
+
+            <form onsubmit="handleSetPosisiTilawah(event, ${studentId})" class="space-y-5">
+                <div class="space-y-2">
+                    <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Halaman yang Sudah Dibaca</label>
+                    <input type="number" name="totalHal" placeholder="Contoh: 604 (khatam), 300 (setengah)" 
+                        min="0" max="604" required
+                        oninput="
+                            const v=parseInt(this.value)||0;
+                            const pct=Math.min(100,Math.round(v/604*100));
+                            document.getElementById('setPosisiPreviewPct').textContent=pct+'%';
+                            document.getElementById('setPosisiPreviewBar').style.width=pct+'%';
+                            const info=typeof quranPageMap!=='undefined'?quranPageMap.find(p=>p.p===v):null;
+                            document.getElementById('setPosisiInfo').textContent=info?'Hal '+v+' · '+info.ss+' '+info.sa:'';
+                        "
+                        class="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-emerald-500 outline-none text-2xl font-black text-slate-800 transition-all">
+                    <div id="setPosisiInfo" class="text-xs text-emerald-600 font-semibold min-h-[16px]"></div>
+                </div>
+
+                <div class="bg-emerald-50 border border-emerald-100 rounded-2xl p-3">
+                    <div class="flex justify-between text-xs font-bold text-emerald-700 mb-2">
+                        <span>Preview</span>
+                        <span id="setPosisiPreviewPct">0%</span>
+                    </div>
+                    <div class="w-full bg-emerald-100 rounded-full h-3">
+                        <div class="bg-emerald-500 h-3 rounded-full transition-all" id="setPosisiPreviewBar" style="width:0%"></div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4 pt-2">
+                    <button type="button" onclick="closeModal()" class="px-6 py-4 rounded-2xl font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 transition-all">Batal</button>
+                    <button type="submit" class="px-6 py-4 bg-emerald-600 text-white rounded-2xl font-display font-bold shadow-xl shadow-emerald-200 active:scale-95 transition-all">Simpan Posisi</button>
+                </div>
+            </form>
+        </div>
+    `;
+    createModal(content, false);
+}
+
+function handleSetPosisiTilawah(event, studentId) {
+    event.preventDefault();
+    const totalHal = parseInt(event.target.elements.totalHal.value) || 0;
+    if (totalHal < 0 || totalHal > 604) {
+        showNotification('❌ Halaman harus antara 0 - 604', 'error');
+        return;
+    }
+
+    const student = dashboardData.students.find(s => String(s.id) === String(studentId));
+    if (!student) return;
+
+    // Simpan sebagai baseline entry khusus (tanggal jauh di masa lalu agar tidak bentrok)
+    initMutabaahData();
+    const baselineDate = '2000-01-01';
+    let baselineData = dashboardData.tilawah.find(t => String(t.studentId) === String(studentId) && t.date === baselineDate);
+    if (!baselineData) {
+        baselineData = {
+            id: `til_baseline_${studentId}`,
+            studentId: studentId,
+            date: baselineDate,
+            entries: {},
+            summary: { totalHalaman: 0 },
+            approval: { ortu: { status: true }, guru: { status: true } }
+        };
+        dashboardData.tilawah.push(baselineData);
+    }
+
+    // Simpan sebagai satu entry baseline
+    baselineData.entries['baseline'] = {
+        halAwal: 1,
+        halAkhir: totalHal,
+        jumlahHal: totalHal,
+        hal: totalHal,
+        juz: getJuzFromPage(totalHal),
+        surah: (typeof quranPageMap !== 'undefined' && quranPageMap.find(p => p.p === totalHal))?.ss || '',
+        note: 'Posisi awal (set manual)',
+        timestamp: '00:00'
+    };
+    baselineData.summary.totalHalaman = totalHal;
+
+    // Update progress
+    student.total_tilawah_hal = null; // reset agar dihitung ulang
+    updateStudentTilawahProgress(studentId);
+
+    StorageManager.save();
+    if (window.autoSync) window.autoSync();
+
+    closeModal();
+    renderMutabaahDashboard();
+    showNotification(`✅ Posisi tilawah ${student.name} diset ke ${totalHal} halaman`, 'success');
 }
 
 function approveMutabaah(role, studentId) {
