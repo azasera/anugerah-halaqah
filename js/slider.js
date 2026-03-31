@@ -397,9 +397,11 @@ function renderHafalanLeaders(container) {
 function renderTilawahLembaga(container, lembaga) {
     const students = (dashboardData.students || [])
         .filter(s => {
-            const l = (typeof window.normalizeLembagaKey === 'function')
-                ? window.normalizeLembagaKey(s.lembaga || '')
-                : (s.lembaga || '');
+            const l = (typeof window.detectStudentLembaga === 'function')
+                ? window.detectStudentLembaga(s)
+                : ((typeof window.normalizeLembagaKey === 'function')
+                    ? window.normalizeLembagaKey(s.lembaga || '')
+                    : (s.lembaga || ''));
             return l === lembaga;
         })
         .map(s => {

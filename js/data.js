@@ -86,6 +86,52 @@ function normalizeLembagaKey(lembagaRaw) {
     return raw;
 }
 
+/**
+ * Pintar mendeteksi lembaga dari halaqah atau kelas jika kolom lembaga kosong.
+ * Digunakan untuk filter dan ranking agar konsisten di slider/dashboard.
+ */
+function detectStudentLembaga(s) {
+    if (!s) return '';
+    let sLembaga = normalizeLembagaKey(s.lembaga || '');
+    if (sLembaga) return sLembaga;
+
+    const sKelas = (s.kelas || '').toString().toLowerCase();
+    const sHalaqah = (s.halaqah || '').toString().toLowerCase();
+
+    // 1. Detect from halaqah name
+    const h = sHalaqah;
+    if (h.includes('sdita')) sLembaga = 'SDITA';
+    else if (h.includes('smpita')) sLembaga = 'SMPITA';
+    else if (h.includes('smaita') || h.includes('sma')) sLembaga = 'SMAITA';
+    else if (h.includes('mta')) sLembaga = 'MTA';
+    else {
+        // Detect by grade numbers in halaqah name
+        const matchH = h.match(/\b(10|11|12)[abcde]?\b/i);
+        if (matchH) sLembaga = 'SMAITA';
+        else if (h.match(/\b(7|8|9)[abcde]?\b/i)) sLembaga = 'SMPITA';
+        else if (h.match(/\b(1|2|3|4|5|6)[abcde]?\b/i)) sLembaga = 'SDITA';
+    }
+
+    // 2. Detect from kelas
+    if (!sLembaga) {
+        const k = sKelas;
+        if (k.includes('sdita')) sLembaga = 'SDITA';
+        else if (k.includes('smpita')) sLembaga = 'SMPITA';
+        else if (k.includes('smaita') || k.includes('sma')) sLembaga = 'SMAITA';
+        else if (k.includes('mta')) sLembaga = 'MTA';
+        else {
+            // Detect by grade numbers
+            const matchK = k.match(/\b(10|11|12)\b/);
+            if (matchK) sLembaga = 'SMAITA';
+            else if (k.match(/\b(7|8|9)\b/)) sLembaga = 'SMPITA';
+            else if (k.match(/\b(1|2|3|4|5|6)\b/)) sLembaga = 'SDITA';
+        }
+    }
+
+    // Kosong = MTA
+    return normalizeLembagaKey(sLembaga) || 'MTA';
+}
+
 // Data filtering and sorting functions
 function filterStudents(searchTerm, halaqahFilter = 'all', lembagaFilter = 'all') {
     let filtered = dashboardData.students;
@@ -101,103 +147,20 @@ function filterStudents(searchTerm, halaqahFilter = 'all', lembagaFilter = 'all'
     }
 
     if (lembagaFilter !== 'all') {
-        const key = normalizeLembagaKey(lembagaFilter);
-
+        // Handle filter khusus SDITA_1, SDITA_2, etc. (jika ada dropdown khusus tingkat)
         if (lembagaFilter.startsWith('SDITA_')) {
-            const parts = lembagaFilter.split('_');
-            const kelasTarget = parts.length > 1 ? parseInt(parts[1], 10) : null;
-
-            filtered = filtered.filter(s => {
-                let sLembaga = normalizeLembagaKey(s.lembaga || '');
-                const sKelas = (s.kelas || '').toString().toLowerCase();
-                const sHalaqah = (s.halaqah || '').toString().toLowerCase();
-
-                // 1. Detect from halaqah name
-                if (!sLembaga) {
-                    const h = sHalaqah.toLowerCase();
-                    if (h.includes('sdita')) sLembaga = 'SDITA';
-                    else if (h.includes('smpita')) sLembaga = 'SMPITA';
-                    else if (h.includes('smaita') || h.includes('sma')) sLembaga = 'SMAITA';
-                    else if (h.includes('mta')) sLembaga = 'MTA';
-                    else {
-                        // Detect by grade numbers in halaqah name
-                        const match = h.match(/\b(10|11|12)[abcde]?\b/i);
-                        if (match) sLembaga = 'SMAITA';
-                        else if (h.match(/\b(7|8|9)[abcde]?\b/i)) sLembaga = 'SMPITA';
-                        else if (h.match(/\b(1|2|3|4|5|6)[abcde]?\b/i)) sLembaga = 'SDITA';
-                    }
-                }
-
-                // 2. Detect from kelas
-                if (!sLembaga) {
-                    const k = sKelas.toLowerCase();
-                    if (k.includes('sdita')) sLembaga = 'SDITA';
-                    else if (k.includes('smpita')) sLembaga = 'SMPITA';
-                    else if (k.includes('smaita') || k.includes('sma')) sLembaga = 'SMAITA';
-                    else if (k.includes('mta')) sLembaga = 'MTA';
-                    else {
-                        // Detect by grade numbers
-                        const match = k.match(/\b(10|11|12)\b/);
-                        if (match) sLembaga = 'SMAITA';
-                        else if (k.match(/\b(7|8|9)\b/)) sLembaga = 'SMPITA';
-                        else if (k.match(/\b(1|2|3|4|5|6)\b/)) sLembaga = 'SDITA';
-                    }
-                }
-
-                if (normalizeLembagaKey(sLembaga) !== 'SDITA') return false;
-
-                if (!kelasTarget || Number.isNaN(kelasTarget)) return true;
-
-                const match = sKelas.match(/\d+/);
-                const kelasNum = match ? parseInt(match[0], 10) : null;
-
-                return kelasNum === kelasTarget;
-            });
+             const parts = lembagaFilter.split('_');
+             const kelasTarget = parts.length > 1 ? parseInt(parts[1], 10) : null;
+             filtered = filtered.filter(s => {
+                 if (detectStudentLembaga(s) !== 'SDITA') return false;
+                 if (!kelasTarget || Number.isNaN(kelasTarget)) return true;
+                 const sKelas = (s.kelas || '').toString().toLowerCase();
+                 const match = sKelas.match(/\d+/);
+                 return (match ? parseInt(match[0], 10) : null) === kelasTarget;
+             });
         } else {
-            filtered = filtered.filter(s => {
-                let sLembaga = normalizeLembagaKey(s.lembaga || '');
-                const sKelas = (s.kelas || '').toString().toLowerCase();
-                const sHalaqah = (s.halaqah || '').toString().toLowerCase();
-
-                // 1. Detect from halaqah name
-                if (!sLembaga) {
-                    const h = sHalaqah.toLowerCase();
-                    if (h.includes('sdita')) sLembaga = 'SDITA';
-                    else if (h.includes('smpita')) sLembaga = 'SMPITA';
-                    else if (h.includes('smaita') || h.includes('sma')) sLembaga = 'SMAITA';
-                    else if (h.includes('mta')) sLembaga = 'MTA';
-                    else {
-                        // Detect by grade numbers in halaqah name
-                        const match = h.match(/\b(10|11|12)[abcde]?\b/i);
-                        if (match) sLembaga = 'SMAITA';
-                        else if (h.match(/\b(7|8|9)[abcde]?\b/i)) sLembaga = 'SMPITA';
-                        else if (h.match(/\b(1|2|3|4|5|6)[abcde]?\b/i)) sLembaga = 'SDITA';
-                    }
-                }
-
-                // 2. Detect from kelas
-                if (!sLembaga) {
-                    const k = sKelas.toLowerCase();
-                    if (k.includes('sdita')) sLembaga = 'SDITA';
-                    else if (k.includes('smpita')) sLembaga = 'SMPITA';
-                    else if (k.includes('smaita') || k.includes('sma')) sLembaga = 'SMAITA';
-                    else if (k.includes('mta')) sLembaga = 'MTA';
-                    else {
-                        // Detect by grade numbers
-                        const match = k.match(/\b(10|11|12)\b/);
-                        if (match) sLembaga = 'SMAITA';
-                        else if (k.match(/\b(7|8|9)\b/)) sLembaga = 'SMPITA';
-                        else if (k.match(/\b(1|2|3|4|5|6)\b/)) sLembaga = 'SDITA';
-                    }
-                }
-
-                // Kosong = MTA (sama seperti upsert Supabase) agar filter MTA konsisten
-                const normalized = normalizeLembagaKey(sLembaga);
-                if (key === 'MTA') {
-                    return !normalized || normalized === 'MTA';
-                }
-                return normalized === key;
-            });
+             const key = normalizeLembagaKey(lembagaFilter);
+             filtered = filtered.filter(s => detectStudentLembaga(s) === key);
         }
     }
 
@@ -435,6 +398,7 @@ window.recalculateRankings = recalculateRankings;
 window.refreshAllData = refreshAllData;
 window.enforcePostDeleteLocalState = enforcePostDeleteLocalState;
 window.normalizeLembagaKey = normalizeLembagaKey;
+window.detectStudentLembaga = detectStudentLembaga;
 window.clearPostDeleteRemoteBlock = function () {
     localStorage.removeItem('_deleteJustDone');
 };

@@ -169,6 +169,7 @@ async function loadStudentsFromSupabase() {
             if (typeof renderSantri === 'function') renderSantri();
             if (typeof renderFilters === 'function') renderFilters();
             if (typeof updateStats === 'function') updateStats();
+            if (typeof renderSlideContent === 'function') renderSlideContent();
         } else {
             console.log('⚠️ Remote students empty — sinkronkan ke kosong (sumber: server)');
             dashboardData.students = [];
@@ -308,6 +309,7 @@ async function syncStudentsToSupabase() {
                 nama_ibu: s.nama_ibu || '',
                 sekolah_asal: s.sekolah_asal || '',
                 total_hafalan: Number(s.total_hafalan) || 0,
+                total_tilawah_hal: Number(s.total_tilawah_hal) || 0,
                 total_points: s.total_points || 0,
                 daily_ranking: s.daily_ranking || 0,
                 overall_ranking: s.overall_ranking || 0,
@@ -718,12 +720,41 @@ async function syncUsersToSupabase() {
     }
 }
 
+async function manualFullSync() {
+    if (!navigator.onLine) {
+        showNotification('❌ Anda sedang offline. Hubungkan ke internet untuk sinkronisasi.', 'error');
+        return;
+    }
+    
+    showNotification('🔄 Sedang sinkronisasi data ke Supabase...', 'info');
+    try {
+        await Promise.all([
+            syncHalaqahsToSupabase(),
+            syncStudentsToSupabase(),
+            typeof syncUsersToSupabase === 'function' ? syncUsersToSupabase() : Promise.resolve()
+        ]);
+        
+        // Reload fresh data from server after upload to ensure perfect sync
+        await Promise.all([
+            loadStudentsFromSupabase(),
+            loadHalaqahsFromSupabase()
+        ]);
+        
+        showNotification('✅ Sinkronisasi full berhasil!', 'success');
+        if (typeof refreshAllData === 'function') refreshAllData();
+    } catch (e) {
+        console.error('Manual sync failed:', e);
+        showNotification('❌ Sinkronisasi gagal: ' + e.message, 'error');
+    }
+}
+
 // Expose functions to window
 window.initSupabase = initSupabase;
 window.loadStudentsFromSupabase = loadStudentsFromSupabase;
 window.loadHalaqahsFromSupabase = loadHalaqahsFromSupabase;
 window.syncStudentsToSupabase = syncStudentsToSupabase;
 window.syncHalaqahsToSupabase = syncHalaqahsToSupabase;
+window.manualFullSync = manualFullSync;
 window.deleteStudentFromSupabase = deleteStudentFromSupabase;
 window.deleteHalaqahFromSupabase = deleteHalaqahFromSupabase;
 window.deleteAllStudentsFromSupabase = deleteAllStudentsFromSupabase;
