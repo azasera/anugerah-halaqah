@@ -556,6 +556,11 @@ function showAdminSettings() {
                                 🔄 Sinkron Data Sekarang
                             </button>
 
+                            <button onclick="forceSyncTilawahToSupabase()" 
+                                class="w-full bg-emerald-600 text-white px-4 py-3 rounded-lg font-bold hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2">
+                                📖 Paksa Sinkron Tilawah
+                            </button>
+
                             <button onclick="mergeDuplicateHalaqahs()" 
                                  class="w-full bg-indigo-600 text-white px-4 py-3 rounded-lg font-bold hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2">
                                  🔗 Gabungkan Duplikasi Halaqah
@@ -2199,3 +2204,44 @@ async function executeMergeHalaqah(sourceId) {
 
 window.showMergeHalaqahForm = showMergeHalaqahForm;
 window.executeMergeHalaqah = executeMergeHalaqah;
+
+/**
+ * Memaksa sinkronisasi data tilawah lokal ke Supabase.
+ * Berguna jika data di slider publik berbeda dengan data lokal admin.
+ */
+async function forceSyncTilawahToSupabase() {
+    if (!navigator.onLine) {
+        showNotification('❌ Anda sedang offline. Sinkronisasi dibatalkan.', 'error');
+        return;
+    }
+
+    const profile = window.currentProfile;
+    if (!profile || (profile.role !== 'admin' && profile.role !== 'guru')) {
+        showNotification('❌ Hanya Admin atau Guru yang dapat melakukan sinkronisasi.', 'error');
+        return;
+    }
+
+    showNotification('🔄 Sedang memaksa sinkronisasi tilawah...', 'info');
+
+    try {
+        const results = await Promise.all([
+            window.syncStudentsToSupabase ? window.syncStudentsToSupabase() : Promise.resolve({ status: 'not_available' }),
+            window.syncTilawahToSupabase ? window.syncTilawahToSupabase() : Promise.resolve({ status: 'not_available' })
+        ]);
+
+        const allOk = results.every(r => r && (r.status === 'success' || r.status === 'not_available'));
+
+        if (allOk) {
+            showNotification('✅ Sinkronisasi tilawah berhasil! Perubahan akan segera muncul di dashboard publik.', 'success');
+            if (typeof refreshAllData === 'function') refreshAllData();
+        } else {
+            const errors = results.filter(r => r && r.status === 'error').map(r => r.error?.message || 'Unknown error');
+            showNotification('⚠️ Sinkronisasi selesai dengan beberapa kendala: ' + errors.join(', '), 'warning');
+        }
+    } catch (e) {
+        console.error('Force sync tilawah failed:', e);
+        showNotification('❌ Sinkronisasi gagal: ' + e.message, 'error');
+    }
+}
+
+window.forceSyncTilawahToSupabase = forceSyncTilawahToSupabase;

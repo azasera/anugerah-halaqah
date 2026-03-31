@@ -365,7 +365,11 @@ async function autoSync() {
     }
 
     console.log('🔄 [autoSync] Triggering background sync...');
-    return await syncStudentsToSupabase();
+    // Sync both students and tilawah history
+    return await Promise.all([
+        syncStudentsToSupabase(),
+        syncTilawahToSupabase()
+    ]);
 }
 
 // Sync halaqahs to Supabase
@@ -395,6 +399,39 @@ async function syncHalaqahsToSupabase() {
 
     } catch (error) {
         console.error('Halaqah sync failed:', error);
+    }
+}
+
+// Sync tilawah history to Supabase
+async function syncTilawahToSupabase() {
+    if (!window.supabaseClient || !navigator.onLine) return;
+    if (!dashboardData.tilawah || dashboardData.tilawah.length === 0) return;
+
+    try {
+        console.log('🔄 Syncing tilawah history...');
+        const dataToUpsert = dashboardData.tilawah.map(t => ({
+            student_id: t.studentId,
+            date: t.date,
+            entries: t.entries || {},
+            summary: t.summary || {},
+            approval: t.approval || { ortu: { status: false }, guru: { status: false } }
+        }));
+
+        // Use batch upsert for tilawah
+        const BATCH_SIZE = 50;
+        for (let i = 0; i < dataToUpsert.length; i += BATCH_SIZE) {
+            const batch = dataToUpsert.slice(i, i + BATCH_SIZE);
+            const { error } = await window.supabaseClient
+                .from('tilawah')
+                .upsert(batch, { onConflict: 'student_id, date' });
+            
+            if (error) throw error;
+        }
+        console.log('✅ Tilawah history synced');
+        return { status: 'success' };
+    } catch (error) {
+        console.error('Tilawah sync failed:', error);
+        return { status: 'error', error };
     }
 }
 
@@ -772,6 +809,7 @@ window.loadStudentsFromSupabase = loadStudentsFromSupabase;
 window.loadHalaqahsFromSupabase = loadHalaqahsFromSupabase;
 window.syncStudentsToSupabase = syncStudentsToSupabase;
 window.syncHalaqahsToSupabase = syncHalaqahsToSupabase;
+window.syncTilawahToSupabase = syncTilawahToSupabase;
 window.autoSync = autoSync;
 window.manualFullSync = manualFullSync;
 window.deleteStudentFromSupabase = deleteStudentFromSupabase;
