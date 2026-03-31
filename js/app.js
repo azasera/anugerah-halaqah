@@ -270,7 +270,8 @@ function initApp() {
                 if (typeof renderSortButtons === 'function') renderSortButtons();
                 if (typeof renderSantri === 'function') renderSantri();
                 if (typeof renderAbsenceWidget === 'function') renderAbsenceWidget();
-                if (typeof initTilawahData === 'function') initTilawahData();
+                if (typeof initMutabaahData === 'function') initMutabaahData();
+                console.log('✅ App initialization complete');
             } catch (error) {
                 console.error('Error rendering main components:', error);
             }

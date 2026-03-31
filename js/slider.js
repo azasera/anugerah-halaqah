@@ -65,17 +65,25 @@ const slides = [
 
 function renderSlider() {
     const container = document.getElementById('sliderContainer');
-    if (!container) return;
-
+    if (!container) {
+        console.error('❌ sliderContainer not found!');
+        return;
+    }
+    
+    console.log('🚀 [Slider] Rendering slider with', slides.length, 'slides');
+    
     container.innerHTML = slides.map((slide, index) => {
         const isActive = index === currentSlide;
         return `
-            <div id="slide-${index}" class="absolute inset-0 transition-all duration-500 ${isActive ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-full'}" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-                <div class="absolute inset-0 bg-black/20"></div>
-                <div class="relative h-full p-4 md:p-6 flex flex-col overflow-hidden">
-                    <h2 class="text-xl md:text-2xl font-bold text-white mb-3 flex-shrink-0">${slide.title}</h2>
+            <div id="slide-${index}" class="absolute inset-0 transition-all duration-500 ${isActive ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-full'}" style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);">
+                <div class="absolute inset-0 bg-black/10"></div>
+                <div class="relative h-full p-4 md:p-6 flex flex-col">
+                    <div class="flex items-center justify-between mb-2">
+                        <h2 class="text-lg md:text-xl font-bold text-white uppercase tracking-wider">${slide.title}</h2>
+                        <div class="text-[10px] text-white/40 font-mono">${index + 1}/${slides.length}</div>
+                    </div>
                     <div id="slide-content-${index}" class="flex-1 overflow-y-auto min-h-0">
-                        <!-- Content populated dynamically -->
+                        <div class="flex items-center justify-center h-full text-white/30 text-xs italic">Memuat data...</div>
                     </div>
                 </div>
             </div>
@@ -95,22 +103,31 @@ function renderSlider() {
 }
 
 function renderSlideContent() {
+    console.log('📦 [Slider] Populating content for', slides.length, 'slides');
     slides.forEach((slide, index) => {
         const contentContainer = document.getElementById(`slide-content-${index}`);
-        if (!contentContainer) return;
-
-        if (slide.type === 'santri') {
-            renderTopSantri(contentContainer);
-        } else if (slide.type === 'best-halaqah-today') {
-            renderBestHalaqahToday(contentContainer);
-        } else if (slide.type === 'halaqah') {
-            renderTopHalaqah(contentContainer);
-        } else if (slide.type === 'streak') {
-            renderStreakLeaders(contentContainer);
-        } else if (slide.type === 'hafalan') {
-            renderHafalanLeaders(contentContainer);
-        } else if (slide.type === 'tilawah-lembaga') {
-            renderTilawahLembaga(contentContainer, slide.lembaga);
+        if (!contentContainer) {
+            console.warn(`⚠️ [Slider] Slide content container ${index} not found!`);
+            return;
+        }
+        
+        try {
+            if (slide.type === 'santri') {
+                renderTopSantri(contentContainer);
+            } else if (slide.type === 'best-halaqah-today') {
+                renderBestHalaqahToday(contentContainer);
+            } else if (slide.type === 'halaqah') {
+                renderTopHalaqah(contentContainer);
+            } else if (slide.type === 'streak') {
+                renderStreakLeaders(contentContainer);
+            } else if (slide.type === 'hafalan') {
+                renderHafalanLeaders(contentContainer);
+            } else if (slide.type === 'tilawah-lembaga') {
+                renderTilawahLembaga(contentContainer, slide.lembaga);
+            }
+        } catch (error) {
+            console.error(`❌ [Slider] Error rendering slide ${index} (${slide.type}):`, error);
+            contentContainer.innerHTML = `<div class="flex items-center justify-center h-full text-red-300 text-xs text-center p-4">⚠️ Gagal memuat data: ${error.message}</div>`;
         }
     });
 }
@@ -395,7 +412,13 @@ function renderHafalanLeaders(container) {
 }
 
 function renderTilawahLembaga(container, lembaga) {
-    const students = (dashboardData.students || [])
+    if (!dashboardData.students || dashboardData.students.length === 0) {
+        container.innerHTML = `<div class="flex items-center justify-center h-full text-white/30 text-xs italic">Menunggu data santri...</div>`;
+        return;
+    }
+
+    console.log(`📊 [Slider] Checking tilawah for ${lembaga}`);
+    const students = dashboardData.students
         .filter(s => {
             const l = (typeof window.detectStudentLembaga === 'function')
                 ? window.detectStudentLembaga(s)
@@ -405,15 +428,24 @@ function renderTilawahLembaga(container, lembaga) {
             return l === lembaga;
         })
         .map(s => {
-            const totalHal = s.total_tilawah_hal || (dashboardData.tilawah || [])
-                .filter(t => String(t.studentId) === String(s.id))
+            // Priority 1: Summary column from DB (total_tilawah_hal)
+            // Priority 2: Calculate from historical tilawah entries
+            const history = (dashboardData.tilawah || [])
+                .filter(t => String(t.studentId) === String(s.id));
+            
+            const calcTotal = history
                 .flatMap(t => Object.values(t.entries || {}))
-                .reduce((sum, e) => sum + (e.jumlahHal || 0), 0);
+                .reduce((sum, e) => sum + (e.jumlahHal || e.hal || 0), 0);
+            
+            const totalHal = Number(s.total_tilawah_hal || 0) || calcTotal;
+            
             return { ...s, totalHal };
         })
         .filter(s => s.totalHal > 0)
         .sort((a, b) => b.totalHal - a.totalHal)
         .slice(0, 5);
+
+    console.log(`📊 [Slider] Found ${students.length} students with tilawah in ${lembaga}`);
 
     if (students.length === 0) {
         container.innerHTML = `<div class="flex items-center justify-center h-full text-white/50 text-sm">Belum ada data tilawah ${lembaga}</div>`;

@@ -15,6 +15,11 @@ const dashboardData = {
 const StorageManager = {
     save() {
         localStorage.setItem('halaqahData', JSON.stringify(dashboardData));
+        if (typeof window !== 'undefined' && window.hasPendingLocalChanges) {
+            localStorage.setItem('hasPendingLocalChanges', 'true');
+        } else {
+            localStorage.removeItem('hasPendingLocalChanges');
+        }
     },
 
     load() {
@@ -34,6 +39,11 @@ const StorageManager = {
                     totalPoints: Number(data.stats.totalPoints) || 0,
                     avgPointsPerStudent: data.stats.avgPointsPerStudent ?? '0'
                 };
+            }
+
+            // Restore pending changes flag
+            if (typeof window !== 'undefined') {
+                window.hasPendingLocalChanges = localStorage.getItem('hasPendingLocalChanges') === 'true';
             }
         } catch (e) {
             console.error('StorageManager.load failed:', e);

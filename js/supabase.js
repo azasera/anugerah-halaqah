@@ -353,9 +353,9 @@ async function syncStudentsToSupabase() {
 
 // Auto-sync function for background updates
 async function autoSync() {
-    // Only sync if logged in as admin or guru
+    // Only sync if logged in
     const profile = window.currentProfile;
-    if (!profile || (profile.role !== 'admin' && profile.role !== 'guru')) {
+    if (!profile || (profile.role !== 'admin' && profile.role !== 'guru' && profile.role !== 'ortu')) {
         console.log('[autoSync] Skip - not authorized or not logged in');
         return;
     }
@@ -439,6 +439,12 @@ async function syncTilawahToSupabase() {
 // Load tilawah history from Supabase
 async function loadTilawahFromSupabase() {
     if (!window.supabaseClient || !navigator.onLine) return;
+    
+    // Skip if there are unsynced changes to avoid overwriting them
+    if (window.hasPendingLocalChanges) {
+        console.log('[LOAD_TILAWAH] ⏭️ Skipping load tilawah - pending local changes');
+        return;
+    }
 
     try {
         const { data, error } = await window.supabaseClient
