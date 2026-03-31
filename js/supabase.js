@@ -205,8 +205,6 @@ async function loadHalaqahsFromSupabase() {
             localStorage.removeItem('_deleteJustDone');
         }
     }
-        return;
-    }
 
     window.isLoadingHalaqahs = true;
 
