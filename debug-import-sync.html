@@ -15,6 +15,8 @@
   <button onclick="checkErrors()" class="px-4 py-2 bg-red-600 text-white rounded">Test Upsert</button>
   <button onclick="checkLocalStorage()" class="px-4 py-2 bg-yellow-600 text-white rounded">Cek localStorage</button>
   <button onclick="pushLocalToSupabase()" class="px-4 py-2 bg-orange-600 text-white rounded font-bold">⬆ Push localStorage → Supabase</button>
+  <button onclick="cekHalaqahGanda()" class="px-4 py-2 bg-pink-600 text-white rounded font-bold">🔍 Cek Halaqah Ganda</button>
+  <button onclick="fixHalaqahGanda()" class="px-4 py-2 bg-rose-700 text-white rounded font-bold">🔧 Fix Halaqah Ganda</button>
 </div>
 <pre id="out" class="bg-gray-100 p-4 rounded overflow-auto max-h-[70vh] whitespace-pre-wrap"></pre>
 </body>
@@ -162,5 +164,90 @@ async function pushLocalToSupabase() {
   }
   log(`\nSelesai: ${success} berhasil, ${failed} gagal`);
   if (success > 0) log('\nRefresh halaman dashboard untuk melihat hasilnya.');
+}
+
+async function cekHalaqahGanda() {
+  out.textContent = '';
+  log('Mengambil semua halaqah dari Supabase...');
+  const { data, error } = await db.from('halaqahs').select('id,name,members').order('name');
+  if (error) { log('ERROR: ' + error.message); return; }
+  log(`Total halaqah: ${data.length}\n`);
+
+  // Cari nama yang mirip (normalisasi: hapus "Halaqah " di depan, lowercase)
+  const norm = h => h.name.replace(/^halaqah\s+/i,'').trim().toLowerCase();
+  const groups = {};
+  data.forEach(h => {
+    const key = norm(h);
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(h);
+  });
+
+  let found = 0;
+  Object.entries(groups).forEach(([key, arr]) => {
+    if (arr.length > 1) {
+      found++;
+      log(`⚠️ GANDA: "${key}"`);
+      arr.forEach(h => log(`   ID:${h.id} | "${h.name}" | ${h.members} anggota`));
+    }
+  });
+  if (found === 0) log('✅ Tidak ada halaqah ganda.');
+  else log(`\nTotal ${found} grup halaqah ganda ditemukan.\nKlik "Fix Halaqah Ganda" untuk merge otomatis.`);
+}
+
+async function fixHalaqahGanda() {
+  out.textContent = '';
+  log('Mengambil data halaqah dan santri...');
+  const [hRes, sRes] = await Promise.all([
+    db.from('halaqahs').select('id,name,members,points,rank').order('members', {ascending: false}),
+    db.from('students').select('id,halaqah')
+  ]);
+  if (hRes.error || sRes.error) { log('ERROR: ' + (hRes.error||sRes.error).message); return; }
+
+  const halaqahs = hRes.data;
+  const students = sRes.data;
+  const norm = h => h.name.replace(/^halaqah\s+/i,'').trim().toLowerCase();
+
+  const groups = {};
+  halaqahs.forEach(h => {
+    const key = norm(h);
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(h);
+  });
+
+  let totalMerged = 0;
+  for (const [key, arr] of Object.entries(groups)) {
+    if (arr.length < 2) continue;
+    // Pilih yang paling banyak anggota sebagai target
+    arr.sort((a,b) => b.members - a.members);
+    const target = arr[0];
+    const toRemove = arr.slice(1);
+
+    log(`\nMerge "${key}": target="${target.name}" (${target.members} anggota)`);
+
+    for (const src of toRemove) {
+      log(`  Hapus: "${src.name}" (${src.members} anggota)`);
+      // Pindahkan santri
+      const affected = students.filter(s => s.halaqah === src.name);
+      if (affected.length > 0) {
+        const ids = affected.map(s => s.id);
+        const { error: upErr } = await db.from('students')
+          .update({ halaqah: target.name })
+          .in('id', ids);
+        if (upErr) { log(`  ❌ Gagal pindah santri: ${upErr.message}`); continue; }
+        log(`  ✅ ${ids.length} santri dipindah ke "${target.name}"`);
+        totalMerged += ids.length;
+      }
+      // Hapus halaqah duplikat
+      const { error: delErr } = await db.from('halaqahs').delete().eq('id', src.id);
+      if (delErr) log(`  ❌ Gagal hapus halaqah: ${delErr.message}`);
+      else log(`  ✅ Halaqah "${src.name}" dihapus`);
+    }
+  }
+
+  if (totalMerged === 0 && Object.values(groups).every(a => a.length < 2)) {
+    log('✅ Tidak ada halaqah ganda yang perlu di-fix.');
+  } else {
+    log(`\n✅ Selesai. ${totalMerged} santri dipindah. Refresh dashboard.`);
+  }
 }
 </script>
