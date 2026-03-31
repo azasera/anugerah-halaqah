@@ -1,0 +1,482 @@
+[
+    {
+        "juz": 1,
+        "start_page": 1,
+        "start": {
+            "surah": "Al-Fatihah",
+            "surah_number": 1,
+            "ayah": 1
+        },
+        "end_page": 21,
+        "end": {
+            "surah": "Al-Baqarah",
+            "surah_number": 2,
+            "ayah": 141
+        },
+        "total_pages": 21
+    },
+    {
+        "juz": 2,
+        "start_page": 22,
+        "start": {
+            "surah": "Al-Baqarah",
+            "surah_number": 2,
+            "ayah": 142
+        },
+        "end_page": 41,
+        "end": {
+            "surah": "Al-Baqarah",
+            "surah_number": 2,
+            "ayah": 252
+        },
+        "total_pages": 20
+    },
+    {
+        "juz": 3,
+        "start_page": 42,
+        "start": {
+            "surah": "Al-Baqarah",
+            "surah_number": 2,
+            "ayah": 253
+        },
+        "end_page": 61,
+        "end": {
+            "surah": "Ali Imran",
+            "surah_number": 3,
+            "ayah": 91
+        },
+        "total_pages": 20
+    },
+    {
+        "juz": 4,
+        "start_page": 62,
+        "start": {
+            "surah": "Ali Imran",
+            "surah_number": 3,
+            "ayah": 92
+        },
+        "end_page": 81,
+        "end": {
+            "surah": "An-Nisa",
+            "surah_number": 4,
+            "ayah": 23
+        },
+        "total_pages": 20
+    },
+    {
+        "juz": 5,
+        "start_page": 82,
+        "start": {
+            "surah": "An-Nisa",
+            "surah_number": 4,
+            "ayah": 24
+        },
+        "end_page": 101,
+        "end": {
+            "surah": "An-Nisa",
+            "surah_number": 4,
+            "ayah": 147
+        },
+        "total_pages": 20
+    },
+    {
+        "juz": 6,
+        "start_page": 102,
+        "start": {
+            "surah": "An-Nisa",
+            "surah_number": 4,
+            "ayah": 148
+        },
+        "end_page": 121,
+        "end": {
+            "surah": "Al-Maidah",
+            "surah_number": 5,
+            "ayah": 82
+        },
+        "total_pages": 20
+    },
+    {
+        "juz": 7,
+        "start_page": 122,
+        "start": {
+            "surah": "Al-Maidah",
+            "surah_number": 5,
+            "ayah": 83
+        },
+        "end_page": 141,
+        "end": {
+            "surah": "Al-Anam",
+            "surah_number": 6,
+            "ayah": 110
+        },
+        "total_pages": 20
+    },
+    {
+        "juz": 8,
+        "start_page": 142,
+        "start": {
+            "surah": "Al-Anam",
+            "surah_number": 6,
+            "ayah": 111
+        },
+        "end_page": 161,
+        "end": {
+            "surah": "Al-Araf",
+            "surah_number": 7,
+            "ayah": 87
+        },
+        "total_pages": 20
+    },
+    {
+        "juz": 9,
+        "start_page": 162,
+        "start": {
+            "surah": "Al-Araf",
+            "surah_number": 7,
+            "ayah": 88
+        },
+        "end_page": 181,
+        "end": {
+            "surah": "Al-Anfal",
+            "surah_number": 8,
+            "ayah": 40
+        },
+        "total_pages": 20
+    },
+    {
+        "juz": 10,
+        "start_page": 182,
+        "start": {
+            "surah": "Al-Anfal",
+            "surah_number": 8,
+            "ayah": 41
+        },
+        "end_page": 201,
+        "end": {
+            "surah": "At-Taubah",
+            "surah_number": 9,
+            "ayah": 93
+        },
+        "total_pages": 20
+    },
+    {
+        "juz": 11,
+        "start_page": 202,
+        "start": {
+            "surah": "At-Taubah",
+            "surah_number": 9,
+            "ayah": 94
+        },
+        "end_page": 221,
+        "end": {
+            "surah": "Hud",
+            "surah_number": 11,
+            "ayah": 5
+        },
+        "total_pages": 20
+    },
+    {
+        "juz": 12,
+        "start_page": 222,
+        "start": {
+            "surah": "Hud",
+            "surah_number": 11,
+            "ayah": 6
+        },
+        "end_page": 241,
+        "end": {
+            "surah": "Yusuf",
+            "surah_number": 12,
+            "ayah": 52
+        },
+        "total_pages": 20
+    },
+    {
+        "juz": 13,
+        "start_page": 242,
+        "start": {
+            "surah": "Yusuf",
+            "surah_number": 12,
+            "ayah": 53
+        },
+        "end_page": 261,
+        "end": {
+            "surah": "Ibrahim",
+            "surah_number": 14,
+            "ayah": 52
+        },
+        "total_pages": 20
+    },
+    {
+        "juz": 14,
+        "start_page": 262,
+        "start": {
+            "surah": "Al-Hijr",
+            "surah_number": 15,
+            "ayah": 1
+        },
+        "end_page": 281,
+        "end": {
+            "surah": "An-Nahl",
+            "surah_number": 16,
+            "ayah": 128
+        },
+        "total_pages": 20
+    },
+    {
+        "juz": 15,
+        "start_page": 282,
+        "start": {
+            "surah": "Al-Isra",
+            "surah_number": 17,
+            "ayah": 1
+        },
+        "end_page": 301,
+        "end": {
+            "surah": "Al-Kahf",
+            "surah_number": 18,
+            "ayah": 74
+        },
+        "total_pages": 20
+    },
+    {
+        "juz": 16,
+        "start_page": 302,
+        "start": {
+            "surah": "Al-Kahf",
+            "surah_number": 18,
+            "ayah": 75
+        },
+        "end_page": 321,
+        "end": {
+            "surah": "Thaha",
+            "surah_number": 20,
+            "ayah": 135
+        },
+        "total_pages": 20
+    },
+    {
+        "juz": 17,
+        "start_page": 322,
+        "start": {
+            "surah": "Al-Anbiya",
+            "surah_number": 21,
+            "ayah": 1
+        },
+        "end_page": 341,
+        "end": {
+            "surah": "Al-Hajj",
+            "surah_number": 22,
+            "ayah": 78
+        },
+        "total_pages": 20
+    },
+    {
+        "juz": 18,
+        "start_page": 342,
+        "start": {
+            "surah": "Al-Muminun",
+            "surah_number": 23,
+            "ayah": 1
+        },
+        "end_page": 361,
+        "end": {
+            "surah": "Al-Furqan",
+            "surah_number": 25,
+            "ayah": 20
+        },
+        "total_pages": 20
+    },
+    {
+        "juz": 19,
+        "start_page": 362,
+        "start": {
+            "surah": "Al-Furqan",
+            "surah_number": 25,
+            "ayah": 21
+        },
+        "end_page": 381,
+        "end": {
+            "surah": "An-Naml",
+            "surah_number": 27,
+            "ayah": 55
+        },
+        "total_pages": 20
+    },
+    {
+        "juz": 20,
+        "start_page": 382,
+        "start": {
+            "surah": "An-Naml",
+            "surah_number": 27,
+            "ayah": 56
+        },
+        "end_page": 401,
+        "end": {
+            "surah": "Al-Ankabut",
+            "surah_number": 29,
+            "ayah": 45
+        },
+        "total_pages": 20
+    },
+    {
+        "juz": 21,
+        "start_page": 402,
+        "start": {
+            "surah": "Al-Ankabut",
+            "surah_number": 29,
+            "ayah": 46
+        },
+        "end_page": 421,
+        "end": {
+            "surah": "Al-Ahzab",
+            "surah_number": 33,
+            "ayah": 30
+        },
+        "total_pages": 20
+    },
+    {
+        "juz": 22,
+        "start_page": 422,
+        "start": {
+            "surah": "Al-Ahzab",
+            "surah_number": 33,
+            "ayah": 31
+        },
+        "end_page": 441,
+        "end": {
+            "surah": "Yasin",
+            "surah_number": 36,
+            "ayah": 27
+        },
+        "total_pages": 20
+    },
+    {
+        "juz": 23,
+        "start_page": 442,
+        "start": {
+            "surah": "Yasin",
+            "surah_number": 36,
+            "ayah": 28
+        },
+        "end_page": 461,
+        "end": {
+            "surah": "Az-Zumar",
+            "surah_number": 39,
+            "ayah": 31
+        },
+        "total_pages": 20
+    },
+    {
+        "juz": 24,
+        "start_page": 462,
+        "start": {
+            "surah": "Az-Zumar",
+            "surah_number": 39,
+            "ayah": 32
+        },
+        "end_page": 481,
+        "end": {
+            "surah": "Fushshilat",
+            "surah_number": 41,
+            "ayah": 46
+        },
+        "total_pages": 20
+    },
+    {
+        "juz": 25,
+        "start_page": 482,
+        "start": {
+            "surah": "Fushshilat",
+            "surah_number": 41,
+            "ayah": 47
+        },
+        "end_page": 501,
+        "end": {
+            "surah": "Al-Jatsiyah",
+            "surah_number": 45,
+            "ayah": 32
+        },
+        "total_pages": 20
+    },
+    {
+        "juz": 26,
+        "start_page": 502,
+        "start": {
+            "surah": "Al-Jatsiyah",
+            "surah_number": 45,
+            "ayah": 33
+        },
+        "end_page": 521,
+        "end": {
+            "surah": "Adz-Dzariyat",
+            "surah_number": 51,
+            "ayah": 30
+        },
+        "total_pages": 20
+    },
+    {
+        "juz": 27,
+        "start_page": 522,
+        "start": {
+            "surah": "Adz-Dzariyat",
+            "surah_number": 51,
+            "ayah": 31
+        },
+        "end_page": 541,
+        "end": {
+            "surah": "Al-Hadid",
+            "surah_number": 57,
+            "ayah": 29
+        },
+        "total_pages": 20
+    },
+    {
+        "juz": 28,
+        "start_page": 542,
+        "start": {
+            "surah": "Al-Mujadilah",
+            "surah_number": 58,
+            "ayah": 1
+        },
+        "end_page": 561,
+        "end": {
+            "surah": "At-Tahrim",
+            "surah_number": 66,
+            "ayah": 12
+        },
+        "total_pages": 20
+    },
+    {
+        "juz": 29,
+        "start_page": 562,
+        "start": {
+            "surah": "Al-Mulk",
+            "surah_number": 67,
+            "ayah": 1
+        },
+        "end_page": 581,
+        "end": {
+            "surah": "Al-Mursalat",
+            "surah_number": 77,
+            "ayah": 50
+        },
+        "total_pages": 20
+    },
+    {
+        "juz": 30,
+        "start_page": 582,
+        "start": {
+            "surah": "An-Naba",
+            "surah_number": 78,
+            "ayah": 1
+        },
+        "end_page": 604,
+        "end": {
+            "surah": "An-Nas",
+            "surah_number": 114,
+            "ayah": 6
+        },
+        "total_pages": 23
+    }
+]

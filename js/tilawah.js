@@ -267,8 +267,8 @@ function renderMutabaahDashboard() {
                              <span class="text-[10px]">Murojaah</span>
                         </button>
                         <button onclick="openSetPosisiTilawah(${student.id})" class="flex items-center justify-center flex-col gap-1.5 p-3 bg-slate-50 text-slate-600 rounded-xl font-bold hover:bg-slate-100 transition-all border border-slate-200 active:scale-95">
-                            <span class="text-xl">📍</span>
-                            <span class="text-[10px]">Set Posisi</span>
+                            <span class="text-xl">✏️</span>
+                            <span class="text-[10px]">Update Tilawah</span>
                         </button>
                     </div>
                 </div>
@@ -505,7 +505,7 @@ function openSetPosisiTilawah(studentId) {
         <div class="p-6">
             <div class="flex items-center justify-between mb-6">
                 <div>
-                    <h2 class="font-display font-bold text-2xl text-slate-800">📍 Set Posisi Tilawah</h2>
+                    <h2 class="font-display font-bold text-2xl text-slate-800">✏️ Update Tilawah</h2>
                     <p class="text-slate-500 text-sm mt-1">${student.name}</p>
                 </div>
                 <button onclick="closeModal()" class="p-2 bg-slate-100 rounded-xl text-slate-400 hover:bg-slate-200">
@@ -514,8 +514,7 @@ function openSetPosisiTilawah(studentId) {
             </div>
 
             <div class="bg-blue-50 border border-blue-100 rounded-2xl p-4 mb-6 text-sm text-blue-800">
-                Gunakan ini untuk santri yang <strong>sudah tilawah sebelumnya</strong> tapi belum pernah input data. 
-                Masukkan halaman terakhir yang sudah dibaca sebagai posisi awal.
+                Update total halaman tilawah santri. Masukkan <strong>total halaman yang sudah dibaca</strong> hingga saat ini.
             </div>
 
             <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 mb-5">
@@ -531,7 +530,7 @@ function openSetPosisiTilawah(studentId) {
             <form onsubmit="handleSetPosisiTilawah(event, ${studentId})" class="space-y-5">
                 <div class="space-y-2">
                     <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Halaman yang Sudah Dibaca</label>
-                    <input type="number" name="totalHal" placeholder="Contoh: 604 (khatam), 300 (setengah)" 
+                    <input type="number" name="totalHal" placeholder="0 – 604" value="${current}"
                         min="0" max="604" required
                         oninput="
                             const v=parseInt(this.value)||0;
