@@ -471,6 +471,7 @@ function handleMutabaahSubmission(event, prayerId, studentId) {
 
     closeModal();
     renderMutabaahDashboard();
+    if (typeof refreshAllData === 'function') refreshAllData();
     showNotification(`✅ Tilawah ${prayerId} disimpan! +${jumlahHal} halaman`, 'success');
 }
 
@@ -632,6 +633,7 @@ function handleSetPosisiTilawah(event, studentId) {
 
     closeModal();
     renderMutabaahDashboard();
+    if (typeof refreshAllData === 'function') refreshAllData();
     const msg = khatam > 0
         ? `✅ ${student.name}: ${khatam}x Khatam + ${sisa} halaman`
         : `✅ Tilawah ${student.name} diupdate: ${totalHal} halaman`;

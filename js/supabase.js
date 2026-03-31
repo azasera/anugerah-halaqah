@@ -36,7 +36,8 @@ async function initSupabase() {
     // Load initial data
     await Promise.all([
         loadStudentsFromSupabase(),
-        loadHalaqahsFromSupabase()
+        loadHalaqahsFromSupabase(),
+        loadTilawahFromSupabase()
     ]);
 
     if (typeof recalculateRankings === 'function') {
@@ -435,6 +436,38 @@ async function syncTilawahToSupabase() {
     }
 }
 
+// Load tilawah history from Supabase
+async function loadTilawahFromSupabase() {
+    if (!window.supabaseClient || !navigator.onLine) return;
+
+    try {
+        const { data, error } = await window.supabaseClient
+            .from('tilawah')
+            .select('*');
+
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+            console.log(`✅ Loaded ${data.length} tilawah records from Supabase`);
+            
+            // Map table column names back to object properties
+            const mappedData = data.map(t => ({
+                id: `til_${t.id}`,
+                studentId: t.student_id,
+                date: t.date,
+                entries: t.entries || {},
+                summary: t.summary || {},
+                approval: t.approval || { ortu: { status: false }, guru: { status: false } }
+            }));
+
+            dashboardData.tilawah = mappedData;
+            StorageManager.save();
+        }
+    } catch (error) {
+        console.error('Error loading tilawah:', error);
+    }
+}
+
 // Enable Realtime Subscription
 function enableRealtimeSubscription() {
     if (!window.supabaseClient) return;
@@ -810,6 +843,7 @@ window.loadHalaqahsFromSupabase = loadHalaqahsFromSupabase;
 window.syncStudentsToSupabase = syncStudentsToSupabase;
 window.syncHalaqahsToSupabase = syncHalaqahsToSupabase;
 window.syncTilawahToSupabase = syncTilawahToSupabase;
+window.loadTilawahFromSupabase = loadTilawahFromSupabase;
 window.autoSync = autoSync;
 window.manualFullSync = manualFullSync;
 window.deleteStudentFromSupabase = deleteStudentFromSupabase;
