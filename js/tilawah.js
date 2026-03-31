@@ -9,6 +9,64 @@ const prayerConfigs = [
     { id: 'isya', name: 'Isya', icon: '🌙', time: '19:00 - 21:00' }
 ];
 
+// Juz boundaries (page ranges)
+const JUZ_PAGES = [
+    [1,21],[22,41],[42,61],[62,81],[82,101],[102,121],[122,141],[142,161],[162,181],[182,201],
+    [202,221],[222,241],[242,261],[262,281],[282,301],[302,321],[322,341],[342,361],[362,381],[382,401],
+    [402,421],[422,441],[442,461],[462,481],[482,501],[502,521],[522,541],[542,561],[562,581],[582,604]
+];
+
+function getJuzFromPage(page) {
+    for (let i = 0; i < JUZ_PAGES.length; i++) {
+        if (page >= JUZ_PAGES[i][0] && page <= JUZ_PAGES[i][1]) return i + 1;
+    }
+    return 0;
+}
+
+function getPageInfo(page) {
+    if (typeof quranPageMap === 'undefined') return null;
+    return quranPageMap.find(p => p.p === page) || null;
+}
+
+function onTilawahHalChange() {
+    const awalEl = document.getElementById('tilawahHalAwal');
+    const akhirEl = document.getElementById('tilawahHalAkhir');
+    const summaryBox = document.getElementById('tilawahSummaryBox');
+    const jumlahEl = document.getElementById('tilawahJumlahHal');
+    const infoAwal = document.getElementById('infoAwal');
+    const infoAkhir = document.getElementById('infoAkhir');
+    if (!awalEl || !akhirEl) return;
+
+    const awal = parseInt(awalEl.value);
+    const akhir = parseInt(akhirEl.value);
+
+    // Info awal
+    if (awal >= 1 && awal <= 604) {
+        const info = getPageInfo(awal);
+        const juz = getJuzFromPage(awal);
+        if (info && infoAwal) infoAwal.textContent = `Juz ${juz} · ${info.ss} ${info.sa}`;
+    } else if (infoAwal) infoAwal.textContent = '';
+
+    // Info akhir
+    if (akhir >= 1 && akhir <= 604) {
+        const info = getPageInfo(akhir);
+        const juz = getJuzFromPage(akhir);
+        if (info && infoAkhir) infoAkhir.textContent = `Juz ${juz} · ${info.ss} ${info.sa}`;
+    } else if (infoAkhir) infoAkhir.textContent = '';
+
+    // Jumlah halaman
+    if (awal >= 1 && akhir >= awal) {
+        const jumlah = akhir - awal + 1;
+        if (jumlahEl) jumlahEl.textContent = jumlah;
+        if (summaryBox) summaryBox.classList.remove('hidden');
+        // Validasi warna
+        if (akhir < awal) awalEl.classList.add('border-red-400');
+        else awalEl.classList.remove('border-red-400');
+    } else {
+        if (summaryBox) summaryBox.classList.add('hidden');
+    }
+}
+
 function initMutabaahData() {
     if (!dashboardData.tilawah) {
         dashboardData.tilawah = [];
@@ -266,65 +324,88 @@ function openTilawahInputForm(prayerId, studentId) {
     const todayData = dashboardData.tilawah.find(t => String(t.studentId) === String(studentId) && t.date === today) || { entries: {} };
     const existingEntry = todayData.entries[prayerId] || {};
 
+    // Hitung total halaman tilawah santri ini (semua waktu)
+    const allEntries = (dashboardData.tilawah || [])
+        .filter(t => String(t.studentId) === String(studentId))
+        .flatMap(t => Object.values(t.entries || {}));
+    const totalHalSantri = allEntries.reduce((sum, e) => sum + (e.jumlahHal || 0), 0);
+    const progressPct = Math.min(100, Math.round((totalHalSantri / 604) * 100));
+
     const content = `
-        <div class="p-8">
-            <div class="flex items-center justify-between mb-8">
-                <div class="flex items-center gap-4">
-                    <div class="w-16 h-16 bg-emerald-50 rounded-2xl flex items-center justify-center text-4xl shadow-sm border border-emerald-100">
+        <div class="p-6">
+            <div class="flex items-center justify-between mb-6">
+                <div class="flex items-center gap-3">
+                    <div class="w-14 h-14 bg-emerald-50 rounded-2xl flex items-center justify-center text-3xl border border-emerald-100">
                         ${prayer.icon}
                     </div>
                     <div>
-                        <h2 class="font-display font-bold text-3xl text-slate-800">Capaian ${prayer.name}</h2>
-                        <p class="text-slate-500 text-sm">Target: 4 Halaman (1/5 Juz)</p>
+                        <h2 class="font-display font-bold text-2xl text-slate-800">Capaian ${prayer.name}</h2>
+                        <p class="text-slate-500 text-xs">${student.name}</p>
                     </div>
                 </div>
-                <button onclick="closeModal()" class="p-3 bg-slate-100 rounded-2xl text-slate-400 hover:bg-slate-200 transition-colors">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                <button onclick="closeModal()" class="p-2 bg-slate-100 rounded-xl text-slate-400 hover:bg-slate-200 transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                 </button>
             </div>
 
-            <form onsubmit="handleMutabaahSubmission(event, '${prayerId}', ${studentId})" class="space-y-6">
-                <!-- Data Layout -->
+            <!-- Progress tilawah santri -->
+            <div class="bg-emerald-50 border border-emerald-100 rounded-2xl p-4 mb-6">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-xs font-bold text-emerald-700">Progress Tilawah</span>
+                    <span class="text-xs font-black text-emerald-800">${totalHalSantri} / 604 hal (${progressPct}%)</span>
+                </div>
+                <div class="w-full bg-emerald-100 rounded-full h-3">
+                    <div class="bg-emerald-500 h-3 rounded-full transition-all" style="width:${progressPct}%"></div>
+                </div>
+            </div>
+
+            <form onsubmit="handleMutabaahSubmission(event, '${prayerId}', ${studentId})" class="space-y-5">
+                <!-- Halaman Awal & Akhir -->
                 <div class="grid grid-cols-2 gap-4">
                     <div class="space-y-2">
-                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Juz</label>
-                        <input type="number" name="juz" value="${existingEntry.juz || ''}" placeholder="1-30" required
-                            class="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-emerald-500 outline-none text-2xl font-black text-slate-800 transition-all">
+                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Halaman Awal</label>
+                        <input type="number" name="halAwal" id="tilawahHalAwal" value="${existingEntry.halAwal || ''}" placeholder="1–604" required min="1" max="604"
+                            oninput="onTilawahHalChange()"
+                            class="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-emerald-500 outline-none text-xl font-black text-slate-800 transition-all">
+                        <div id="infoAwal" class="text-xs text-emerald-600 font-semibold min-h-[16px]"></div>
                     </div>
                     <div class="space-y-2">
-                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Halaman</label>
-                        <input type="number" name="hal" value="${existingEntry.hal || ''}" placeholder="1-604" required
-                            class="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-emerald-500 outline-none text-2xl font-black text-slate-800 transition-all">
+                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Halaman Akhir</label>
+                        <input type="number" name="halAkhir" id="tilawahHalAkhir" value="${existingEntry.halAkhir || ''}" placeholder="1–604" required min="1" max="604"
+                            oninput="onTilawahHalChange()"
+                            class="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-emerald-500 outline-none text-xl font-black text-slate-800 transition-all">
+                        <div id="infoAkhir" class="text-xs text-emerald-600 font-semibold min-h-[16px]"></div>
                     </div>
                 </div>
 
-                <div class="space-y-2">
-                    <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Nama Surah</label>
-                    <div class="relative">
-                        <input type="text" name="surah" value="${existingEntry.surah || ''}" list="surahList" placeholder="Contoh: Al-Baqarah" required
-                            class="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-emerald-500 outline-none font-bold text-slate-800 transition-all">
-                        <div class="absolute right-4 top-4.5 opacity-20">📖</div>
-                    </div>
-                    ${generateSurahDatalist()}
+                <!-- Jumlah halaman & info -->
+                <div id="tilawahSummaryBox" class="hidden bg-emerald-50 border border-emerald-200 rounded-2xl p-4 text-center">
+                    <div class="text-3xl font-black text-emerald-700" id="tilawahJumlahHal">0</div>
+                    <div class="text-xs text-emerald-600 font-bold">Halaman dibaca</div>
                 </div>
 
                 <div class="space-y-2">
-                    <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Catatan Tadabbur/Kendala</label>
-                    <textarea name="note" rows="3" placeholder="Contoh: Belum lancar di ayat 15-20..."
-                        class="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-emerald-500 outline-none text-sm font-medium text-slate-700 transition-all">${existingEntry.note || ''}</textarea>
+                    <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Catatan</label>
+                    <textarea name="note" rows="2" placeholder="Kendala, tadabbur, dll..."
+                        class="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-emerald-500 outline-none text-sm font-medium text-slate-700 transition-all">${existingEntry.note || ''}</textarea>
                 </div>
 
-                <div class="pt-6 grid grid-cols-2 gap-4">
-                    <button type="button" onclick="closeModal()" 
+                <div class="grid grid-cols-2 gap-4 pt-2">
+                    <button type="button" onclick="closeModal()"
                         class="px-6 py-4 rounded-2xl font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 transition-all">Batal</button>
-                    <button type="submit" 
-                        class="px-6 py-4 bg-emerald-600 text-white rounded-2xl font-display font-bold text-lg shadow-xl shadow-emerald-200 active:scale-95 transition-all">Simpan Capaian</button>
+                    <button type="submit"
+                        class="px-6 py-4 bg-emerald-600 text-white rounded-2xl font-display font-bold text-lg shadow-xl shadow-emerald-200 active:scale-95 transition-all">Simpan</button>
                 </div>
             </form>
         </div>
     `;
 
     createModal(content, false);
+
+    // Trigger auto-fill jika ada data existing
+    if (existingEntry.halAwal || existingEntry.halAkhir) {
+        setTimeout(() => onTilawahHalChange(), 50);
+    }
 }
 
 function handleMutabaahSubmission(event, prayerId, studentId) {
@@ -352,20 +433,30 @@ function handleMutabaahSubmission(event, prayerId, studentId) {
         todayData = dashboardData.tilawah[todayDataIndex];
     }
 
+    const halAwal = parseInt(formData.get('halAwal')) || 0;
+    const halAkhir = parseInt(formData.get('halAkhir')) || 0;
+    const jumlahHal = halAkhir >= halAwal ? (halAkhir - halAwal + 1) : 0;
+
+    // Lookup juz & surah dari quranPageMap
+    const pageInfoAwal = (typeof quranPageMap !== 'undefined') ? quranPageMap.find(p => p.p === halAwal) : null;
+    const pageInfoAkhir = (typeof quranPageMap !== 'undefined') ? quranPageMap.find(p => p.p === halAkhir) : null;
+
     const newEntry = {
-        juz: parseInt(formData.get('juz')),
-        hal: parseInt(formData.get('hal')),
-        surah: formData.get('surah').trim(),
+        halAwal,
+        halAkhir,
+        jumlahHal,
+        hal: halAkhir, // backward compat
+        juz: pageInfoAwal ? getJuzFromPage(halAwal) : 0,
+        surah: pageInfoAwal ? pageInfoAwal.ss : '',
+        surahAkhir: pageInfoAkhir ? pageInfoAkhir.ss : '',
         note: formData.get('note').trim(),
         timestamp: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
     };
 
     todayData.entries[prayerId] = newEntry;
 
-    // Recalculate summary (Total pages today)
-    // We assume 4 pages per verified entry for simplified dashboard progress
-    let totalEntries = Object.keys(todayData.entries).length;
-    todayData.summary.totalHalaman = totalEntries * 4;
+    // Recalculate summary — jumlah halaman aktual
+    todayData.summary.totalHalaman = Object.values(todayData.entries).reduce((sum, e) => sum + (e.jumlahHal || 0), 0);
 
     StorageManager.save();
     if (window.autoSync) window.autoSync();
