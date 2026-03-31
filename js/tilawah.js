@@ -657,6 +657,98 @@ function approveMutabaah(role, studentId) {
     showNotification(`✅ Terverifikasi oleh ${role === 'ortu' ? 'Orang Tua' : 'Guru'}`, 'success');
 }
 
+function showRekapTilawahGuru() {
+    const profile = window.currentProfile;
+    const role = profile ? profile.role : null;
+    let students = Array.isArray(dashboardData.students) ? dashboardData.students : [];
+    if (role === 'guru' && typeof getStudentsForCurrentUser === 'function') {
+        students = getStudentsForCurrentUser();
+    }
+
+    const today = new Date().toISOString().split('T')[0];
+
+    // Hitung data per santri
+    const rows = students.map(s => {
+        const totalHal = s.total_tilawah_hal || (dashboardData.tilawah || [])
+            .filter(t => String(t.studentId) === String(s.id))
+            .flatMap(t => Object.values(t.entries || {}))
+            .reduce((sum, e) => sum + (e.jumlahHal || 0), 0);
+        const { khatam, sisa, pct } = getTilawahKhatamInfo(totalHal);
+        const todayData = dashboardData.tilawah.find(t => String(t.studentId) === String(s.id) && t.date === today);
+        const todayHal = todayData?.summary?.totalHalaman || 0;
+        const verOrtu = todayData?.approval?.ortu?.status ? '✅' : '—';
+        const verGuru = todayData?.approval?.guru?.status ? '✅' : '—';
+        return { s, totalHal, khatam, sisa, pct, todayHal, verOrtu, verGuru };
+    }).sort((a, b) => b.totalHal - a.totalHal);
+
+    const content = `
+        <div class="p-6">
+            <div class="flex items-center justify-between mb-6">
+                <div>
+                    <h2 class="font-display font-bold text-2xl text-slate-800">📊 Rekap Tilawah</h2>
+                    <p class="text-slate-500 text-xs mt-1">${new Date().toLocaleDateString('id-ID', {weekday:'long', day:'numeric', month:'long', year:'numeric'})}</p>
+                </div>
+                <button onclick="closeModal()" class="p-2 bg-slate-100 rounded-xl text-slate-400 hover:bg-slate-200">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+
+            <!-- Summary stats -->
+            <div class="grid grid-cols-3 gap-3 mb-5">
+                <div class="bg-emerald-50 rounded-2xl p-3 text-center">
+                    <div class="text-xl font-black text-emerald-700">${rows.filter(r => r.todayHal > 0).length}</div>
+                    <div class="text-[10px] text-emerald-600 font-bold">Sudah Isi Hari Ini</div>
+                </div>
+                <div class="bg-amber-50 rounded-2xl p-3 text-center">
+                    <div class="text-xl font-black text-amber-700">${rows.filter(r => r.todayHal === 0).length}</div>
+                    <div class="text-[10px] text-amber-600 font-bold">Belum Isi</div>
+                </div>
+                <div class="bg-blue-50 rounded-2xl p-3 text-center">
+                    <div class="text-xl font-black text-blue-700">${rows.filter(r => r.khatam > 0).length}</div>
+                    <div class="text-[10px] text-blue-600 font-bold">Sudah Khatam</div>
+                </div>
+            </div>
+
+            <!-- Tabel -->
+            <div class="overflow-auto max-h-[55vh] rounded-2xl border border-slate-200">
+                <table class="w-full text-sm">
+                    <thead class="sticky top-0 bg-slate-50 border-b border-slate-200">
+                        <tr class="text-[10px] font-black text-slate-500 uppercase tracking-wider">
+                            <th class="px-3 py-3 text-left">Santri</th>
+                            <th class="px-3 py-3 text-center">Total</th>
+                            <th class="px-3 py-3 text-center">Hari Ini</th>
+                            <th class="px-3 py-3 text-center">Ortu</th>
+                            <th class="px-3 py-3 text-center">Guru</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 bg-white">
+                        ${rows.map(({ s, khatam, sisa, pct, todayHal, verOrtu, verGuru }) => `
+                        <tr class="hover:bg-slate-50 cursor-pointer" onclick="closeModal(); selectStudentForMutabaah(${s.id})">
+                            <td class="px-3 py-3">
+                                <div class="font-semibold text-slate-800 text-xs">${s.name}</div>
+                                <div class="w-full bg-slate-100 rounded-full h-1 mt-1">
+                                    <div class="bg-emerald-400 h-1 rounded-full" style="width:${pct}%"></div>
+                                </div>
+                                <div class="text-[10px] text-slate-400 mt-0.5">${khatam > 0 ? `${khatam}x Khatam + ${sisa} hal` : `${sisa}/604`}</div>
+                            </td>
+                            <td class="px-3 py-3 text-center">
+                                ${khatam > 0 ? `<span class="text-xs font-black text-amber-600">🏆${khatam}x</span>` : `<span class="text-xs font-bold text-slate-600">${pct}%</span>`}
+                            </td>
+                            <td class="px-3 py-3 text-center">
+                                <span class="text-xs font-bold ${todayHal > 0 ? 'text-emerald-600' : 'text-slate-300'}">${todayHal > 0 ? todayHal + ' hal' : '—'}</span>
+                            </td>
+                            <td class="px-3 py-3 text-center text-sm">${verOrtu}</td>
+                            <td class="px-3 py-3 text-center text-sm">${verGuru}</td>
+                        </tr>`).join('')}
+                    </tbody>
+                </table>
+            </div>
+            <p class="text-[10px] text-slate-400 mt-3 text-center">Klik baris untuk buka detail santri</p>
+        </div>
+    `;
+    createModal(content, false);
+}
+
 function renderStudentSelectionForMutabaah() {
     const container = document.getElementById('mutabaahContainer');
     const profile = window.currentProfile;
@@ -672,7 +764,12 @@ function renderStudentSelectionForMutabaah() {
             <div class="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm text-center">
                 <div class="w-20 h-20 bg-emerald-50 text-emerald-600 rounded-3xl flex items-center justify-center text-4xl mx-auto mb-6 shadow-inner">📖</div>
                 <h2 class="font-display font-bold text-2xl text-slate-800 mb-2">Pilih Santri Tahfidz</h2>
-                <p class="text-slate-500 mb-8 max-w-xs mx-auto text-sm">Silakan cari nama santri untuk dikelola mutaba'ahnya hari ini.</p>
+                <p class="text-slate-500 mb-4 max-w-xs mx-auto text-sm">Silakan cari nama santri untuk dikelola mutaba'ahnya hari ini.</p>
+
+                <!-- Tombol Rekap -->
+                <button onclick="showRekapTilawahGuru()" class="w-full mb-6 px-5 py-3 bg-emerald-600 text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-emerald-700 transition-all active:scale-95">
+                    📊 Rekap Tilawah Semua Santri
+                </button>
                 
                 <div class="relative mb-6">
                     <input type="text" placeholder="Cari santri..." oninput="filterMutabaahStudentList(this.value)"
@@ -681,18 +778,31 @@ function renderStudentSelectionForMutabaah() {
                 </div>
 
                 <div id="mutabaahStudentList" class="space-y-3 max-h-96 overflow-y-auto custom-scrollbar px-1">
-                    ${students.length > 0 ? students.map(s => `
+                    ${students.length > 0 ? students.map(s => {
+                        const totalHal = s.total_tilawah_hal || (dashboardData.tilawah || [])
+                            .filter(t => String(t.studentId) === String(s.id))
+                            .flatMap(t => Object.values(t.entries || {}))
+                            .reduce((sum, e) => sum + (e.jumlahHal || 0), 0);
+                        const { khatam, sisa, pct } = getTilawahKhatamInfo(totalHal);
+                        const label = khatam > 0 ? `${khatam}x Khatam + ${sisa} hal` : `${sisa} / 604 hal`;
+                        const today = new Date().toISOString().split('T')[0];
+                        const todayHal = (dashboardData.tilawah.find(t => String(t.studentId) === String(s.id) && t.date === today)?.summary?.totalHalaman) || 0;
+                        return `
                         <div onclick="selectStudentForMutabaah(${s.id})" 
                             class="flex items-center justify-between p-4 border border-slate-100 rounded-2xl hover:bg-emerald-50 hover:border-emerald-200 transition-all cursor-pointer group shadow-sm bg-white">
-                            <div class="text-left">
+                            <div class="text-left flex-1">
                                 <div class="font-bold text-slate-800 group-hover:text-emerald-700 transition-colors">${s.name}</div>
-                                <div class="text-[10px] text-slate-400 uppercase font-black tracking-widest mt-0.5">Halaqah ${s.halaqah}</div>
+                                <div class="text-[10px] text-slate-400 uppercase font-black tracking-widest mt-0.5">${s.halaqah}</div>
+                                <div class="mt-1.5 w-full bg-slate-100 rounded-full h-1.5">
+                                    <div class="bg-emerald-400 h-1.5 rounded-full" style="width:${pct}%"></div>
+                                </div>
+                                <div class="text-[10px] text-emerald-600 font-semibold mt-0.5">${label}${todayHal > 0 ? ` · Hari ini: ${todayHal} hal` : ''}</div>
                             </div>
-                            <div class="w-8 h-8 rounded-full bg-slate-50 text-slate-300 flex items-center justify-center group-hover:bg-emerald-500 group-hover:text-white transition-all">
+                            <div class="ml-3 w-8 h-8 rounded-full bg-slate-50 text-slate-300 flex items-center justify-center group-hover:bg-emerald-500 group-hover:text-white transition-all flex-shrink-0">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
                             </div>
-                        </div>
-                    `).join('') : '<div class="py-8 text-slate-400 italic">Tidak ada data santri</div>'}
+                        </div>`;
+                    }).join('') : '<div class="py-8 text-slate-400 italic">Tidak ada data santri</div>'}
                 </div>
             </div>
         </div>
