@@ -127,13 +127,8 @@ function showStudentDetail(studentOrId) {
     const isAuthorized = typeof currentProfile !== 'undefined' &&
         (currentProfile.role === 'guru' || currentProfile.role === 'admin');
 
-    // Ortu boleh input untuk anak sendiri
-    const isOrtuOwnChild = typeof currentProfile !== 'undefined' &&
-        currentProfile.role === 'ortu' &&
-        window.currentUserChild &&
-        String(window.currentUserChild.id) === String(student.id);
-
-    const canInput = isAuthorized || isOrtuOwnChild;
+    // Ortu tidak diizinkan isi data ziyadah (sesuai permintaan user)
+    const canInput = isAuthorized; // Role 'guru' atau 'admin' saja
 
     // Determine default tab
     const defaultTab = canInput ? 'input' : 'profil';

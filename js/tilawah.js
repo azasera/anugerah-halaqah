@@ -286,15 +286,17 @@ function renderMutabaahDashboard() {
                 <!-- Ziyadah & Murojaah Action Card -->
                 <div class="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm space-y-4 md:col-span-2">
 
-                    <div class="grid grid-cols-4 gap-2">
+                    <div class="grid ${role === 'ortu' ? 'grid-cols-3' : 'grid-cols-4'} gap-2">
                         <button onclick="showTilawahQuickInput(${student.id})" class="flex items-center justify-center flex-col gap-1.5 p-3 bg-blue-50 text-blue-700 rounded-xl font-bold hover:bg-blue-100 transition-all border border-blue-100 active:scale-95">
                             <span class="text-xl text-blue-600">📖</span>
                             <span class="text-[10px]">Tilawah</span>
                         </button>
+                        ${role !== 'ortu' ? `
                         <button onclick="showStudentDetail(${student.id})" class="flex items-center justify-center flex-col gap-1.5 p-3 bg-emerald-50 text-emerald-700 rounded-xl font-bold hover:bg-emerald-100 transition-all border border-emerald-100 active:scale-95">
                             <span class="text-xl text-emerald-600">➕</span>
                             <span class="text-[10px]">Ziyadah</span>
                         </button>
+                        ` : ''}
                         <button onclick="openMurojaahInputForm(${student.id})" class="flex items-center justify-center flex-col gap-1.5 p-3 bg-amber-50 text-amber-700 rounded-xl font-bold hover:bg-amber-100 transition-all border border-amber-100 active:scale-95">
                              <span class="text-xl text-amber-600">🔄</span>
                              <span class="text-[10px]">Murojaah</span>
