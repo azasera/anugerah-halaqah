@@ -248,6 +248,39 @@ function renderMutabaahDashboard() {
                 </div>
             </div>
 
+            <!-- Professional Session Status Grid -->
+            <div class="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm space-y-4">
+                <div class="flex items-center justify-between">
+                    <h3 class="font-bold text-slate-800 flex items-center gap-2 text-sm uppercase tracking-wider">
+                        📅 Sesi Hari Ini
+                    </h3>
+                    <div class="text-[10px] font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded-lg border border-slate-100">
+                        ${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
+                    </div>
+                </div>
+                <div class="grid grid-cols-5 gap-2">
+                    ${prayerConfigs.map(p => {
+                        const entry = todayData.entries[p.id];
+                        return `
+                            <button onclick="openTilawahInputForm('${p.id}', ${student.id})" 
+                                class="group flex flex-col items-center gap-1.5 p-2 rounded-2xl transition-all border-2 active:scale-95 ${entry ? 'bg-emerald-50 border-emerald-200 shadow-sm' : 'bg-slate-50 border-slate-50 hover:border-slate-200'}">
+                                <div class="text-xl transform group-hover:scale-110 transition-transform">${p.icon}</div>
+                                <div class="text-[8px] font-black uppercase text-slate-500 group-hover:text-slate-800 transition-colors">${p.name}</div>
+                                <div class="h-5 flex items-center justify-center">
+                                    ${entry ? 
+                                        `<div class="flex flex-col items-center">
+                                            <span class="text-[9px] font-black text-emerald-600 leading-none">${entry.jumlahHal}</span>
+                                            <span class="text-[6px] font-bold text-emerald-500 uppercase">HLM</span>
+                                        </div>` : 
+                                        `<span class="text-sm text-slate-300">○</span>`
+                                    }
+                                </div>
+                            </button>
+                        `;
+                    }).join('')}
+                </div>
+            </div>
+
             <!-- Unified Activity Grid -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <!-- Ziyadah & Murojaah Action Card -->
@@ -694,14 +727,21 @@ function showRekapTilawahGuru() {
         const verGuru = todayData?.approval?.guru?.status ? '✅' : '—';
         const lembaga = (typeof window.normalizeLembagaKey === 'function')
             ? window.normalizeLembagaKey(s.lembaga || '') : (s.lembaga || '');
-        return { s, totalHal, khatam, sisa, pct, todayHal, verOrtu, verGuru, lembaga };
+        return { s, totalHal, khatam, sisa, pct, todayHal, verOrtu, verGuru, lembaga, todayData };
     }).sort((a, b) => b.totalHal - a.totalHal);
 
-    const tableRows = rows.map(({ s, khatam, sisa, pct, todayHal, verOrtu, verGuru, lembaga }) => `
+    const tableRows = rows.map(({ s, khatam, sisa, pct, todayHal, verOrtu, verGuru, lembaga, todayData }) => `
         <tr class="hover:bg-slate-50 cursor-pointer rekap-row" data-lembaga="${lembaga}" onclick="closeModal(); selectStudentForMutabaah(${s.id})">
             <td class="px-3 py-3">
                 <div class="font-semibold text-slate-800 text-xs">${s.name}</div>
                 <div class="text-[10px] text-slate-400">${lembaga || '—'}</div>
+                <!-- Mini Session Indicator Dots -->
+                <div class="flex gap-1 mt-1 mb-1">
+                    ${prayerConfigs.map(p => {
+                        const hasEntry = todayData?.entries && todayData.entries[p.id];
+                        return `<div class="w-2 h-2 rounded-full shadow-sm border border-black/5 ${hasEntry ? 'bg-emerald-500' : 'bg-slate-200'}" title="${p.name}"></div>`;
+                    }).join('')}
+                </div>
                 <div class="w-full bg-slate-100 rounded-full h-1 mt-1">
                     <div class="bg-emerald-400 h-1 rounded-full" style="width:${pct}%"></div>
                 </div>
