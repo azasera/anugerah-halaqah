@@ -90,7 +90,8 @@ const appSettings = {
         }
     },
     /** Libur sekolah global: { start: 'YYYY-MM-DD', end: 'YYYY-MM-DD' } — semua lembaga dianggap libur */
-    schoolBreak: null
+    schoolBreak: null,
+    periode: "2023/2024" // Keterangan periode tahun ajaran
 };
 
 // Helper to apply settings with migration logic
@@ -125,6 +126,10 @@ function applySettings(savedSettings) {
 
     if (savedSettings.schoolBreak !== undefined) {
         appSettings.schoolBreak = savedSettings.schoolBreak;
+    }
+
+    if (savedSettings.periode !== undefined) {
+        appSettings.periode = savedSettings.periode;
     }
 }
 
