@@ -453,10 +453,16 @@ function renderTilawahLembaga(container, lembaga) {
     }
 
     const medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣'];
+    const maxHal = students[0].totalHal || 1; // Rank 1 as reference
+
     const rows = students.map((s, i) => {
-        const { khatam, sisa, pct } = typeof getTilawahKhatamInfo === 'function'
+        const { khatam, sisa } = typeof getTilawahKhatamInfo === 'function'
             ? getTilawahKhatamInfo(s.totalHal)
-            : { khatam: Math.floor(s.totalHal / 604), sisa: s.totalHal % 604, pct: Math.round((s.totalHal % 604) / 604 * 100) };
+            : { khatam: Math.floor(s.totalHal / 604), sisa: s.totalHal % 604 };
+            
+        // Calculate relative progress bar width based on top student
+        const relativePct = Math.round((s.totalHal / maxHal) * 100);
+        
         const label = khatam > 0 ? `${khatam}x Khatam + ${sisa} hal` : `${sisa} / 604 hal`;
         return `
             <div class="flex items-center gap-3 bg-white/10 backdrop-blur-sm rounded-xl p-3 border border-white/20">
@@ -464,8 +470,8 @@ function renderTilawahLembaga(container, lembaga) {
                 <div class="flex-1 min-w-0">
                     <div class="font-bold text-white text-sm truncate">${s.name}</div>
                     <div class="text-white/60 text-[10px]">${s.halaqah || ''}</div>
-                    <div class="mt-1 w-full bg-white/20 rounded-full h-1.5">
-                        <div class="bg-yellow-300 h-1.5 rounded-full" style="width:${pct}%"></div>
+                    <div class="mt-1 w-full bg-white/20 rounded-full h-1.5 overflow-hidden">
+                        <div class="bg-gradient-to-r from-yellow-400 to-yellow-200 h-1.5 rounded-full transition-all duration-1000" style="width:${relativePct}%"></div>
                     </div>
                 </div>
                 <div class="text-right flex-shrink-0">
