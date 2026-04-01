@@ -529,6 +529,14 @@ function showAdminSettings() {
                 
                 <div id="content-lembaga" class="admin-tab-content hidden">
                     <h3 class="font-bold text-xl text-slate-800 mb-4">Pengaturan Lembaga</h3>
+                    <div class="bg-indigo-50 rounded-xl p-4 mb-4 border border-indigo-200">
+                        <label class="font-bold text-indigo-900 mb-2 block">Keterangan Periode</label>
+                        <input type="text" id="periodeInput" value="${appSettings.periode || ''}" 
+                            onchange="updatePeriode(this.value)"
+                            class="w-full px-3 py-2 rounded-lg border border-indigo-300 focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-medium" 
+                            placeholder="Misal: Semester Genap 2023/2024">
+                        <p class="text-[10px] text-indigo-600 mt-1">Keterangan ini akan ditampilkan pada header aplikasi.</p>
+                    </div>
                     ${getSchoolBreakPanelHtml()}
                     <div class="space-y-2 max-h-96 overflow-y-auto custom-scrollbar">
                         ${lembagaList}
@@ -1105,6 +1113,14 @@ function generateAdminSettingsContent() {
                 
                 <div id="content-inline-lembaga" class="admin-tab-inline-content hidden">
                     <h4 class="font-bold text-xl text-slate-800 mb-4">Pengaturan Lembaga</h4>
+                    <div class="bg-indigo-50 rounded-xl p-4 mb-4 border border-indigo-200">
+                        <label class="font-bold text-indigo-900 mb-2 block">Keterangan Periode</label>
+                        <input type="text" id="periodeInputInline" value="${appSettings.periode || ''}" 
+                            onchange="updatePeriode(this.value)"
+                            class="w-full px-3 py-2 rounded-lg border border-indigo-300 focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-medium" 
+                            placeholder="Misal: Semester Genap 2023/2024">
+                        <p class="text-[10px] text-indigo-600 mt-1">Keterangan ini akan ditampilkan pada header aplikasi.</p>
+                    </div>
                     ${getSchoolBreakPanelHtml()}
                     <div class="space-y-2 max-h-96 overflow-y-auto custom-scrollbar">
                         ${lembagaList}
@@ -1337,6 +1353,16 @@ function updateLembaga(key, field, value) {
         showNotification('✅ Pengaturan lembaga diperbarui');
     }
 }
+
+function updatePeriode(value) {
+    appSettings.periode = value;
+    saveSettings();
+    showNotification('✅ Keterangan Periode diperbarui');
+    if (typeof updateAppPeriodeDisplay === 'function') {
+        updateAppPeriodeDisplay();
+    }
+}
+window.updatePeriode = updatePeriode;
 
 function resetSettings() {
     if (confirm('Reset semua pengaturan ke default? Ini tidak akan menghapus data santri.')) {

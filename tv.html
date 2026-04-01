@@ -148,9 +148,15 @@
                     </div>
                     <div>
                         <h1 class="text-xl md:text-4xl font-black tracking-tight uppercase">Anugrah Halaqah Qur'an</h1>
-                        <p id="currentDate"
-                            class="text-slate-400 text-xs md:text-lg uppercase tracking-wider md:tracking-widest font-bold">
-                        </p>
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <p id="currentDate"
+                                class="text-slate-400 text-xs md:text-lg uppercase tracking-wider md:tracking-widest font-bold mt-1">
+                            </p>
+                            <span class="app-periode-container hidden" style="display: none;">
+                                <span class="hidden md:inline text-slate-500 font-bold">•</span>
+                                <span class="app-periode-text text-yellow-500 normal-case font-bold px-2 py-0.5 rounded-md bg-slate-800/50 text-xs md:text-sm border border-slate-700/50"></span>
+                            </span>
+                        </div>
                     </div>
                 </div>
 
@@ -608,6 +614,17 @@
             // Update date
             updateDate();
             setInterval(updateDate, 60000);
+
+            // Update Periode
+            if (window.appSettings && window.appSettings.periode) {
+                const container = document.querySelector('.app-periode-container');
+                const textEl = document.querySelector('.app-periode-text');
+                if (container && textEl) {
+                    textEl.textContent = window.appSettings.periode;
+                    container.classList.remove('hidden');
+                    container.style.display = 'inline-flex';
+                }
+            }
 
             // Show first slide
             showSlide(0);

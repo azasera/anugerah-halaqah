@@ -178,6 +178,10 @@ async function loadSettings() {
                 if (typeof renderAdminSettings === 'function' && document.getElementById('settingsContainer')) {
                     renderAdminSettings();
                 }
+
+                if (typeof updateAppPeriodeDisplay === 'function') {
+                    updateAppPeriodeDisplay();
+                }
             }
         } catch (e) {
             console.error('Error syncing settings:', e);

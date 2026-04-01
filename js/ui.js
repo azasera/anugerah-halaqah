@@ -474,6 +474,34 @@ async function toHijri(date) {
     }
 }
 
+function updateAppPeriodeDisplay() {
+    const periodeEls = document.querySelectorAll('.app-periode');
+    const periodeText = window.appSettings?.periode || '';
+    periodeEls.forEach(el => {
+        el.textContent = periodeText;
+        if (!periodeText) {
+            el.parentElement.classList.add('hidden');
+        } else {
+            el.parentElement.classList.remove('hidden');
+        }
+    });
+
+    // Handle string formatting for different layouts
+    const periodeContainers = document.querySelectorAll('.app-periode-container');
+    periodeContainers.forEach(container => {
+        if (!periodeText) {
+            container.classList.add('hidden');
+            container.style.display = 'none';
+        } else {
+            container.classList.remove('hidden');
+            container.style.display = 'inline-flex';
+            const textNode = container.querySelector('.app-periode-text');
+            if(textNode) textNode.textContent = periodeText;
+        }
+    });
+}
+window.updateAppPeriodeDisplay = updateAppPeriodeDisplay;
+
 async function updateDateTime() {
     const now = new Date();
     const optionsDate = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
