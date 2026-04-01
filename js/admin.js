@@ -2224,10 +2224,16 @@ async function forceSyncTilawahToSupabase() {
     showNotification('🔄 Sedang memaksa sinkronisasi tilawah...', 'info');
 
     try {
-        const results = await Promise.all([
-            window.syncStudentsToSupabase ? window.syncStudentsToSupabase() : Promise.resolve({ status: 'not_available' }),
-            window.syncTilawahToSupabase ? window.syncTilawahToSupabase() : Promise.resolve({ status: 'not_available' })
-        ]);
+        // Sync students first, then tilawah to avoid Foreign Key violations
+        const studentResult = window.syncStudentsToSupabase ? await window.syncStudentsToSupabase() : { status: 'not_available' };
+        
+        if (studentResult.status === 'error') {
+            throw new Error('Gagal mensinkronkan data santri: ' + (studentResult.error?.message || 'Unknown error'));
+        }
+        
+        const tilawahResult = window.syncTilawahToSupabase ? await window.syncTilawahToSupabase() : { status: 'not_available' };
+        
+        const results = [studentResult, tilawahResult];
 
         const allOk = results.every(r => r && (r.status === 'success' || r.status === 'not_available'));
 

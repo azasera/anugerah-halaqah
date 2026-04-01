@@ -1,5 +1,5 @@
-// Supabase Configuration and Logic
 // Consolidated from fix-setoran-sync.js and original supabase.js
+console.log('✅ Supabase.js loaded v25');
 
 const SUPABASE_URL = 'https://klhegwunosmryqozuahc.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtsaGVnd3Vub3Ntcnlxb3p1YWhjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3Mjg3NDcsImV4cCI6MjA4NjMwNDc0N30.0X54jxpMZI9eilDxfJ7FYUGImuN-TEH9qGQkdRTtRXw';
@@ -410,21 +410,39 @@ async function syncTilawahToSupabase() {
 
     try {
         console.log('🔄 Syncing tilawah history...');
-        const dataToUpsert = dashboardData.tilawah.map(t => ({
-            student_id: t.studentId,
-            date: t.date,
-            entries: t.entries || {},
-            summary: t.summary || {},
-            approval: t.approval || { ortu: { status: false }, guru: { status: false } }
-        }));
+        
+        // 1. Get valid student IDs from local data
+        const localStudentIds = new Set((dashboardData.students || []).map(s => String(s.id)));
+        
+        const dataToUpsert = dashboardData.tilawah
+            .filter(t => {
+                const isValid = localStudentIds.has(String(t.studentId));
+                if (!isValid) console.warn(`⏭️ Skipping orphan tilawah for studentId ${t.studentId}`);
+                return isValid;
+            })
+            .map(t => ({
+                student_id: t.studentId,
+                date: t.date,
+                entries: t.entries || {},
+                summary: t.summary || {},
+                approval: t.approval || { ortu: { status: false }, guru: { status: false } }
+            }));
+
+        if (dataToUpsert.length === 0) {
+            console.log('✅ No valid tilawah records to sync');
+            return { status: 'success' };
+        }
+
+        // Deduplicate data by student_id and date to avoid 409 conflict within the same batch
+        const uniqueData = Array.from(new Map(dataToUpsert.map(item => [`${item.student_id}_${item.date}`, item])).values());
 
         // Use batch upsert for tilawah
         const BATCH_SIZE = 50;
-        for (let i = 0; i < dataToUpsert.length; i += BATCH_SIZE) {
-            const batch = dataToUpsert.slice(i, i + BATCH_SIZE);
+        for (let i = 0; i < uniqueData.length; i += BATCH_SIZE) {
+            const batch = uniqueData.slice(i, i + BATCH_SIZE);
             const { error } = await window.supabaseClient
                 .from('tilawah')
-                .upsert(batch, { onConflict: 'student_id, date' });
+                .upsert(batch, { onConflict: 'student_id,date' }); // No space after comma
             
             if (error) throw error;
         }
@@ -477,6 +495,7 @@ async function loadTilawahFromSupabase() {
 // Enable Realtime Subscription
 function enableRealtimeSubscription() {
     if (!window.supabaseClient) return;
+    console.log('🚀 Supabase Client Initialized v25');
     if (window._supabaseRealtimeSubscribed) {
         console.log('[Realtime] Sudah aktif — lewati');
         return;
@@ -822,11 +841,16 @@ async function manualFullSync() {
     
     showNotification('🔄 Sedang sinkronisasi data ke Supabase...', 'info');
     try {
-        await Promise.all([
-            syncHalaqahsToSupabase(),
-            syncStudentsToSupabase(),
-            typeof syncUsersToSupabase === 'function' ? syncUsersToSupabase() : Promise.resolve()
-        ]);
+        // Sync students first, then tilawah to avoid Foreign Key violations
+        const studentResult = window.syncStudentsToSupabase ? await window.syncStudentsToSupabase() : { status: 'not_available' };
+        
+        if (studentResult.status === 'error') {
+            throw new Error('Gagal mensinkronkan data santri: ' + (studentResult.error?.message || 'Unknown error'));
+        }
+        
+        const tilawahResult = window.syncTilawahToSupabase ? await window.syncTilawahToSupabase() : { status: 'not_available' };
+        
+        const results = [studentResult, tilawahResult];
         
         // Reload fresh data from server after upload to ensure perfect sync
         await Promise.all([

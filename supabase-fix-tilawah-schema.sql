@@ -78,16 +78,20 @@ BEGIN
         CREATE POLICY "Enable read access for all users" ON tilawah FOR SELECT USING (true);
     END IF;
 
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'tilawah' AND policyname = 'Enable insert for authenticated users') THEN
-        CREATE POLICY "Enable insert for authenticated users" ON tilawah FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'tilawah' AND policyname = 'Enable insert for anon') THEN
+        CREATE POLICY "Enable insert for anon" ON tilawah FOR INSERT WITH CHECK (true);
     END IF;
 
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'tilawah' AND policyname = 'Enable update for authenticated users') THEN
-        CREATE POLICY "Enable update for authenticated users" ON tilawah FOR UPDATE USING (auth.role() = 'authenticated');
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'tilawah' AND policyname = 'Enable update for anon') THEN
+        CREATE POLICY "Enable update for anon" ON tilawah FOR UPDATE USING (true);
     END IF;
 
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'tilawah' AND policyname = 'Enable delete for authenticated users') THEN
-        CREATE POLICY "Enable delete for authenticated users" ON tilawah FOR DELETE USING (auth.role() = 'authenticated');
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'tilawah' AND policyname = 'Enable delete for anon') THEN
+        CREATE POLICY "Enable delete for anon" ON tilawah FOR DELETE USING (true);
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'tilawah' AND policyname = 'Enable all for authenticated users') THEN
+        CREATE POLICY "Enable all for authenticated users" ON tilawah FOR ALL TO authenticated USING (true);
     END IF;
 END $$;
 

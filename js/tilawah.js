@@ -311,6 +311,14 @@ function renderMutabaahDashboard() {
                 <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
                 Grafik & Riwayat Quran
             </button>
+
+            <!-- Rekap Tilawah Button (For Guru/Admin) -->
+            ${(role === 'guru' || role === 'admin') ? `
+            <button onclick="showRekapTilawahGuru()" class="w-full p-4 bg-emerald-50 border-2 border-emerald-100 text-emerald-700 rounded-2xl font-bold flex items-center justify-center gap-3 shadow-sm active:scale-95 transition-all">
+                <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                📊 Rekap Tilawah Guru
+            </button>
+            ` : ''}
         </div>
     `;
 
@@ -665,7 +673,7 @@ function approveMutabaah(role, studentId) {
 }
 
 function showRekapTilawahGuru() {
-    const profile = window.currentProfile;
+    const profile = (typeof window.currentProfile === 'function') ? window.currentProfile() : (window.currentProfile || null);
     const role = profile ? profile.role : null;
     let students = Array.isArray(dashboardData.students) ? dashboardData.students : [];
     if (role === 'guru' && typeof getStudentsForCurrentUser === 'function') {
@@ -1125,6 +1133,9 @@ window.selectStudentForMutabaah = selectStudentForMutabaah;
 window.filterMutabaahStudentList = filterMutabaahStudentList;
 window.showMutabaahHistory = showMutabaahHistory;
 
+window.showRekapTilawahGuru = showRekapTilawahGuru;
+window.filterRekapLembaga = filterRekapLembaga;
+
 // Keep old names for compatibility during transition if needed
 window.initTilawahData = initMutabaahData;
 window.showTilawahSection = showMutabaahSection;
@@ -1135,3 +1146,4 @@ window.approveTilawah = approveMutabaah;
 window.selectStudentForTilawah = selectStudentForMutabaah;
 window.filterTilawahStudentList = filterMutabaahStudentList;
 window.showTilawahHistory = showMutabaahHistory;
+window.showRekapTilawah = showRekapTilawahGuru;

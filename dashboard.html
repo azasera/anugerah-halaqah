@@ -210,6 +210,18 @@
                     <span class="font-semibold text-sm">🏆 Peringkat & Data</span>
                 </button>
 
+                <!-- Rekap Tilawah (Laporan Semua Santri) -->
+                <button onclick="window.showRekapTilawahGuru ? window.showRekapTilawahGuru() : showNotification('Fungsi rekap belum siap', 'warning')"
+                    class="sidebar-menu-item w-full flex items-center gap-3 px-3 py-3 rounded-lg text-left"
+                    data-sidebar-section="rekap-tilawah">
+                    <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
+                        </path>
+                    </svg>
+                    <span class="font-bold text-sm">📊 Rekap Tilawah</span>
+                </button>
+
                 <button onclick="scrollToSection('stats')"
                     class="sidebar-menu-item w-full flex items-center gap-3 px-3 py-3 rounded-lg text-left"
                     data-sidebar-section="stats">
@@ -483,11 +495,14 @@
                 <div id="ranking-tabs-container"
                     class="col-span-12 flex bg-white/50 p-1 rounded-2xl border border-slate-200 mb-2">
                     <button onclick="showRankingSubSection('halaqah')" id="btn-rank-halaqah"
-                        class="flex-1 py-3 rounded-xl font-bold bg-emerald-600 text-white shadow-lg shadow-emerald-200 transition-all text-sm">🏆
+                        class="flex-1 py-3 rounded-xl font-bold bg-emerald-600 text-white shadow-lg shadow-emerald-200 transition-all text-xs md:text-sm">🏆
                         Halaqah</button>
                     <button onclick="showRankingSubSection('santri')" id="btn-rank-santri"
-                        class="flex-1 py-3 rounded-xl font-bold text-slate-500 transition-all text-sm hover:text-slate-700">👤
+                        class="flex-1 py-3 rounded-xl font-bold text-slate-500 transition-all text-xs md:text-sm hover:text-slate-700">👤
                         Santri</button>
+                    <button onclick="window.showRekapTilawahGuru ? window.showRekapTilawahGuru() : showNotification('Fungsi rekap belum siap', 'warning')" 
+                        class="flex-1 py-3 rounded-xl font-bold text-slate-500 transition-all text-xs md:text-sm hover:text-slate-700">📊 
+                        Rekap</button>
                 </div>
 
                 <!-- Halaqah Content (Re-uses existing ID but managed in new layout) -->
@@ -709,7 +724,7 @@
 
     <script src="js/settings.js"></script>
     <script src="js/data.js?v=15"></script>
-    <script src="js/supabase.js?v=22"></script>
+    <script src="js/supabase.js?v=25"></script>
     <script src="js/auth.js?v=2"></script>
     <script src="js/setoran-harian.js"></script>
     <script src="js/mta-setoran-sync.js?v=3"></script>
