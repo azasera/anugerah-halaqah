@@ -176,8 +176,19 @@ function renderHalaqahRankings() {
     const rawQ = searchEl && searchEl.value ? String(searchEl.value).trim() : '';
     const q = rawQ.toLowerCase();
 
+    // Deduplication lokal: jika ada nama sama, ambil id terbesar (terakhir masuk)
+    const _nameMap = new Map();
+    dashboardData.halaqahs.forEach(h => {
+        const key = (h.name || '').trim().toLowerCase();
+        const existing = _nameMap.get(key);
+        if (!existing || Number(h.id) > Number(existing.id)) {
+            _nameMap.set(key, h);
+        }
+    });
+    const _dedupedHalaqahs = Array.from(_nameMap.values());
+
     // For public view, only show top 3
-    let halaqahsToShow = isLoggedIn ? [...dashboardData.halaqahs] : dashboardData.halaqahs.slice(0, 3);
+    let halaqahsToShow = isLoggedIn ? [..._dedupedHalaqahs] : _dedupedHalaqahs.slice(0, 3);
 
     // Apply role-based visibility restrictions for Guru/Ortu
     if (isLoggedIn && typeof currentProfile !== 'undefined' && currentProfile) {

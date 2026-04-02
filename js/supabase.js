@@ -220,8 +220,23 @@ async function loadHalaqahsFromSupabase() {
 
         if (data && data.length > 0) {
             console.log(`✅ Loaded ${data.length} halaqahs from Supabase`);
-            dashboardData.halaqahs = data;
-            dashboardData.stats.totalHalaqahs = data.length;
+
+            // Deduplication: jika ada nama halaqah yang sama, ambil data terakhir masuk (id terbesar)
+            const nameMap = new Map();
+            data.forEach(h => {
+                const key = (h.name || '').trim().toLowerCase();
+                const existing = nameMap.get(key);
+                if (!existing || Number(h.id) > Number(existing.id)) {
+                    nameMap.set(key, h);
+                }
+            });
+            const deduped = Array.from(nameMap.values());
+            if (deduped.length < data.length) {
+                console.warn(`⚠️ Deduplikasi halaqah: ${data.length} → ${deduped.length} (hapus ${data.length - deduped.length} duplikat)`);
+            }
+
+            dashboardData.halaqahs = deduped;
+            dashboardData.stats.totalHalaqahs = deduped.length;
 
             if (typeof recalculateRankings === 'function') recalculateRankings();
             StorageManager.save();
@@ -400,6 +415,46 @@ async function syncHalaqahsToSupabase() {
 
     } catch (error) {
         console.error('Halaqah sync failed:', error);
+    }
+}
+
+// Hapus duplikat halaqah dari Supabase — simpan id terbesar per nama
+async function cleanupDuplicateHalaqahs() {
+    if (!window.supabaseClient || !navigator.onLine) return;
+    try {
+        const { data, error } = await window.supabaseClient.from('halaqahs').select('*');
+        if (error) throw error;
+
+        const nameMap = new Map();
+        const toDelete = [];
+        data.forEach(h => {
+            const key = (h.name || '').trim().toLowerCase();
+            const existing = nameMap.get(key);
+            if (!existing) {
+                nameMap.set(key, h);
+            } else if (Number(h.id) > Number(existing.id)) {
+                toDelete.push(existing.id);
+                nameMap.set(key, h);
+            } else {
+                toDelete.push(h.id);
+            }
+        });
+
+        if (toDelete.length === 0) {
+            console.log('✅ Tidak ada duplikat halaqah');
+            return;
+        }
+
+        const { error: delError } = await window.supabaseClient
+            .from('halaqahs')
+            .delete()
+            .in('id', toDelete);
+
+        if (delError) throw delError;
+        console.log(`✅ Hapus ${toDelete.length} duplikat halaqah dari Supabase`);
+        await loadHalaqahsFromSupabase();
+    } catch (err) {
+        console.error('cleanupDuplicateHalaqahs error:', err);
     }
 }
 
@@ -872,6 +927,7 @@ window.loadStudentsFromSupabase = loadStudentsFromSupabase;
 window.loadHalaqahsFromSupabase = loadHalaqahsFromSupabase;
 window.syncStudentsToSupabase = syncStudentsToSupabase;
 window.syncHalaqahsToSupabase = syncHalaqahsToSupabase;
+window.cleanupDuplicateHalaqahs = cleanupDuplicateHalaqahs;
 window.syncTilawahToSupabase = syncTilawahToSupabase;
 window.loadTilawahFromSupabase = loadTilawahFromSupabase;
 window.autoSync = autoSync;

@@ -54,14 +54,26 @@ function renderLaporanSection() {
         return sumB - sumA;
     });
 
+    // Helper for formatting hafalan exactly like other pages
+    const formatHafalanLocal = (val) => {
+        if (!val && val !== 0) return '0';
+        const num = Number(val);
+        return isNaN(num) ? String(val) : num.toLocaleString('id-ID');
+    };
+
     const rowsHtml = rows.map((r, i) => {
         const rowLembaga = (typeof window.normalizeLembagaKey === 'function') ? window.normalizeLembagaKey(r.s.lembaga || '') : (r.s.lembaga || '');
+        const currentHafalan = formatHafalanLocal(r.s.total_hafalan) + ' Juz';
+
         return `
             <tr class="hover:bg-slate-50 transition-colors border-b border-slate-100 last:border-0 bg-white">
                 <td class="px-4 py-3 text-sm font-bold text-slate-400 text-center">${i + 1}</td>
                 <td class="px-4 py-3">
                     <div class="font-bold text-slate-800 text-sm">${r.s.name}</div>
                     <div class="text-[10px] text-slate-400 font-medium">${rowLembaga} - Halaqah ${r.s.halaqah || '?'}</div>
+                </td>
+                <td class="px-4 py-3 text-center">
+                    <div class="font-bold text-purple-600">${currentHafalan}</div>
                 </td>
                 <td class="px-4 py-3 text-center">
                     <div class="font-bold text-blue-600">${r.setoranCount}x Setoran</div>
@@ -87,7 +99,11 @@ function renderLaporanSection() {
                     </h3>
                     <p class="text-sm text-slate-500 mt-1">Ziyadah, Murojaah, dan Tilawah Santri</p>
                 </div>
-                <div class="flex items-center gap-3">
+                <div class="flex flex-wrap items-center gap-3">
+                    <button onclick="refreshDataForLaporan(this)" class="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md shadow-emerald-200 transition-all flex items-center gap-2">
+                        <svg class="w-4 h-4" id="syncIconLaporan" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                        Sinkronisasi API
+                    </button>
                     <button onclick="exportLaporanToExcel()" class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md shadow-indigo-200 transition-all flex items-center gap-2">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
                         Export Excel
@@ -130,13 +146,14 @@ function renderLaporanSection() {
                         <tr class="text-[10px] uppercase font-black text-indigo-800 tracking-wider">
                             <th class="px-4 py-3.5 text-center w-12">No</th>
                             <th class="px-4 py-3.5 w-64">Nama & Halaqah</th>
+                            <th class="px-4 py-3.5 text-center">Total Hafalan</th>
                             <th class="px-4 py-3.5 text-center">Ziyadah (Setoran)</th>
                             <th class="px-4 py-3.5 text-center">Murojaah</th>
                             <th class="px-4 py-3.5 text-center">Tilawah</th>
                         </tr>
                     </thead>
                     <tbody>
-                        ${rowsHtml || '<tr><td colspan="5" class="py-12 text-center text-slate-400 italic">Belum ada data di rentang waktu ini</td></tr>'}
+                        ${rowsHtml || '<tr><td colspan="6" class="py-12 text-center text-slate-400 italic">Belum ada data di rentang waktu ini</td></tr>'}
                     </tbody>
                 </table>
             </div>
@@ -163,3 +180,54 @@ function exportLaporanToExcel() {
 
 window.renderLaporanSection = renderLaporanSection;
 window.exportLaporanToExcel = exportLaporanToExcel;
+
+async function refreshDataForLaporan(btn) {
+    if (btn) {
+        btn.disabled = true;
+        const icon = btn.querySelector('#syncIconLaporan');
+        if (icon) {
+            icon.classList.add('animate-spin');
+        }
+    }
+    
+    try {
+        // 1. Coba narik auto-sync MTA Harian jika rolenya admin/guru
+        if (window.MTASetoranSync && typeof window.MTASetoranSync.runAutoSyncIfNeeded === 'function') {
+            // Karena fungsi ini ada bypass per hari, kita bisa paksa sync hari ini
+            const today = window.MTASetoranSync.getLocalDateISO();
+            await window.MTASetoranSync.syncDate(today);
+            localStorage.setItem('mta_setoran_last_attempt_date', today);
+        }
+        
+        // 2. Ambil data terbaru dari server (Supabase)
+        if (window.refreshAllData) {
+            await window.refreshAllData();
+        } else {
+            // Fallback
+            if(window.loadStudentsFromSupabase && window.loadTilawahFromSupabase) {
+                await Promise.all([window.loadStudentsFromSupabase(), window.loadTilawahFromSupabase()]);
+            }
+        }
+        
+        // 3. Render ulang UI Laporan Terpadu
+        renderLaporanSection();
+        
+        if (typeof showNotification === 'function') {
+            showNotification('Data Laporan Terpadu berhasil disinkronisasi & diperbarui', 'success');
+        }
+    } catch (e) {
+        console.error('Laporan Sync Error: ', e);
+        if (typeof showNotification === 'function') {
+            showNotification('Gagal mensinkronisasikan data: ' + e.message, 'error');
+        }
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            const icon = btn.querySelector('#syncIconLaporan');
+            if (icon) {
+                icon.classList.remove('animate-spin');
+            }
+        }
+    }
+}
+window.refreshDataForLaporan = refreshDataForLaporan;
