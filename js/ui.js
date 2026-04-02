@@ -64,6 +64,7 @@ function getTargetHafalanJuz(student) {
 let currentSort = 'rank';
 let currentHalaqahFilter = 'all';
 let currentLembagaFilter = 'all';
+let currentGenderFilter = 'all';
 
 function generateStatsHTML() {
     let stats = calculateStats();
@@ -286,8 +287,9 @@ function renderSantri(searchTerm = "") {
     console.log('Search term:', searchTerm);
     console.log('Current halaqah filter:', currentHalaqahFilter);
     console.log('Current lembaga filter:', currentLembagaFilter);
+    console.log('Current gender filter:', currentGenderFilter);
 
-    let filtered = filterStudents(searchTerm, currentHalaqahFilter, currentLembagaFilter);
+    let filtered = filterStudents(searchTerm, currentHalaqahFilter, currentLembagaFilter, currentGenderFilter);
     console.log('After filterStudents:', filtered.length);
 
     // REMOVED: Lembaga filter for parents - they can now see all students
@@ -350,6 +352,12 @@ function renderSantri(searchTerm = "") {
         const isAlumni = student.is_alumni === true ||
             ((kategoriHasAlumni || statusHasAlumni) && !(kategoriHasNon || statusHasNon));
         const alumniInline = isAlumni ? ' · <span class="text-amber-600 font-semibold">Alumni</span>' : '';
+        
+        let rawGender = (student.jenis_kelamin || '').toUpperCase().trim();
+        let genderLabel = '';
+        if (rawGender.includes('L') || rawGender.includes('PUTRA') || rawGender === 'LAKI-LAKI') genderLabel = 'L';
+        else if (rawGender.includes('P') || rawGender.includes('PUTRI') || rawGender === 'PEREMPUAN') genderLabel = 'P';
+        const genderInline = genderLabel ? ` · <span class="text-indigo-600 font-bold">${genderLabel}</span>` : '';
 
         const row = document.createElement('tr');
         row.className = "hover:bg-slate-50/80 transition-colors group cursor-pointer";
@@ -371,7 +379,7 @@ function renderSantri(searchTerm = "") {
                 <div>
                     <div class="font-bold text-slate-800 group-hover:text-primary-600 transition-colors">${student.name}</div>
                     <div class="text-xs text-slate-500 mt-0.5">
-                        ${student.halaqah}${student.kelas ? ' · ' + student.kelas : ''}${alumniInline}
+                        ${student.halaqah}${student.kelas ? ' · ' + student.kelas : ''}${genderInline}${alumniInline}
                     </div>
                 </div>
             </td>
@@ -716,6 +724,20 @@ function renderFilters() {
                     </svg>
                 </div>
             </div>
+
+            <div class="relative flex-shrink-0">
+                <select onchange="setFilter('gender', this.value)" 
+                    class="appearance-none bg-white border border-slate-200 text-slate-700 py-2 pl-4 pr-10 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent font-medium shadow-sm hover:border-primary-300 transition-colors cursor-pointer text-sm">
+                    <option value="all" ${currentGenderFilter === 'all' ? 'selected' : ''}>Semua Kelamin</option>
+                    <option value="L" ${currentGenderFilter === 'L' ? 'selected' : ''}>Putra (L)</option>
+                    <option value="P" ${currentGenderFilter === 'P' ? 'selected' : ''}>Putri (P)</option>
+                </select>
+                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-500">
+                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                    </svg>
+                </div>
+            </div>
         </div>
     `;
 }
@@ -756,6 +778,8 @@ function setFilter(type, value) {
     } else if (type === 'lembaga') {
         currentLembagaFilter = value;
         sanitizeHalaqahFilterAfterLembagaChange();
+    } else if (type === 'gender') {
+        currentGenderFilter = value;
     }
 
     renderFilters();

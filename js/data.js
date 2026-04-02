@@ -143,7 +143,7 @@ function detectStudentLembaga(s) {
 }
 
 // Data filtering and sorting functions
-function filterStudents(searchTerm, halaqahFilter = 'all', lembagaFilter = 'all') {
+function filterStudents(searchTerm, halaqahFilter = 'all', lembagaFilter = 'all', genderFilter = 'all') {
     let filtered = dashboardData.students;
 
     if (searchTerm) {
@@ -172,6 +172,15 @@ function filterStudents(searchTerm, halaqahFilter = 'all', lembagaFilter = 'all'
              const key = normalizeLembagaKey(lembagaFilter);
              filtered = filtered.filter(s => detectStudentLembaga(s) === key);
         }
+    }
+
+    if (genderFilter !== 'all') {
+        filtered = filtered.filter(s => {
+            let sg = (s.jenis_kelamin || '').toUpperCase().trim();
+            if (sg.includes('L') || sg.includes('PUTRA') || sg === 'LAKI-LAKI') sg = 'L';
+            else if (sg.includes('P') || sg.includes('PUTRI') || sg === 'PEREMPUAN') sg = 'P';
+            return sg === genderFilter;
+        });
     }
 
     return filtered;
@@ -302,13 +311,44 @@ recalculateRankings();
 function recalculateRankings() {
     reconcileStudentHalaqahReferences();
 
-    // Sort students by points
-    dashboardData.students.sort((a, b) => b.total_points - a.total_points);
+    // Group students by Lembaga and Jenis Kelamin for partitioned rankings
+    const groups = {};
+    
+    // Default fallback array for students to avoid NaN errors
+    dashboardData.students.forEach(student => {
+        student.overall_ranking = 0;
+        student.daily_ranking = 0;
+        
+        let lembaga = detectStudentLembaga(student) || 'MTA';
+        let gender = (student.jenis_kelamin || '').toUpperCase().trim();
+        if (gender.includes('L') || gender.includes('PUTRA') || gender === 'LAKI-LAKI') {
+            gender = 'L';
+        } else if (gender.includes('P') || gender.includes('PUTRI') || gender === 'PEREMPUAN') {
+            gender = 'P';
+        } else {
+            gender = 'UNKNOWN'; // Unassigned fallback
+        }
+        
+        const key = `${lembaga}_${gender}`;
+        if (!groups[key]) groups[key] = [];
+        groups[key].push(student);
+    });
 
-    // Update rankings
-    dashboardData.students.forEach((student, index) => {
-        student.overall_ranking = index + 1;
-        student.daily_ranking = index + 1;
+    // Rank separately within each group based on total points
+    Object.values(groups).forEach(group => {
+        group.sort((a, b) => b.total_points - a.total_points);
+        group.forEach((student, index) => {
+            student.overall_ranking = index + 1;
+            student.daily_ranking = index + 1; // Assuming daily_ranking defaults to overall
+        });
+    });
+
+    // Sort the entire list globally for rendering order, but preserve their partitioned rank
+    dashboardData.students.sort((a, b) => {
+        if (a.overall_ranking !== b.overall_ranking) {
+            return a.overall_ranking - b.overall_ranking;
+        }
+        return b.total_points - a.total_points;
     });
 
     // Recalculate halaqah stats (anggota dari santri aktual, bukan kolom members dari DB)
