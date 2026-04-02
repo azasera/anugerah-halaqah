@@ -15,14 +15,10 @@ async function createSetoran(santriId, halaqahId, poin, keterangan = '') {
     }
 
     try {
-        // Generate ID
-        const id = Date.now() + Math.floor(Math.random() * 1000);
-
         // Get current user
         const { data: { user } } = await window.supabaseClient.auth.getUser();
 
         const setoran = {
-            id: id,
             santri_id: santriId,
             halaqah_id: halaqahId,
             tanggal: new Date().toISOString().split('T')[0],

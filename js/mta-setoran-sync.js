@@ -75,18 +75,12 @@ const MTASetoranSync = {
         let lastErr = null;
 
         for (const route of ROUTES) {
-            const urls = [
-                `${API_BASE}/${route}/${encodeURIComponent(date)}`,
-                `${API_BASE}/${route}?tanggal=${encodeURIComponent(date)}`,
-                `${API_BASE}/${route}?date=${encodeURIComponent(date)}`
-            ];
+            const url = `${API_BASE}/${route}/${encodeURIComponent(date)}`;
 
-            let routeSuccess = false;
-            for (const url of urls) {
-                try {
-                    console.log(`[SYNC] GET ${url}`);
-                    const response = await fetch(url, { method: 'GET', credentials: 'omit' });
-                    const text = await response.text();
+            try {
+                console.log(`[SYNC] GET ${url}`);
+                const response = await fetch(url, { method: 'GET', credentials: 'omit' });
+                const text = await response.text();
                     let json;
                     try {
                         json = text ? JSON.parse(text) : {};
@@ -107,21 +101,16 @@ const MTASetoranSync = {
                         continue;
                     }
 
-                    const payload = parseApiPayload(json);
-                    for (const guru in payload) {
-                        if (!mergedData[guru]) mergedData[guru] = {};
-                        Object.assign(mergedData[guru], payload[guru]);
-                    }
-                    
-                    routeSuccess = true;
-                    successCount++;
-                    break;
-                } catch (e) {
-                    lastErr = e;
+                const payload = parseApiPayload(json);
+                for (const guru in payload) {
+                    if (!mergedData[guru]) mergedData[guru] = {};
+                    Object.assign(mergedData[guru], payload[guru]);
                 }
-            }
-            if (!routeSuccess) {
-                console.warn(`[SYNC] Gagal fetch dari route /${route}`);
+                
+                successCount++;
+            } catch (e) {
+                lastErr = e;
+                console.warn(`[SYNC] Gagal fetch dari route /${route}:`, e.message);
             }
         }
         
@@ -308,17 +297,14 @@ const MTASetoranSync = {
                         if (isToday) {
                             await window.SetoranHarian.create(student.id, halaqahId, poin, keterangan);
                         } else {
-                            const sid = Date.now() + Math.floor(Math.random() * 1000);
                             const waktuSetor = normalizeJamToTime(dateStr, record.jamSetoran);
                             const row = {
-                                id: sid,
                                 santri_id: student.id,
                                 halaqah_id: halaqahId,
                                 tanggal: dateStr,
                                 waktu_setor: waktuSetor,
                                 poin: poin,
-                                keterangan: keterangan,
-                                created_by: null
+                                keterangan: keterangan
                             };
 
                             const { error: insErr } = await window.supabaseClient
