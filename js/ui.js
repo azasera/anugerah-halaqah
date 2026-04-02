@@ -355,8 +355,8 @@ function renderSantri(searchTerm = "") {
         
         let rawGender = (student.jenis_kelamin || '').toUpperCase().trim();
         let genderLabel = '';
-        if (rawGender.includes('L') || rawGender.includes('PUTRA') || rawGender === 'LAKI-LAKI') genderLabel = 'L';
-        else if (rawGender.includes('P') || rawGender.includes('PUTRI') || rawGender === 'PEREMPUAN') genderLabel = 'P';
+        if (rawGender.includes('IKHWAN') || rawGender.includes('L') || rawGender.includes('PUTRA') || rawGender === 'LAKI-LAKI') genderLabel = 'L';
+        else if (rawGender.includes('AKHWAT') || rawGender.includes('P') || rawGender.includes('PUTRI') || rawGender === 'PEREMPUAN') genderLabel = 'P';
         const genderInline = genderLabel ? ` · <span class="text-indigo-600 font-bold">${genderLabel}</span>` : '';
 
         const row = document.createElement('tr');
@@ -729,8 +729,8 @@ function renderFilters() {
                 <select onchange="setFilter('gender', this.value)" 
                     class="appearance-none bg-white border border-slate-200 text-slate-700 py-2 pl-4 pr-10 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent font-medium shadow-sm hover:border-primary-300 transition-colors cursor-pointer text-sm">
                     <option value="all" ${currentGenderFilter === 'all' ? 'selected' : ''}>Semua Kelamin</option>
-                    <option value="L" ${currentGenderFilter === 'L' ? 'selected' : ''}>Putra (L)</option>
-                    <option value="P" ${currentGenderFilter === 'P' ? 'selected' : ''}>Putri (P)</option>
+                    <option value="L" ${currentGenderFilter === 'L' ? 'selected' : ''}>Ikhwan (L)</option>
+                    <option value="P" ${currentGenderFilter === 'P' ? 'selected' : ''}>Akhwat (P)</option>
                 </select>
                 <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-500">
                     <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

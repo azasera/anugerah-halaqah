@@ -146,6 +146,17 @@ function detectStudentLembaga(s) {
 function filterStudents(searchTerm, halaqahFilter = 'all', lembagaFilter = 'all', genderFilter = 'all') {
     let filtered = dashboardData.students;
 
+    // Enforce role-based data restriction for Guru and Ortu
+    if (typeof currentProfile !== 'undefined' && currentProfile && 
+       (currentProfile.role === 'guru' || currentProfile.role === 'ortu')) {
+        if (typeof getStudentsForCurrentUser === 'function') {
+            const restricted = getStudentsForCurrentUser();
+            // If getStudentsForCurrentUser returns empty (meaning no matched students/halaqah), 
+            // we should strictly return empty, not fallback to all.
+            filtered = restricted;
+        }
+    }
+
     if (searchTerm) {
         filtered = filtered.filter(s =>
             s.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -177,8 +188,8 @@ function filterStudents(searchTerm, halaqahFilter = 'all', lembagaFilter = 'all'
     if (genderFilter !== 'all') {
         filtered = filtered.filter(s => {
             let sg = (s.jenis_kelamin || '').toUpperCase().trim();
-            if (sg.includes('L') || sg.includes('PUTRA') || sg === 'LAKI-LAKI') sg = 'L';
-            else if (sg.includes('P') || sg.includes('PUTRI') || sg === 'PEREMPUAN') sg = 'P';
+            if (sg.includes('IKHWAN') || sg.includes('L') || sg.includes('PUTRA') || sg === 'LAKI-LAKI') sg = 'L';
+            else if (sg.includes('AKHWAT') || sg.includes('P') || sg.includes('PUTRI') || sg === 'PEREMPUAN') sg = 'P';
             return sg === genderFilter;
         });
     }
@@ -321,9 +332,9 @@ function recalculateRankings() {
         
         let lembaga = detectStudentLembaga(student) || 'MTA';
         let gender = (student.jenis_kelamin || '').toUpperCase().trim();
-        if (gender.includes('L') || gender.includes('PUTRA') || gender === 'LAKI-LAKI') {
+        if (gender.includes('IKHWAN') || gender.includes('L') || gender.includes('PUTRA') || gender === 'LAKI-LAKI') {
             gender = 'L';
-        } else if (gender.includes('P') || gender.includes('PUTRI') || gender === 'PEREMPUAN') {
+        } else if (gender.includes('AKHWAT') || gender.includes('P') || gender.includes('PUTRI') || gender === 'PEREMPUAN') {
             gender = 'P';
         } else {
             gender = 'UNKNOWN'; // Unassigned fallback

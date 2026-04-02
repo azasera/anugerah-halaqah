@@ -418,7 +418,7 @@ function renderTilawahLembaga(container, lembaga) {
     }
 
     console.log(`📊 [Slider] Checking tilawah for ${lembaga}`);
-    const students = dashboardData.students
+    const allInLembaga = dashboardData.students
         .filter(s => {
             const l = (typeof window.detectStudentLembaga === 'function')
                 ? window.detectStudentLembaga(s)
@@ -439,49 +439,82 @@ function renderTilawahLembaga(container, lembaga) {
             
             const totalHal = Number(s.total_tilawah_hal || 0) || calcTotal;
             
-            return { ...s, totalHal };
+            let gender = (s.jenis_kelamin || '').toUpperCase().trim();
+            if (gender.includes('IKHWAN') || gender.includes('L') || gender.includes('PUTRA') || gender === 'LAKI-LAKI') gender = 'L';
+            else if (gender.includes('AKHWAT') || gender.includes('P') || gender.includes('PUTRI') || gender === 'PEREMPUAN') gender = 'P';
+            else gender = 'U'; // Unknown
+            
+            return { ...s, totalHal, gender };
         })
-        .filter(s => s.totalHal > 0)
-        .sort((a, b) => b.totalHal - a.totalHal)
-        .slice(0, 5);
+        .filter(s => s.totalHal > 0);
 
-    console.log(`📊 [Slider] Found ${students.length} students with tilawah in ${lembaga}`);
+    // Treat unknown gender (U) as Ikhwan to prevent data from disappearing
+    const putra = allInLembaga.filter(s => s.gender === 'L' || s.gender === 'U').sort((a, b) => b.totalHal - a.totalHal).slice(0, 3);
+    const putri = allInLembaga.filter(s => s.gender === 'P').sort((a, b) => b.totalHal - a.totalHal).slice(0, 3);
 
-    if (students.length === 0) {
+    console.log(`📊 [Slider] Found ${putra.length} Putra and ${putri.length} Putri in ${lembaga}`);
+
+    if (putra.length === 0 && putri.length === 0) {
         container.innerHTML = `<div class="flex items-center justify-center h-full text-white/50 text-sm">Belum ada data tilawah ${lembaga}</div>`;
         return;
     }
 
-    const medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣'];
-    const maxHal = students[0].totalHal || 1; // Rank 1 as reference
-
-    const rows = students.map((s, i) => {
-        const { khatam, sisa } = typeof getTilawahKhatamInfo === 'function'
-            ? getTilawahKhatamInfo(s.totalHal)
-            : { khatam: Math.floor(s.totalHal / 604), sisa: s.totalHal % 604 };
-            
-        // Calculate relative progress bar width based on top student
-        const relativePct = Math.round((s.totalHal / maxHal) * 100);
+    const renderColumn = (santriList, title) => {
+        if (santriList.length === 0) return `<div class="bg-white/10 backdrop-blur-sm rounded-xl p-2.5 md:p-3 border border-white/20 h-full flex items-center justify-center text-white/50 text-xs">${title} Kosong</div>`;
         
-        const label = khatam > 0 ? `${khatam}x Khatam + ${sisa} hal` : `${sisa} / 604 hal`;
-        return `
-            <div class="flex items-center gap-3 bg-white/10 backdrop-blur-sm rounded-xl p-3 border border-white/20">
-                <div class="text-2xl flex-shrink-0">${medals[i]}</div>
-                <div class="flex-1 min-w-0">
-                    <div class="font-bold text-white text-sm truncate">${s.name}</div>
-                    <div class="text-white/60 text-[10px]">${s.halaqah || ''}</div>
-                    <div class="mt-1 w-full bg-white/20 rounded-full h-1.5 overflow-hidden">
-                        <div class="bg-gradient-to-r from-yellow-400 to-yellow-200 h-1.5 rounded-full transition-all duration-1000" style="width:${relativePct}%"></div>
-                    </div>
-                </div>
-                <div class="text-right flex-shrink-0">
-                    ${khatam > 0 ? `<div class="text-yellow-300 font-black text-xs">🏆${khatam}x</div>` : ''}
-                    <div class="text-white/80 text-[10px] font-bold">${label}</div>
-                </div>
-            </div>`;
-    }).join('');
+        const medals = ['🥇', '🥈', '🥉'];
+        const maxHal = santriList[0].totalHal || 1; 
 
-    container.innerHTML = `<div class="space-y-2">${rows}</div>`;
+        const rows = santriList.map((s, i) => {
+            const { khatam, sisa } = typeof getTilawahKhatamInfo === 'function'
+                ? getTilawahKhatamInfo(s.totalHal)
+                : { khatam: Math.floor(s.totalHal / 604), sisa: s.totalHal % 604 };
+                
+            const relativePct = Math.round((s.totalHal / maxHal) * 100);
+            const label = khatam > 0 ? `${khatam}x Katam +${sisa}` : `${sisa}/604`;
+
+            return `
+                <div class="flex items-center gap-2 mb-2 last:mb-0">
+                    <div class="text-xl flex-shrink-0">${medals[i]}</div>
+                    <div class="flex-1 min-w-0">
+                        <div class="font-bold text-white text-[11px] md:text-xs truncate">${s.name}</div>
+                        <div class="mt-1 w-full bg-white/20 rounded-full h-1 overflow-hidden">
+                            <div class="bg-gradient-to-r from-yellow-400 to-yellow-200 h-1 rounded-full transition-all duration-1000" style="width:${relativePct}%"></div>
+                        </div>
+                    </div>
+                    <div class="text-right flex-shrink-0">
+                        ${khatam > 0 ? `<div class="text-yellow-300 font-black text-[9px]">🏆${khatam}x</div>` : ''}
+                        <div class="text-emerald-300 text-[10px] font-bold">${label}</div>
+                    </div>
+                </div>`;
+        }).join('');
+
+        return `
+            <div class="bg-white/10 backdrop-blur-sm rounded-xl p-2.5 md:p-3 border border-white/20 flex flex-col">
+                <div class="text-[11px] md:text-xs font-bold ${title === 'Ikhwan' ? 'text-blue-300' : 'text-pink-300'} mb-1.5 md:mb-2 uppercase tracking-wider border-b border-white/10 pb-1">${title}</div>
+                <div class="flex-1">${rows}</div>
+            </div>
+        `;
+    };
+
+    let columnsHtml = '';
+    // Special exception: MTA doesn't have Akhwat
+    if (lembaga.toUpperCase().trim() === 'MTA') {
+        columnsHtml = `
+            <div class="grid grid-cols-1 gap-2 h-full">
+                ${renderColumn(putra, 'Ikhwan')}
+            </div>
+        `;
+    } else {
+        columnsHtml = `
+            <div class="grid grid-cols-2 gap-2 h-full">
+                ${renderColumn(putra, 'Ikhwan')}
+                ${renderColumn(putri, 'Akhwat')}
+            </div>
+        `;
+    }
+
+    container.innerHTML = columnsHtml;
 }
 
 function nextSlide() {

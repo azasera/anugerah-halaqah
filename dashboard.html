@@ -215,7 +215,6 @@
                     <span class="font-semibold text-sm">🏆 Peringkat & Data</span>
                 </button>
 
-                <!-- Rekap Tilawah (Laporan Semua Santri) -->
                 <button onclick="window.showRekapTilawahGuru ? window.showRekapTilawahGuru() : showNotification('Fungsi rekap belum siap', 'warning')"
                     class="sidebar-menu-item w-full flex items-center gap-3 px-3 py-3 rounded-lg text-left"
                     data-sidebar-section="rekap-tilawah">
@@ -225,6 +224,16 @@
                         </path>
                     </svg>
                     <span class="font-bold text-sm">📊 Rekap Tilawah</span>
+                </button>
+
+                <!-- Laporan Terpadu -->
+                <button onclick="scrollToSection('laporan')"
+                    class="sidebar-menu-item w-full flex items-center gap-3 px-3 py-3 rounded-lg text-left"
+                    data-sidebar-section="laporan">
+                    <svg class="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                    <span class="font-bold text-sm">📝 Laporan Terpadu</span>
                 </button>
 
                 <button onclick="scrollToSection('stats')"
@@ -498,6 +507,16 @@
             </div>
         </section>
 
+        <!-- Laporan Terpadu Section -->
+        <section id="laporan" class="hidden">
+            <div id="laporanContainer" class="space-y-6">
+                <!-- Content populated via js/laporan.js -->
+                <div class="flex items-center justify-center py-12">
+                    <div class="text-slate-400 italic">Memuat Laporan...</div>
+                </div>
+            </div>
+        </section>
+
         <!-- Ranking & Data Terpadu Section -->
         <section id="ranking" class="hidden">
             <div class="grid grid-cols-12 gap-6">
@@ -748,6 +767,7 @@
     <script src="js/setoran.js"></script>
     <script src="alqur'an/quran_page_map.js"></script>
     <script src="js/tilawah.js"></script>
+    <script src="js/laporan.js?v=1"></script>
     <script src="js/auto-poin.js?v=12"></script>
     <script src="js/absence.js"></script>
     <script src="js/admin.js?v=18"></script>

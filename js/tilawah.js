@@ -301,10 +301,12 @@ function renderMutabaahDashboard() {
                              <span class="text-xl text-amber-600">🔄</span>
                              <span class="text-[10px]">Murojaah</span>
                         </button>
+                        ${(role === 'guru' || role === 'admin') ? `
                         <button onclick="openSetPosisiTilawah(${student.id})" class="flex items-center justify-center flex-col gap-1.5 p-3 bg-slate-50 text-slate-600 rounded-xl font-bold hover:bg-slate-100 transition-all border border-slate-200 active:scale-95">
                             <span class="text-xl">✏️</span>
                             <span class="text-[10px]">Update Tilawah</span>
                         </button>
+                        ` : ''}
                     </div>
                 </div>
             </div>
@@ -729,11 +731,15 @@ function showRekapTilawahGuru() {
         const verGuru = todayData?.approval?.guru?.status ? '✅' : '—';
         const lembaga = (typeof window.normalizeLembagaKey === 'function')
             ? window.normalizeLembagaKey(s.lembaga || '') : (s.lembaga || '');
-        return { s, totalHal, khatam, sisa, pct, todayHal, verOrtu, verGuru, lembaga, todayData };
+        let gender = (s.jenis_kelamin || '').toUpperCase().trim();
+        if (gender.includes('IKHWAN') || gender.includes('L') || gender.includes('PUTRA') || gender === 'LAKI-LAKI') gender = 'L';
+        else if (gender.includes('AKHWAT') || gender.includes('P') || gender.includes('PUTRI') || gender === 'PEREMPUAN') gender = 'P';
+        else gender = '';
+        return { s, totalHal, khatam, sisa, pct, todayHal, verOrtu, verGuru, lembaga, gender, todayData };
     }).sort((a, b) => b.totalHal - a.totalHal);
 
-    const tableRows = rows.map(({ s, khatam, sisa, pct, todayHal, verOrtu, verGuru, lembaga, todayData }) => `
-        <tr class="hover:bg-slate-50 cursor-pointer rekap-row" data-lembaga="${lembaga}" onclick="closeModal(); selectStudentForMutabaah(${s.id})">
+    const tableRows = rows.map(({ s, khatam, sisa, pct, todayHal, verOrtu, verGuru, lembaga, gender, todayData }) => `
+        <tr class="hover:bg-slate-50 cursor-pointer rekap-row" data-lembaga="${lembaga}" data-gender="${gender}" onclick="closeModal(); selectStudentForMutabaah(${s.id})">
             <td class="px-3 py-3">
                 <div class="font-semibold text-slate-800 text-xs">${s.name}</div>
                 <div class="text-[10px] text-slate-400">${lembaga || '—'}</div>
@@ -772,17 +778,27 @@ function showRekapTilawahGuru() {
             </div>
 
             <!-- Filter Lembaga -->
-            <div class="flex gap-2 flex-wrap mb-4">
-                <button onclick="filterRekapLembaga('')" id="rekap-filter-all"
+            <div class="flex gap-2 flex-wrap mb-2">
+                <button onclick="window.rekapLembaga=''; applyRekapFilters()" id="rekap-filter-all"
                     class="px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 text-white transition-all">Semua</button>
-                <button onclick="filterRekapLembaga('SDITA')" id="rekap-filter-SDITA"
+                <button onclick="window.rekapLembaga='SDITA'; applyRekapFilters()" id="rekap-filter-SDITA"
                     class="px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all">SDITA</button>
-                <button onclick="filterRekapLembaga('SMPITA')" id="rekap-filter-SMPITA"
+                <button onclick="window.rekapLembaga='SMPITA'; applyRekapFilters()" id="rekap-filter-SMPITA"
                     class="px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all">SMPITA</button>
-                <button onclick="filterRekapLembaga('SMAITA')" id="rekap-filter-SMAITA"
+                <button onclick="window.rekapLembaga='SMAITA'; applyRekapFilters()" id="rekap-filter-SMAITA"
                     class="px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all">SMAITA</button>
-                <button onclick="filterRekapLembaga('MTA')" id="rekap-filter-MTA"
+                <button onclick="window.rekapLembaga='MTA'; applyRekapFilters()" id="rekap-filter-MTA"
                     class="px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all">MTA</button>
+            </div>
+
+            <!-- Filter Kelamin -->
+            <div class="flex gap-2 flex-wrap mb-4">
+                <button onclick="window.rekapGender=''; applyRekapFilters()" id="rekap-gender-all"
+                    class="px-3 py-1.5 rounded-xl text-xs font-bold bg-indigo-600 text-white transition-all">Semua JK</button>
+                <button onclick="window.rekapGender='L'; applyRekapFilters()" id="rekap-gender-L"
+                    class="px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all">Ikhwan (L)</button>
+                <button onclick="window.rekapGender='P'; applyRekapFilters()" id="rekap-gender-P"
+                    class="px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all">Akhwat (P)</button>
             </div>
 
             <!-- Summary stats -->
@@ -824,8 +840,11 @@ function showRekapTilawahGuru() {
     createModal(content, false);
 }
 
-function filterRekapLembaga(lembaga) {
-    // Update tombol aktif
+function applyRekapFilters() {
+    const lembaga = window.rekapLembaga || '';
+    const gender = window.rekapGender || '';
+
+    // Update tombol lembaga
     ['', 'SDITA', 'SMPITA', 'SMAITA', 'MTA'].forEach(l => {
         const btn = document.getElementById(`rekap-filter-${l || 'all'}`);
         if (!btn) return;
@@ -836,15 +855,31 @@ function filterRekapLembaga(lembaga) {
         }
     });
 
+    // Update tombol gender
+    ['', 'L', 'P'].forEach(g => {
+        const btn = document.getElementById(`rekap-gender-${g || 'all'}`);
+        if (!btn) return;
+        if (g === gender) {
+            btn.className = 'px-3 py-1.5 rounded-xl text-xs font-bold bg-indigo-600 text-white transition-all';
+        } else {
+            btn.className = 'px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all';
+        }
+    });
+
     // Filter baris tabel
     const rows = document.querySelectorAll('#rekapTilawahBody .rekap-row');
     let isi = 0, belum = 0, khatam = 0;
     rows.forEach(row => {
         const rowLembaga = row.dataset.lembaga || '';
-        const show = !lembaga || rowLembaga === lembaga;
+        const rowGender = row.dataset.gender || '';
+        
+        const matchLembaga = !lembaga || rowLembaga === lembaga;
+        const matchGender = !gender || rowGender === gender;
+        const show = matchLembaga && matchGender;
+        
         row.style.display = show ? '' : 'none';
+        
         if (show) {
-            // Update stats dari visible rows
             const todayCell = row.cells[2]?.textContent?.trim();
             const totalCell = row.cells[1]?.textContent?.trim();
             if (todayCell && todayCell !== '—') isi++;
@@ -854,12 +889,9 @@ function filterRekapLembaga(lembaga) {
     });
 
     // Update stats
-    const statIsi = document.getElementById('rekap-stat-isi');
-    const statBelum = document.getElementById('rekap-stat-belum');
-    const statKhatam = document.getElementById('rekap-stat-khatam');
-    if (statIsi) statIsi.textContent = isi;
-    if (statBelum) statBelum.textContent = belum;
-    if (statKhatam) statKhatam.textContent = khatam;
+    document.getElementById('rekap-stat-isi').textContent = isi;
+    document.getElementById('rekap-stat-belum').textContent = belum;
+    document.getElementById('rekap-stat-khatam').textContent = khatam;
 }
 
 function renderStudentSelectionForMutabaah() {
@@ -1176,7 +1208,7 @@ window.filterMutabaahStudentList = filterMutabaahStudentList;
 window.showMutabaahHistory = showMutabaahHistory;
 
 window.showRekapTilawahGuru = showRekapTilawahGuru;
-window.filterRekapLembaga = filterRekapLembaga;
+window.applyRekapFilters = applyRekapFilters;
 
 // Keep old names for compatibility during transition if needed
 window.initTilawahData = initMutabaahData;

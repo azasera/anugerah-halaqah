@@ -62,7 +62,7 @@ function scrollToSection(section, subSection) {
     // Use requestAnimationFrame for smooth transition
     requestAnimationFrame(() => {
         // Hide all sections first
-        const sections = ['home', 'stats', 'poinRules', 'absensi', 'settings', 'users', 'profile', 'mutabaah', 'ranking'];
+        const sections = ['home', 'stats', 'poinRules', 'absensi', 'settings', 'users', 'profile', 'mutabaah', 'ranking', 'laporan'];
         sections.forEach(s => {
             const element = document.getElementById(s);
             if (element) {
@@ -138,6 +138,11 @@ function scrollToSection(section, subSection) {
                         if (standaloneContainer) {
                             standaloneContainer.innerHTML = statsHtml;
                         }
+                    }
+                    break;
+                case 'laporan':
+                    if (typeof window.renderLaporanSection === 'function') {
+                        window.renderLaporanSection();
                     }
                     break;
                 case 'halaqah':
