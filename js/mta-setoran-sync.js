@@ -52,11 +52,11 @@ function parseApiPayload(json) {
     return out;
 }
 
-function isMtaLembaga(lembaga) {
+function isSupportedLembaga(lembaga) {
     const normalized = (typeof window.normalizeLembagaKey === 'function')
         ? window.normalizeLembagaKey(lembaga)
         : String(lembaga || '').trim().toUpperCase();
-    return normalized === 'MTA';
+    return ['MTA', 'SDITA', 'SMPITA', 'SMAITA'].includes(normalized);
 }
 
 const MTASetoranSync = {
@@ -67,45 +67,68 @@ const MTASetoranSync = {
      * @param {string} date - Format YYYY-MM-DD
      */
     async fetchFromAPI(date) {
-        const base = getMtaApiBase().replace(/\/$/, '');
-        const urls = [
-            `${base}/${encodeURIComponent(date)}`,
-            `${base}?tanggal=${encodeURIComponent(date)}`,
-            `${base}?date=${encodeURIComponent(date)}`
-        ];
-
+        const API_BASE = 'https://asia-southeast1-mootabaah.cloudfunctions.net/api/setoran';
+        const ROUTES = ['mta', 'sd', 'smp', 'sma'];
+        
+        let mergedData = {};
+        let successCount = 0;
         let lastErr = null;
-        for (const url of urls) {
-            try {
-                console.log(`[MTA-SYNC] GET ${url}`);
-                const response = await fetch(url, { method: 'GET', credentials: 'omit' });
-                const text = await response.text();
-                let json;
+
+        for (const route of ROUTES) {
+            const urls = [
+                `${API_BASE}/${route}/${encodeURIComponent(date)}`,
+                `${API_BASE}/${route}?tanggal=${encodeURIComponent(date)}`,
+                `${API_BASE}/${route}?date=${encodeURIComponent(date)}`
+            ];
+
+            let routeSuccess = false;
+            for (const url of urls) {
                 try {
-                    json = text ? JSON.parse(text) : {};
-                } catch {
-                    throw new Error(`Respons bukan JSON (HTTP ${response.status})`);
-                }
+                    console.log(`[SYNC] GET ${url}`);
+                    const response = await fetch(url, { method: 'GET', credentials: 'omit' });
+                    const text = await response.text();
+                    let json;
+                    try {
+                        json = text ? JSON.parse(text) : {};
+                    } catch {
+                        throw new Error(`Respons bukan JSON (HTTP ${response.status})`);
+                    }
 
-                if (response.status === 404) {
-                    lastErr = new Error('Endpoint API tidak ditemukan (404). Pastikan route /api/setoran/mta sudah aktif di backend.');
-                    continue;
-                }
-                if (!response.ok) {
-                    lastErr = new Error(json.error || json.message || `HTTP ${response.status}`);
-                    continue;
-                }
-                if (json.error && Object.keys(parseApiPayload(json)).length === 0) {
-                    lastErr = new Error(json.error || 'API mengembalikan error');
-                    continue;
-                }
+                    if (response.status === 404) {
+                        lastErr = new Error(`Endpoint API tidak ditemukan (404) untuk /${route}`);
+                        continue;
+                    }
+                    if (!response.ok) {
+                        lastErr = new Error(json.error || json.message || `HTTP ${response.status}`);
+                        continue;
+                    }
+                    if (json.error && Object.keys(parseApiPayload(json)).length === 0) {
+                        lastErr = new Error(json.error || 'API mengembalikan error');
+                        continue;
+                    }
 
-                return parseApiPayload(json);
-            } catch (e) {
-                lastErr = e;
+                    const payload = parseApiPayload(json);
+                    for (const guru in payload) {
+                        if (!mergedData[guru]) mergedData[guru] = {};
+                        Object.assign(mergedData[guru], payload[guru]);
+                    }
+                    
+                    routeSuccess = true;
+                    successCount++;
+                    break;
+                } catch (e) {
+                    lastErr = e;
+                }
+            }
+            if (!routeSuccess) {
+                console.warn(`[SYNC] Gagal fetch dari route /${route}`);
             }
         }
-        throw lastErr || new Error('Gagal mengambil data dari API MTA');
+        
+        if (successCount === 0) {
+            throw lastErr || new Error('Gagal mengambil data dari semua API rute (MTA, SD, SMP, SMA)');
+        }
+        return mergedData;
     },
 
     normalizeName(name) {
@@ -151,8 +174,8 @@ const MTASetoranSync = {
         }
 
         const students = window.dashboardData && window.dashboardData.students;
-        if (!students || !students.some(s => isMtaLembaga(s.lembaga))) {
-            return { skipped: true, reason: 'no_mta_students' };
+        if (!students || !students.some(s => isSupportedLembaga(s.lembaga))) {
+            return { skipped: true, reason: 'no_supported_students' };
         }
 
         let result;
@@ -166,9 +189,9 @@ const MTASetoranSync = {
             ? window.showSyncStatus.bind(window)
             : null;
         if (result && result.success && result.created > 0 && notify) {
-            notify(`☁️ Setoran MTA: +${result.created} entri dari API`, 'success');
+            notify(`☁️ Setoran dari API: +${result.created} entri`, 'success');
         } else if (result && !result.success && !result.skipped && notify) {
-            notify('⚠️ Sync setoran MTA: ' + (result.error || 'gagal'), 'warning');
+            notify('⚠️ Sync setoran API: ' + (result.error || 'gagal'), 'warning');
         }
 
         return result;
@@ -208,7 +231,7 @@ const MTASetoranSync = {
                 if (window.loadHalaqahsFromSupabase) await window.loadHalaqahsFromSupabase();
             }
 
-            const localStudents = window.dashboardData.students.filter(s => isMtaLembaga(s.lembaga));
+            const localStudents = window.dashboardData.students.filter(s => isSupportedLembaga(s.lembaga));
             const localHalaqahs = window.dashboardData.halaqahs;
 
             let totalProcessed = 0;
