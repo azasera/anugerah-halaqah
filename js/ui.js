@@ -179,6 +179,28 @@ function renderHalaqahRankings() {
     // For public view, only show top 3
     let halaqahsToShow = isLoggedIn ? [...dashboardData.halaqahs] : dashboardData.halaqahs.slice(0, 3);
 
+    // Apply role-based visibility restrictions for Guru/Ortu
+    if (isLoggedIn && typeof currentProfile !== 'undefined' && currentProfile) {
+        if (currentProfile.role === 'guru') {
+             const guruName = (currentProfile.full_name || currentProfile.name || '').toLowerCase().replace(/^(ustadz|ust|u\.)\s*/i, '').trim();
+             halaqahsToShow = halaqahsToShow.filter(h => {
+                  if (!h || !h.guru) return false;
+                  const hGuru = (h.guru || '').toLowerCase().replace(/^(ustadz|ust|u\.)\s*/i, '').trim();
+                  return hGuru === guruName || hGuru.includes(guruName) || guruName.includes(hGuru);
+             });
+        } else if (currentProfile.role === 'ortu') {
+             if (typeof getStudentsForCurrentUser === 'function') {
+                 const allowedStudents = getStudentsForCurrentUser();
+                 const allowedHalaqahNames = allowedStudents.map(s => String(s.halaqah || '').trim().toLowerCase());
+                 halaqahsToShow = halaqahsToShow.filter(h => {
+                     const hName = String(h.name || '').replace(/^Halaqah\s+/i, '').trim().toLowerCase();
+                     const hNameFull = String(h.name || '').trim().toLowerCase();
+                     return allowedHalaqahNames.includes(hName) || allowedHalaqahNames.includes(hNameFull);
+                 });
+             }
+        }
+    }
+
     if (q) {
         halaqahsToShow = halaqahsToShow.filter((h) => {
             const name = (h.name || '').toLowerCase();
