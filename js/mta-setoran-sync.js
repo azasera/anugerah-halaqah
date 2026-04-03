@@ -72,6 +72,7 @@ const MTASetoranSync = {
         
         let mergedData = {};
         let successCount = 0;
+        let notFoundCount = 0; // 404 = belum ada data, bukan error
         let lastErr = null;
 
         for (const route of ROUTES) {
@@ -89,7 +90,9 @@ const MTASetoranSync = {
                     }
 
                     if (response.status === 404) {
-                        lastErr = new Error(`Endpoint API tidak ditemukan (404) untuk /${route}`);
+                        // Normal: belum ada data setoran untuk tanggal/route ini
+                        console.info(`[SYNC] Tidak ada data untuk /${route} (404), lewati.`);
+                        notFoundCount++;
                         continue;
                     }
                     if (!response.ok) {
@@ -114,9 +117,10 @@ const MTASetoranSync = {
             }
         }
         
-        if (successCount === 0) {
+        if (successCount === 0 && notFoundCount < ROUTES.length) {
             throw lastErr || new Error('Gagal mengambil data dari semua API rute (MTA, SD, SMP, SMA)');
         }
+        // Jika semua 404 (belum ada data hari ini), kembalikan data kosong tanpa error
         return mergedData;
     },
 

@@ -20,13 +20,17 @@ async function createSetoran(santriId, halaqahId, poin, keterangan = '') {
 
         const setoran = {
             santri_id: santriId,
-            halaqah_id: halaqahId,
             tanggal: new Date().toISOString().split('T')[0],
             waktu_setor: new Date().toISOString(),
             poin: poin,
             keterangan: keterangan,
             created_by: user?.id || null
         };
+
+        // Hanya sertakan halaqah_id jika ada (kolom bisa NOT NULL di DB)
+        if (halaqahId !== null && halaqahId !== undefined) {
+            setoran.halaqah_id = halaqahId;
+        }
 
         const { data, error } = await window.supabaseClient
             .from('setoran_harian')
