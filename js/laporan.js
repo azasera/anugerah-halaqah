@@ -181,39 +181,151 @@ function exportLaporanToExcel() {
 window.renderLaporanSection = renderLaporanSection;
 window.exportLaporanToExcel = exportLaporanToExcel;
 
+/**
+ * Sync total_hafalan semua santri dari API mutabaah untuk semua jenjang.
+ * Logika matching sama dengan importTotalHafalanSdFromGuru di excel.js.
+ */
+async function syncTotalHafalanFromAPI() {
+    const API_BASE = 'https://asia-southeast1-mootabaah.cloudfunctions.net/api/totalHafalan2025';
+    const jenjangList = [
+        { slug: 'sd',  lembagaKey: 'SDITA'  },
+        { slug: 'smp', lembagaKey: 'SMPITA' },
+        { slug: 'sma', lembagaKey: 'SMAITA' },
+        { slug: 'mta', lembagaKey: 'MTA'    },
+    ];
+
+    const normalizeName = (name) => {
+        if (!name) return '';
+        return String(name)
+            .replace(/\b([A-Z])\.\s*/g, '$1 ')
+            .toLowerCase()
+            .replace(/[\s\u00A0]+/g, ' ')
+            .trim();
+    };
+
+    const levenshtein = (a, b) => {
+        const m = [], al = a.length, bl = b.length;
+        for (let i = 0; i <= bl; i++) m[i] = [i];
+        for (let j = 0; j <= al; j++) m[0][j] = j;
+        for (let i = 1; i <= bl; i++)
+            for (let j = 1; j <= al; j++)
+                m[i][j] = a[j-1] === b[i-1]
+                    ? m[i-1][j-1]
+                    : 1 + Math.min(m[i-1][j-1], m[i][j-1], m[i-1][j]);
+        return m[bl][al];
+    };
+
+    const similarity = (a, b) => {
+        const len = Math.max(a.length, b.length);
+        return len === 0 ? 100 : ((len - levenshtein(a, b)) / len) * 100;
+    };
+
+    let totalUpdated = 0;
+
+    for (const { slug, lembagaKey } of jenjangList) {
+        try {
+            const res = await fetch(`${API_BASE}/${slug}`);
+            if (!res.ok) { console.warn(`[Laporan] API ${slug} gagal: ${res.status}`); continue; }
+
+            const json = await res.json();
+            const allGuruData = json?.data || {};
+
+            // Filter santri sesuai jenjang
+            const students = (dashboardData.students || []).filter(s => {
+                if (!s) return false;
+                const lem = (typeof window.normalizeLembagaKey === 'function')
+                    ? window.normalizeLembagaKey(s.lembaga || '')
+                    : (s.lembaga || '').toUpperCase();
+                return lem === lembagaKey;
+            });
+
+            if (students.length === 0) continue;
+
+            // Iterasi semua guru → semua santri
+            Object.values(allGuruData).forEach(guruStudents => {
+                const list = Array.isArray(guruStudents)
+                    ? guruStudents
+                    : Object.values(guruStudents || {});
+
+                list.forEach(sd => {
+                    if (!sd || typeof sd !== 'object') return;
+                    const name = String(sd.namaSiswa || sd.nama || '').trim();
+                    if (!name) return;
+
+                    const rawTotal = sd.totalHafalan ?? sd.total_hafalan ?? sd.totalJuz ?? sd.juz;
+                    if (rawTotal === undefined || rawTotal === null || rawTotal === '') return;
+                    const total = parseFloat(rawTotal);
+                    if (isNaN(total)) return;
+
+                    const targetNorm = normalizeName(name);
+
+                    // Exact match dulu, lalu fuzzy
+                    let match = students.find(s => normalizeName(s.name) === targetNorm);
+                    if (!match) {
+                        const best = students
+                            .map(s => ({ s, sim: similarity(targetNorm, normalizeName(s.name)) }))
+                            .filter(x => x.sim > 75)
+                            .sort((a, b) => b.sim - a.sim)[0];
+                        if (best) match = best.s;
+                    }
+
+                    if (match && match.total_hafalan !== total) {
+                        match.total_hafalan = total;
+                        totalUpdated++;
+                    }
+                });
+            });
+
+        } catch (err) {
+            console.warn(`[Laporan] Sync hafalan ${slug} error:`, err);
+        }
+    }
+
+    if (totalUpdated > 0) {
+        StorageManager.save();
+        if (typeof window.syncStudentsToSupabase === 'function') {
+            await window.syncStudentsToSupabase().catch(e => console.warn('[Laporan] Supabase sync error:', e));
+        }
+        console.log(`[Laporan] ✅ Total hafalan diupdate: ${totalUpdated} santri`);
+    }
+
+    return totalUpdated;
+}
+
 async function refreshDataForLaporan(btn) {
     if (btn) {
         btn.disabled = true;
         const icon = btn.querySelector('#syncIconLaporan');
-        if (icon) {
-            icon.classList.add('animate-spin');
-        }
+        if (icon) icon.classList.add('animate-spin');
     }
     
     try {
-        // 1. Coba narik auto-sync MTA Harian jika rolenya admin/guru
-        if (window.MTASetoranSync && typeof window.MTASetoranSync.runAutoSyncIfNeeded === 'function') {
-            // Karena fungsi ini ada bypass per hari, kita bisa paksa sync hari ini
+        // 1. Sync total_hafalan dari API mutabaah semua jenjang
+        if (typeof showNotification === 'function') showNotification('☁️ Mengambil total hafalan dari API...', 'info');
+        const updated = await syncTotalHafalanFromAPI();
+
+        // 2. Sync setoran MTA harian
+        if (window.MTASetoranSync && typeof window.MTASetoranSync.syncDate === 'function') {
             const today = window.MTASetoranSync.getLocalDateISO();
             await window.MTASetoranSync.syncDate(today);
             localStorage.setItem('mta_setoran_last_attempt_date', today);
         }
         
-        // 2. Ambil data terbaru dari server (Supabase)
+        // 3. Ambil data terbaru dari Supabase
         if (window.refreshAllData) {
             await window.refreshAllData();
-        } else {
-            // Fallback
-            if(window.loadStudentsFromSupabase && window.loadTilawahFromSupabase) {
-                await Promise.all([window.loadStudentsFromSupabase(), window.loadTilawahFromSupabase()]);
-            }
+        } else if (window.loadStudentsFromSupabase && window.loadTilawahFromSupabase) {
+            await Promise.all([window.loadStudentsFromSupabase(), window.loadTilawahFromSupabase()]);
         }
         
-        // 3. Render ulang UI Laporan Terpadu
+        // 4. Render ulang
         renderLaporanSection();
         
         if (typeof showNotification === 'function') {
-            showNotification('Data Laporan Terpadu berhasil disinkronisasi & diperbarui', 'success');
+            const msg = updated > 0
+                ? `✅ Sinkronisasi selesai. ${updated} santri diupdate total hafalannya.`
+                : '✅ Data Laporan Terpadu berhasil disinkronisasi.';
+            showNotification(msg, 'success');
         }
     } catch (e) {
         console.error('Laporan Sync Error: ', e);
@@ -224,9 +336,7 @@ async function refreshDataForLaporan(btn) {
         if (btn) {
             btn.disabled = false;
             const icon = btn.querySelector('#syncIconLaporan');
-            if (icon) {
-                icon.classList.remove('animate-spin');
-            }
+            if (icon) icon.classList.remove('animate-spin');
         }
     }
 }
