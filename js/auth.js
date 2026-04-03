@@ -807,6 +807,10 @@ function updateUIBasedOnRole() {
             document.querySelectorAll('[onclick*="scrollToSection(\'absensi\')"]').forEach(el => {
                 el.style.display = 'none';
             });
+            // Hide Laporan Terpadu for Ortu
+            document.querySelectorAll('[data-sidebar-section="laporan"], [onclick*="scrollToSection(\'laporan\')"]').forEach(el => {
+                el.style.display = 'none';
+            });
         }
 
         // Logic for Ortu (Parent) - Find their child
@@ -1183,6 +1187,17 @@ function showPublicUI() {
 
     // Hide Absensi for Public
     document.querySelectorAll('[onclick*="scrollToSection(\'absensi\')"]').forEach(el => {
+        el.style.display = 'none';
+    });
+
+    // Hide Rekap, Laporan Terpadu, dan Mutabaah untuk publik (belum login)
+    document.querySelectorAll('[data-sidebar-section="laporan"], [onclick*="scrollToSection(\'laporan\')"]').forEach(el => {
+        el.style.display = 'none';
+    });
+    document.querySelectorAll('[data-sidebar-section="mutabaah"], [onclick*="scrollToSection(\'mutabaah\')"]').forEach(el => {
+        el.style.display = 'none';
+    });
+    document.querySelectorAll('[data-sidebar-section="rekap-tilawah"], [onclick*="showRekapTilawahGuru"]').forEach(el => {
         el.style.display = 'none';
     });
 

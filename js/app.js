@@ -21,6 +21,14 @@ window.updateActiveNavigation = updateActiveNavigation;
 
 // View Switching Function - must be defined early for onclick handlers
 function scrollToSection(section, subSection) {
+    // Blokir akses publik (belum login) ke section tertentu
+    const isLoggedIn = typeof currentProfile !== 'undefined' && currentProfile;
+    const publicRestricted = ['laporan', 'mutabaah', 'absensi'];
+    if (!isLoggedIn && publicRestricted.includes(section)) {
+        if (typeof showLoginPage === 'function') showLoginPage();
+        return;
+    }
+
     // Get target element first
     let targetElement;
     switch (section) {

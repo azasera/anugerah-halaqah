@@ -9,6 +9,18 @@ function renderLaporanSection() {
     const container = document.getElementById('laporanContainer');
     if (!container) return;
 
+    // Ortu tidak punya akses ke laporan terpadu
+    if (typeof currentProfile !== 'undefined' && currentProfile && currentProfile.role === 'ortu') {
+        container.innerHTML = `
+            <div class="glass rounded-3xl p-12 border border-slate-200 text-center">
+                <div class="text-5xl mb-4">🔒</div>
+                <p class="font-bold text-slate-700 text-lg">Akses Terbatas</p>
+                <p class="text-sm text-slate-500 mt-2">Laporan Terpadu hanya tersedia untuk Admin dan Guru.</p>
+            </div>
+        `;
+        return;
+    }
+
     let students = Array.isArray(dashboardData.students) ? dashboardData.students : [];
     
     // Filter
