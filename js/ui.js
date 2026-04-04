@@ -352,24 +352,30 @@ function renderSantri(searchTerm = "") {
 
     filtered = sortStudents(filtered, currentSort);
 
-    // Hitung display rank berdasarkan posisi aktual dalam list yang dirender
-    // (bukan overall_ranking yang dihitung per-gender, agar tidak ada nomor duplikat)
+    // Hitung display rank berdasarkan posisi aktual dalam list yang dirender.
+    // Aturan: poin berbeda = rank berbeda. Poin sama + hafalan sama = rank sama.
+    // Poin sama tapi hafalan berbeda = rank berbeda (sequential).
     const useDisplayRank = currentSort === 'rank' || currentSort === 'points';
-    let displayRankCounter = 0;
-    let prevPoints = null;
-    let prevRank = 0;
-    const displayRanks = filtered.map(student => {
-        if (useDisplayRank) {
-            displayRankCounter++;
-            // Dense rank: poin sama = rank sama, poin beda = rank naik
-            if (student.total_points !== prevPoints) {
-                prevRank = displayRankCounter;
-                prevPoints = student.total_points;
-            }
-            return prevRank;
+    const displayRanks = [];
+    for (let i = 0; i < filtered.length; i++) {
+        if (!useDisplayRank) {
+            displayRanks.push(filtered[i].overall_ranking);
+            continue;
         }
-        return student.overall_ranking;
-    });
+        if (i === 0) {
+            displayRanks.push(1);
+            continue;
+        }
+        const prev = filtered[i - 1];
+        const curr = filtered[i];
+        const samePoints   = curr.total_points === prev.total_points;
+        const sameHafalan  = Number(curr.total_hafalan  || 0) === Number(prev.total_hafalan  || 0);
+        if (samePoints && sameHafalan) {
+            displayRanks.push(displayRanks[i - 1]); // rank sama
+        } else {
+            displayRanks.push(i + 1); // rank sesuai posisi
+        }
+    }
 
     if (filtered.length === 0) {
         let message = 'Tidak ada data ditemukan';

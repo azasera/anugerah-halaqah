@@ -202,9 +202,16 @@ function sortStudents(students, sortBy = 'rank') {
 
     switch (sortBy) {
         case 'rank':
-            return sorted.sort((a, b) => a.overall_ranking - b.overall_ranking);
+            // Sort by poin desc, lalu hafalan desc sebagai tiebreaker
+            return sorted.sort((a, b) => {
+                if (b.total_points !== a.total_points) return b.total_points - a.total_points;
+                return Number(b.total_hafalan || 0) - Number(a.total_hafalan || 0);
+            });
         case 'points':
-            return sorted.sort((a, b) => b.total_points - a.total_points);
+            return sorted.sort((a, b) => {
+                if (b.total_points !== a.total_points) return b.total_points - a.total_points;
+                return Number(b.total_hafalan || 0) - Number(a.total_hafalan || 0);
+            });
         case 'streak':
             return sorted.sort((a, b) => b.streak - a.streak);
         case 'name':
