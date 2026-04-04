@@ -352,6 +352,25 @@ function renderSantri(searchTerm = "") {
 
     filtered = sortStudents(filtered, currentSort);
 
+    // Hitung display rank berdasarkan posisi aktual dalam list yang dirender
+    // (bukan overall_ranking yang dihitung per-gender, agar tidak ada nomor duplikat)
+    const useDisplayRank = currentSort === 'rank' || currentSort === 'points';
+    let displayRankCounter = 0;
+    let prevPoints = null;
+    let prevRank = 0;
+    const displayRanks = filtered.map(student => {
+        if (useDisplayRank) {
+            displayRankCounter++;
+            // Dense rank: poin sama = rank sama, poin beda = rank naik
+            if (student.total_points !== prevPoints) {
+                prevRank = displayRankCounter;
+                prevPoints = student.total_points;
+            }
+            return prevRank;
+        }
+        return student.overall_ranking;
+    });
+
     if (filtered.length === 0) {
         let message = 'Tidak ada data ditemukan';
 
@@ -372,8 +391,9 @@ function renderSantri(searchTerm = "") {
         return;
     }
 
-    filtered.forEach((student) => {
-        const isTop = student.overall_ranking <= 3;
+    filtered.forEach((student, index) => {
+        const displayRank = displayRanks[index];
+        const isTop = displayRank <= 3;
         const targetJuz = getTargetHafalanJuz(student);
         const hafalanPercent = getHafalanProgressPercent(student.total_hafalan, targetJuz);
         const kategoriStr = String(student.kategori || '').toLowerCase();
@@ -397,14 +417,14 @@ function renderSantri(searchTerm = "") {
         row.onclick = () => showStudentDetail(student);
 
         let rankBadge = '';
-        if (student.overall_ranking === 1) rankBadge = '🥇';
-        else if (student.overall_ranking === 2) rankBadge = '🥈';
-        else if (student.overall_ranking === 3) rankBadge = '🥉';
+        if (displayRank === 1) rankBadge = '🥇';
+        else if (displayRank === 2) rankBadge = '🥈';
+        else if (displayRank === 3) rankBadge = '🥉';
 
         row.innerHTML = `
             <td class="px-6 py-4">
                 <div class="flex items-center gap-2">
-                    <span class="font-display font-bold ${isTop ? 'text-primary-600' : 'text-slate-400'}">#${student.overall_ranking}</span>
+                    <span class="font-display font-bold ${isTop ? 'text-primary-600' : 'text-slate-400'}">#${displayRank}</span>
                     <span>${rankBadge}</span>
                 </div>
             </td>
